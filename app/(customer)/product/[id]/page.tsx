@@ -10,23 +10,14 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const supabase = await createClient();
 
-  console.log('=== PRODUCT PAGE ===');
-  console.log('raw params:', params);
-  console.log('product id:', id);
-
   // Fetch product server-side
   const { data: rawProduct, error: prodError } = await supabase
     .from('vm_products')
-    .select('*, merchant:merchants(store_name, logo_url, avg_delivery_time)')
+    .select('*')
     .eq('id', id)
-    .eq('is_active', true)
     .single();
 
-  console.log('product:', rawProduct?.name);
-  console.log('error:', prodError?.message);
-
   if (prodError || !rawProduct) {
-    console.log('Product not found or error:', prodError?.message);
     notFound();
   }
 
@@ -41,7 +32,18 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     category = data;
   }
 
-  const product: Product = { ...rawProduct, category } as Product;
+  // Fetch merchant separately
+  let merchant = null;
+  if (rawProduct.merchant_id) {
+    const { data } = await supabase
+      .from('merchants')
+      .select('*')
+      .eq('id', rawProduct.merchant_id)
+      .single();
+    merchant = data;
+  }
+
+  const product: Product = { ...rawProduct, category, merchant } as Product;
 
   return <ProductDetailClient product={product} />;
 }
