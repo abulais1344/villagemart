@@ -26,13 +26,18 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     (async () => {
+      console.log('product id received:', id);
+
       // Fetch product without category join
-      const { data: rawProduct } = await supabase
+      const { data: rawProduct, error } = await supabase
         .from('vm_products')
         .select('*, merchant:merchants(store_name, logo_url, avg_delivery_time)')
         .eq('id', id)
         .eq('is_active', true)
         .single();
+
+      console.log('product data:', rawProduct);
+      console.log('product error:', error?.message, error?.code);
 
       if (!rawProduct) {
         setLoading(false);
