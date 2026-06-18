@@ -18,14 +18,23 @@ interface ProductDetailClientProps {
 export function ProductDetailClient({ product }: ProductDetailClientProps) {
   const router = useRouter();
   const [imageIndex, setImageIndex] = useState(0);
-  const { items, addItem, updateQuantity, removeItem } = useCartStore();
+  const [selectedQty, setSelectedQty] = useState(1);
+  const { items, addItem } = useCartStore();
   const cartItem = items.find(i => i.product.id === product.id);
-  const qty = cartItem?.quantity ?? 0;
+  const isInCart = !!cartItem;
   const outOfStock = product.stock_status === 'out_of_stock' || product.stock_quantity === 0;
   const images = product.images?.length ? product.images : [''];
+  const totalPrice = product.selling_price * selectedQty;
+
+  const handleAddToCart = () => {
+    for (let i = 0; i < selectedQty; i++) {
+      addItem(product);
+    }
+    toast.success('Added to cart!');
+  };
 
   return (
-    <div className="min-h-screen bg-white pb-32">
+    <div className="min-h-screen bg-white">
       {/* Back button */}
       <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-sm px-4 py-3 flex items-center justify-between">
         <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-gray-100">
@@ -60,8 +69,9 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         )}
       </div>
 
-      {/* Details */}
-      <div className="px-4 py-4 space-y-4">
+      {/* Details - Scrollable content */}
+      <div className="px-4 py-4 space-y-4 pb-28">
+        {/* Name and status */}
         <div>
           <div className="flex items-start justify-between gap-2">
             <h1 className="text-lg font-bold text-[#1A1A1A] flex-1">{product.name}</h1>
@@ -92,11 +102,44 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           </div>
         )}
 
+        {/* Quantity selector */}
+        {!outOfStock && (
+          <div className="bg-gray-50 rounded-xl p-4">
+            <label className="text-sm font-semibold text-[#1A1A1A] block mb-3">Quantity</label>
+            <div className="flex items-center gap-3 w-fit">
+              <button
+                onClick={() => setSelectedQty(Math.max(1, selectedQty - 1))}
+                className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center text-primary-600 hover:bg-primary-100"
+                disabled={selectedQty <= 1}
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <span className="text-lg font-bold w-8 text-center">{selectedQty}</span>
+              <button
+                onClick={() => setSelectedQty(Math.min(product.stock_quantity, selectedQty + 1))}
+                className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center text-white hover:bg-primary-700"
+                disabled={selectedQty >= product.stock_quantity}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-[#6B7280] mt-2">{product.stock_quantity} available</p>
+          </div>
+        )}
+
         {/* Description */}
         {product.description && (
-          <div>
-            <h3 className="text-sm font-semibold text-[#1A1A1A] mb-1">About this product</h3>
+          <div className="bg-gray-50 rounded-xl p-4">
+            <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">About this product</h3>
             <p className="text-sm text-[#6B7280] leading-relaxed">{product.description}</p>
+          </div>
+        )}
+
+        {/* SKU */}
+        {product.sku && (
+          <div className="bg-gray-50 rounded-xl p-4">
+            <p className="text-xs text-[#6B7280]">SKU</p>
+            <p className="text-sm font-mono text-[#1A1A1A] mt-1">{product.sku}</p>
           </div>
         )}
 
@@ -106,32 +149,24 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         )}
       </div>
 
-      {/* Bottom CTA */}
+      {/* Bottom CTA - Fixed */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E5E7EB] px-4 py-3 safe-bottom">
-        {!outOfStock ? (
-          qty > 0 ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4 bg-primary-600 rounded-xl px-4 py-3">
-                <button onClick={() => qty <= 1 ? removeItem(product.id) : updateQuantity(product.id, qty - 1)}>
-                  <Minus className="w-5 h-5 text-white" />
-                </button>
-                <span className="text-white font-bold text-lg w-8 text-center">{qty}</span>
-                <button onClick={() => updateQuantity(product.id, qty + 1)}>
-                  <Plus className="w-5 h-5 text-white" />
-                </button>
-              </div>
-              <Button onClick={() => router.push('/cart')} size="lg" className="flex-1 ml-3">
-                Go to Cart · {formatCurrency(product.selling_price * qty)}
-              </Button>
-            </div>
-          ) : (
-            <Button fullWidth size="lg" onClick={() => { addItem(product); toast.success('Added to cart!'); }}>
-              <ShoppingCart className="w-5 h-5" /> Add to Cart
-            </Button>
-          )
-        ) : (
+        {outOfStock ? (
           <Button fullWidth size="lg" disabled variant="secondary">
             Out of Stock
+          </Button>
+        ) : isInCart ? (
+          <div className="space-y-2">
+            <Button fullWidth size="lg" onClick={() => router.push('/cart')} variant="secondary">
+              View Cart · {formatCurrency(cartItem.quantity * product.selling_price)}
+            </Button>
+            <Button fullWidth size="lg" onClick={handleAddToCart} variant="outline">
+              <ShoppingCart className="w-5 h-5" /> Add More
+            </Button>
+          </div>
+        ) : (
+          <Button fullWidth size="lg" onClick={handleAddToCart}>
+            <ShoppingCart className="w-5 h-5" /> Add to Cart · {formatCurrency(totalPrice)}
           </Button>
         )}
       </div>
