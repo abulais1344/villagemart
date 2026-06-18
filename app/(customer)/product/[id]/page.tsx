@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation';
-import Image from 'next/image';
 import { createClient } from '@/lib/supabase/server';
 import { ProductDetailClient } from '@/components/customer/ProductDetailClient';
 import type { Product } from '@/types';
@@ -45,5 +44,5 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   const product: Product = { ...rawProduct, category, merchant } as Product;
 
-  return <ProductDetailClient product={product} />;
+  return <ProductDetailClient product={product} category={category} />;
 }
