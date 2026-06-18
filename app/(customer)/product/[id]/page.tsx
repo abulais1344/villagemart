@@ -31,6 +31,7 @@ export default function ProductDetailPage() {
         .from('vm_products')
         .select('*, merchant:merchants(store_name, logo_url, avg_delivery_time)')
         .eq('id', id)
+        .eq('is_active', true)
         .single();
 
       if (!rawProduct) {
