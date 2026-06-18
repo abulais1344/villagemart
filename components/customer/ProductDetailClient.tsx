@@ -30,7 +30,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     for (let i = 0; i < selectedQty; i++) {
       addItem(product);
     }
-    toast.success('Added to cart!');
+    toast.success(`${product.name} added to cart!`);
   };
 
   return (
@@ -90,7 +90,9 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             <span className="text-base text-[#6B7280] line-through">{formatCurrency(product.mrp)}</span>
           )}
           {product.offer_percentage > 0 && (
-            <span className="text-sm font-semibold text-success">{Math.round(product.offer_percentage)}% off</span>
+            <span className="bg-error text-white text-xs font-bold px-2 py-1 rounded-full">
+              {Math.round(product.offer_percentage)}% OFF
+            </span>
           )}
         </div>
 
