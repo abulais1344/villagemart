@@ -169,7 +169,7 @@ export function ProductDetailClient({ product, category }: ProductDetailClientPr
       </div>
 
       {/* Fixed bottom button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E5E7EB] px-4 py-3 safe-bottom">
+      <div className="fixed bottom-16 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 px-4 py-3 bg-white border-t border-[#E5E7EB] safe-bottom">
         {outOfStock ? (
           <button disabled className="w-full py-3 rounded-xl bg-gray-200 text-gray-500 font-semibold text-lg">
             Out of Stock
