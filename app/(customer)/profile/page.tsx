@@ -1,99 +1,180 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, MapPin, ShoppingBag, Heart, Bell, LogOut, ChevronRight, Phone } from 'lucide-react';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { Header } from '@/components/customer/Header';
-import { Spinner } from '@/components/ui/Spinner';
-import { formatPhone } from '@/lib/utils/format';
+import Link from 'next/link';
+import { ArrowLeft, Phone, ClipboardList, ChevronRight, LogOut, Edit2, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const MENU = [
-  { icon: MapPin, label: 'My Addresses', href: '/addresses' },
-  { icon: ShoppingBag, label: 'My Orders', href: '/orders' },
-  { icon: Heart, label: 'Wishlist', href: '/wishlist' },
-  { icon: Bell, label: 'Notifications', href: '/notifications' },
-];
+interface Customer {
+  name: string;
+  phone: string;
+  address: string;
+  landmark: string;
+  area: string;
+}
 
 export default function ProfilePage() {
-  const { user, loading, signOut } = useAuth();
   const router = useRouter();
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<Customer>({ name: '', phone: '', address: '', landmark: '', area: '' });
 
-  const handleSignOut = async () => {
-    await signOut();
-    toast.success('Logged out successfully');
+  useEffect(() => {
+    const raw = localStorage.getItem('vm_customer');
+    if (!raw) { router.push('/auth/login'); return; }
+    const c: Customer = JSON.parse(raw);
+    setCustomer(c);
+    setForm(c);
+  }, [router]);
+
+  if (!customer) return null;
+
+  const openEdit = () => { setForm(customer); setEditing(true); };
+  const cancelEdit = () => setEditing(false);
+
+  const saveEdit = () => {
+    const updated: Customer = { ...form, phone: customer.phone };
+    localStorage.setItem('vm_customer', JSON.stringify(updated));
+    setCustomer(updated);
+    setEditing(false);
+    toast.success('Address updated!');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('vm_customer');
+    localStorage.removeItem('villagemart-cart');
     router.push('/auth/login');
   };
 
-  if (loading) {
-    return (
-      <>
-        <Header />
-        <div className="flex justify-center py-20"><Spinner size="lg" /></div>
-      </>
-    );
-  }
-
-  if (!user) {
-    router.push('/auth/login');
-    return null;
-  }
-
   return (
-    <>
-      <Header />
-      <main className="px-4 py-4 space-y-4">
-        {/* Profile card */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-5">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center">
-              {user.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.avatar_url} alt="Avatar" className="w-full h-full rounded-2xl object-cover" />
-              ) : (
-                <User className="w-8 h-8 text-primary-600" />
-              )}
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-[#1A1A1A]">{user.name ?? 'Customer'}</h2>
-              <div className="flex items-center gap-1 text-sm text-[#6B7280]">
-                <Phone className="w-3.5 h-3.5" />
-                {formatPhone(user.phone)}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Menu */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] divide-y divide-[#E5E7EB]">
-          {MENU.map(({ icon: Icon, label, href }) => (
-            <button
-              key={href}
-              onClick={() => router.push(href)}
-              className="flex items-center gap-3 w-full px-4 py-4 text-left hover:bg-gray-50 transition-colors"
-            >
-              <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
-                <Icon className="w-4.5 h-4.5 text-primary-600" />
-              </div>
-              <span className="text-sm font-medium text-[#1A1A1A] flex-1">{label}</span>
-              <ChevronRight className="w-4 h-4 text-[#6B7280]" />
-            </button>
-          ))}
-        </div>
-
-        {/* Sign out */}
-        <button
-          onClick={handleSignOut}
-          className="flex items-center gap-3 w-full px-4 py-4 bg-white rounded-2xl border border-[#E5E7EB] text-left hover:bg-red-50 transition-colors"
-        >
-          <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center">
-            <LogOut className="w-4.5 h-4.5 text-error" />
-          </div>
-          <span className="text-sm font-medium text-error">Logout</span>
+    <div className="min-h-screen bg-gray-50 pb-24">
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+        <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-100">
+          <ArrowLeft className="w-5 h-5 text-[#1A1A1A]" />
         </button>
+        <h1 className="text-base font-bold text-[#1A1A1A]">My Profile</h1>
+      </div>
 
-        <p className="text-center text-xs text-[#6B7280]">VillageMart v1.0.0</p>
-      </main>
-    </>
+      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+        {/* Profile card */}
+        <div className="bg-white rounded-2xl shadow-sm p-4 flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-[#7C3AED] flex items-center justify-center shrink-0">
+            <span className="text-2xl font-bold text-white">
+              {customer.name.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div>
+            <p className="text-xl font-bold text-gray-900">{customer.name}</p>
+            <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5">
+              <Phone className="w-3.5 h-3.5" />
+              {customer.phone}
+            </p>
+          </div>
+        </div>
+
+        {/* Delivery address card */}
+        <div className="bg-white rounded-2xl shadow-sm p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-gray-900">Saved Address</h2>
+            {!editing && (
+              <button
+                onClick={openEdit}
+                className="flex items-center gap-1 text-xs text-[#7C3AED] font-medium"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> Edit
+              </button>
+            )}
+          </div>
+
+          {editing ? (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Name</label>
+                <input
+                  value={form.name}
+                  onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Phone</label>
+                <input
+                  value={customer.phone}
+                  disabled
+                  className="w-full border border-gray-100 rounded-xl px-3 py-2 text-sm bg-gray-50 text-gray-400 cursor-not-allowed"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Address</label>
+                <input
+                  value={form.address}
+                  onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Landmark (optional)</label>
+                <input
+                  value={form.landmark}
+                  onChange={e => setForm(f => ({ ...f, landmark: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Area</label>
+                <input
+                  value={form.area}
+                  onChange={e => setForm(f => ({ ...f, area: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30"
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={saveEdit}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-[#7C3AED] text-white rounded-xl py-2.5 text-sm font-semibold"
+                >
+                  <Check className="w-4 h-4" /> Save
+                </button>
+                <button
+                  onClick={cancelEdit}
+                  className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm font-semibold"
+                >
+                  <X className="w-4 h-4" /> Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-0.5 text-sm text-gray-600">
+              <p>{customer.address}</p>
+              {customer.landmark && <p className="text-gray-400">Near: {customer.landmark}</p>}
+              <p className="text-gray-400">{customer.area}</p>
+            </div>
+          )}
+        </div>
+
+        {/* My Orders shortcut */}
+        <Link
+          href="/orders"
+          className="bg-white rounded-2xl shadow-sm p-4 flex items-center gap-3"
+        >
+          <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+            <ClipboardList className="w-5 h-5 text-[#7C3AED]" />
+          </div>
+          <span className="text-sm font-medium text-gray-900 flex-1">My Orders</span>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
+        </Link>
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-500 rounded-2xl py-3.5 text-sm font-semibold bg-white"
+        >
+          <LogOut className="w-4 h-4" />
+          Logout
+        </button>
+      </div>
+    </div>
   );
 }
