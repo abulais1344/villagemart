@@ -8,6 +8,7 @@ import { useCartStore } from '@/store/cartStore';
 import { formatCurrency } from '@/lib/utils/format';
 import type { Product } from '@/types';
 
+// ── Veg / Non-veg detection ──────────────────────────────────────────────────
 const NON_VEG_KEYWORDS = [
   'chicken', 'mutton', 'fish', 'egg', 'prawn', 'meat', 'beef', 'pork', 'non-veg', 'non veg',
 ];
@@ -15,6 +16,39 @@ const NON_VEG_KEYWORDS = [
 function isNonVeg(product: Product): boolean {
   const text = `${product.name} ${product.description ?? ''}`.toLowerCase();
   return NON_VEG_KEYWORDS.some(kw => text.includes(kw));
+}
+
+// ── Cuisine tags (mirrored from HomePageClient) ───────────────────────────────
+const CUISINE_RULES: [RegExp, string][] = [
+  [/chicken|non.?veg|arabian|tandoori|kebab|mutton/i, '🍗 Non Veg'],
+  [/\bveg\b|north.?indian|\bindian\b|dal|thali|paneer/i, '🥬 Veg'],
+  [/chinese|noodles|fried.?rice|manchurian/i, '🥡 Chinese'],
+  [/pizza|burger|sandwich|fast.?food/i, '🍕 Fast Food'],
+  [/biryani/i, '🍚 Biryani'],
+  [/dosa|idli|south.?indian/i, '🫓 South Indian'],
+  [/sweet|dessert|bakery/i, '🍮 Sweets'],
+];
+
+function getCuisineTags(cuisineType: string | null): string[] {
+  if (!cuisineType) return ['🍽️ Meals'];
+  const tags: string[] = [];
+  for (const [pattern, tag] of CUISINE_RULES) {
+    if (pattern.test(cuisineType) && !tags.includes(tag)) tags.push(tag);
+    if (tags.length === 3) break;
+  }
+  return tags.length > 0 ? tags : ['🍽️ Meals'];
+}
+
+// ── Bestseller detection ──────────────────────────────────────────────────────
+const BESTSELLER_KEYWORDS = ['kebab', 'biryani', 'paneer', 'butter', 'special'];
+
+function isBestseller(product: Product): boolean {
+  const discountPct = product.mrp > 0
+    ? (product.mrp - product.selling_price) / product.mrp
+    : 0;
+  if (discountPct >= 0.10) return true;
+  const name = product.name.toLowerCase();
+  return BESTSELLER_KEYWORDS.some(kw => name.includes(kw));
 }
 
 type Filter = 'all' | 'veg' | 'nonveg';
@@ -27,14 +61,21 @@ interface StorePageClientProps {
 export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [mounted, setMounted] = useState(false);
   const { items, addItem, updateQuantity, removeItem } = useCartStore();
 
   useEffect(() => { setMounted(true); }, []);
 
+  // Combined filter: veg/nonveg + search
   const filtered = products.filter(p => {
-    if (filter === 'all') return true;
-    return filter === 'veg' ? !isNonVeg(p) : isNonVeg(p);
+    if (filter === 'veg' && isNonVeg(p)) return false;
+    if (filter === 'nonveg' && !isNonVeg(p)) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return p.name.toLowerCase().includes(q) || (p.description ?? '').toLowerCase().includes(q);
+    }
+    return true;
   });
 
   const merchantItems = mounted
@@ -48,6 +89,11 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const deliveryTime = merchant.avg_delivery_time
     ? `${Math.max(merchant.avg_delivery_time - 5, 5)}-${merchant.avg_delivery_time} min`
     : '30-40 min';
+
+  const cuisineTags = getCuisineTags(merchant.cuisine_type ?? null);
+
+  // Track bestseller badge count (cap at 3)
+  let bestsellerCount = 0;
 
   return (
     <div className="min-h-screen bg-white pb-32">
@@ -83,12 +129,19 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
           </span>
         </div>
 
-        {/* Name overlay */}
+        {/* Name + cuisine tag pills overlay */}
         <div className="absolute bottom-4 left-4 right-16 z-10">
           <h1 className="text-xl font-bold text-white leading-tight">{merchant.store_name}</h1>
-          {merchant.description && (
-            <p className="text-sm text-white/75 mt-0.5 line-clamp-1">{merchant.description}</p>
-          )}
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {cuisineTags.map(tag => (
+              <span
+                key={tag}
+                className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -124,6 +177,17 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         ))}
       </div>
 
+      {/* ── Search bar ── */}
+      <div className="bg-white px-4 py-3 border-b border-gray-100">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="🔍 Search dishes..."
+          className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-purple-400"
+        />
+      </div>
+
       {/* ── 4. Menu ── */}
       <div className="bg-white mt-2">
         <div className="px-4 py-3 border-b border-gray-100">
@@ -131,15 +195,26 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         </div>
 
         {filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-4xl mb-3">🍽️</p>
-            <p className="text-sm text-gray-500">No items found</p>
+          <div className="flex flex-col items-center justify-center py-16 text-center px-8">
+            <span className="text-4xl mb-3">
+              {filter === 'veg' ? '🥬' : filter === 'nonveg' ? '🍗' : '🔍'}
+            </span>
+            <p className="text-gray-600 font-medium">No items found</p>
+            <p className="text-gray-400 text-sm mt-1">
+              {searchQuery
+                ? `No dishes matching "${searchQuery}"`
+                : filter === 'veg'
+                ? 'No veg items available here'
+                : 'No non-veg items available here'}
+            </p>
           </div>
         ) : (
           filtered.map(product => {
             const qty = mounted ? getQty(product.id) : 0;
             const nonVeg = isNonVeg(product);
             const hasDiscount = product.mrp > product.selling_price;
+            const showBestseller = bestsellerCount < 3 && isBestseller(product);
+            if (showBestseller) bestsellerCount++;
 
             return (
               <div key={product.id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-100">
@@ -150,6 +225,13 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
                   <div className={`w-4 h-4 border-2 rounded-sm flex items-center justify-center mb-1.5 ${nonVeg ? 'border-red-500' : 'border-green-600'}`}>
                     <div className={`w-2 h-2 rounded-full ${nonVeg ? 'bg-red-500' : 'bg-green-600'}`} />
                   </div>
+
+                  {/* Bestseller badge */}
+                  {showBestseller && (
+                    <span className="text-[10px] font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full w-fit mb-0.5 inline-block">
+                      🔥 Bestseller
+                    </span>
+                  )}
 
                   <p className="font-semibold text-sm text-gray-900 line-clamp-1">{product.name}</p>
 
@@ -217,7 +299,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         )}
       </div>
 
-      {/* ── 6. Sticky Cart Bar ── */}
+      {/* ── Sticky Cart Bar ── */}
       {mounted && cartCount > 0 && (
         <div className="fixed bottom-16 left-4 right-4 z-50">
           <button
