@@ -65,24 +65,24 @@ function getCategoryMarathi(slug: string): string {
   return marathi[slug] ?? '';
 }
 
-const FOOD_TAG_RULES: [RegExp, string, string][] = [
-  [/chicken|non.?veg|arabian/i,      '🍗', 'Chicken'],
-  [/biryani|rice/i,                  '🍚', 'Biryani'],
-  [/dal|north.?indian|\bindian\b/i,  '🥘', 'Dal'],
-  [/chinese/i,                       '🥡', 'Chinese'],
-  [/pizza|fast.?food/i,              '🍕', 'Pizza'],
-  [/south.?indian|dosa/i,            '🫓', 'Dosa'],
-  [/sweet|dessert/i,                 '🍮', 'Sweets'],
+const CUISINE_RULES: [RegExp, string][] = [
+  [/chicken|non.?veg|arabian|tandoori|kebab|mutton/i, '🍗 Non Veg'],
+  [/\bveg\b|north.?indian|\bindian\b|dal|thali|paneer/i, '🥬 Veg'],
+  [/chinese|noodles|fried.?rice|manchurian/i, '🥡 Chinese'],
+  [/pizza|burger|sandwich|fast.?food/i, '🍕 Fast Food'],
+  [/biryani/i, '🍚 Biryani'],
+  [/dosa|idli|south.?indian/i, '🫓 South Indian'],
+  [/sweet|dessert|bakery/i, '🍮 Sweets'],
 ];
 
-function getFoodTags(cuisineType: string | null | undefined): { emoji: string; label: string }[] {
-  if (!cuisineType) return [{ emoji: '🍽️', label: 'Meals' }];
-  const tags: { emoji: string; label: string }[] = [];
-  for (const [pattern, emoji, label] of FOOD_TAG_RULES) {
-    if (pattern.test(cuisineType)) tags.push({ emoji, label });
+function getCuisineTags(cuisineType: string | null): string[] {
+  if (!cuisineType) return ['🍽️ Meals'];
+  const tags: string[] = [];
+  for (const [pattern, tag] of CUISINE_RULES) {
+    if (pattern.test(cuisineType) && !tags.includes(tag)) tags.push(tag);
     if (tags.length === 3) break;
   }
-  return tags.length > 0 ? tags : [{ emoji: '🍽️', label: 'Meals' }];
+  return tags.length > 0 ? tags : ['🍽️ Meals'];
 }
 
 function deliveryRange(avg: number): string {
@@ -207,10 +207,10 @@ export function HomePageClient({
                   )}
                   <div className="p-2.5">
                     <p className="text-sm font-semibold text-gray-900 truncate">{merchant.store_name}</p>
-                    <div className="flex gap-1.5 mt-1 flex-wrap">
-                      {getFoodTags((merchant as any).cuisine_type).map(tag => (
-                        <span key={tag.label} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
-                          {tag.emoji} {tag.label}
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {getCuisineTags((merchant as any).cuisine_type).map((tag) => (
+                        <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                          {tag}
                         </span>
                       ))}
                     </div>
