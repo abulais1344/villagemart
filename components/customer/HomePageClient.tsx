@@ -65,6 +65,30 @@ function getCategoryMarathi(slug: string): string {
   return marathi[slug] ?? '';
 }
 
+const FOOD_TAG_RULES: [RegExp, string, string][] = [
+  [/chicken|non.?veg|arabian/i,      '🍗', 'Chicken'],
+  [/biryani|rice/i,                  '🍚', 'Biryani'],
+  [/dal|north.?indian|\bindian\b/i,  '🥘', 'Dal'],
+  [/chinese/i,                       '🥡', 'Chinese'],
+  [/pizza|fast.?food/i,              '🍕', 'Pizza'],
+  [/south.?indian|dosa/i,            '🫓', 'Dosa'],
+  [/sweet|dessert/i,                 '🍮', 'Sweets'],
+];
+
+function getFoodTags(cuisineType: string | null | undefined): { emoji: string; label: string }[] {
+  if (!cuisineType) return [{ emoji: '🍽️', label: 'Meals' }];
+  const tags: { emoji: string; label: string }[] = [];
+  for (const [pattern, emoji, label] of FOOD_TAG_RULES) {
+    if (pattern.test(cuisineType)) tags.push({ emoji, label });
+    if (tags.length === 3) break;
+  }
+  return tags.length > 0 ? tags : [{ emoji: '🍽️', label: 'Meals' }];
+}
+
+function deliveryRange(avg: number): string {
+  return `${Math.max(avg - 5, 5)}-${avg} min`;
+}
+
 const SEARCH_PLACEHOLDERS = [
   'दूध, ब्रेड, अंडी शोधा...',
   'Search groceries, dairy, snacks...',
@@ -182,19 +206,19 @@ export function HomePageClient({
                     </div>
                   )}
                   <div className="p-2.5">
-                    <p className="text-xs font-semibold text-gray-900 truncate">{merchant.store_name}</p>
-                    {(merchant as any).cuisine_type && (
-                      <p className="text-[11px] text-gray-400 truncate">{(merchant as any).cuisine_type}</p>
-                    )}
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className={`w-1.5 h-1.5 rounded-full ${merchant.is_open ? 'bg-green-500' : 'bg-gray-300'}`} />
-                      <span className="text-[11px] text-gray-500">
-                        {merchant.is_open ? 'Open' : 'Closed'} · ~{merchant.avg_delivery_time}m
-                      </span>
+                    <p className="text-sm font-semibold text-gray-900 truncate">{merchant.store_name}</p>
+                    <div className="flex gap-1.5 mt-1 flex-wrap">
+                      {getFoodTags((merchant as any).cuisine_type).map(tag => (
+                        <span key={tag.label} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                          {tag.emoji} {tag.label}
+                        </span>
+                      ))}
                     </div>
-                    {merchant.min_order_amount > 0 && (
-                      <p className="text-[11px] text-gray-400 mt-0.5">Min ₹{merchant.min_order_amount}</p>
-                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {(merchant as any).rating
+                        ? `⭐ ${(merchant as any).rating} • ${deliveryRange(merchant.avg_delivery_time)}`
+                        : deliveryRange(merchant.avg_delivery_time)}
+                    </p>
                   </div>
                 </a>
               ))}
