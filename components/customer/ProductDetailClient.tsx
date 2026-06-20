@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ArrowLeft, Minus, Plus, Heart } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Heart, X } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { formatCurrency } from '@/lib/utils/format';
 import type { Product, Category } from '@/types';
@@ -12,18 +12,85 @@ import toast from 'react-hot-toast';
 interface ProductDetailClientProps {
   product: Product;
   category: Category | null;
+  similarProducts: Product[];
+  topInCategory: Product[];
+  alsoLiked: Product[];
 }
 
-export function ProductDetailClient({ product, category }: ProductDetailClientProps) {
+function MiniProductCard({ product }: { product: Product }) {
+  return (
+    <a
+      href={`/product/${product.id}`}
+      className="flex-shrink-0 w-36 bg-white border border-gray-100 rounded-xl p-2 block"
+    >
+      <div className="bg-gray-50 rounded-lg h-24 flex items-center justify-center mb-2 relative overflow-hidden">
+        {product.images?.[0] ? (
+          <img
+            src={product.images[0]}
+            alt={product.name}
+            className="h-full w-full object-contain p-1"
+          />
+        ) : (
+          <span className="text-3xl">🛒</span>
+        )}
+        {product.offer_percentage > 0 && (
+          <span className="absolute top-1 left-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+            {Math.round(product.offer_percentage)}% OFF
+          </span>
+        )}
+      </div>
+      <p className="text-xs font-medium text-gray-900 line-clamp-2 leading-tight mb-1 min-h-[2.5rem]">
+        {product.name}
+      </p>
+      <p className="text-sm font-bold text-gray-900">₹{product.selling_price}</p>
+      {product.mrp > product.selling_price && (
+        <p className="text-xs text-gray-400 line-through">₹{product.mrp}</p>
+      )}
+    </a>
+  );
+}
+
+export function ProductDetailClient({ product, category, similarProducts, topInCategory, alsoLiked }: ProductDetailClientProps) {
   const router = useRouter();
   const [qty, setQty] = useState(1);
   const [imageIndex, setImageIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const lightboxTouchStartY = useRef<number | null>(null);
   const { items, addItem } = useCartStore();
   const cartItem = items.find(i => i.product.id === product.id);
   const isInCart = !!cartItem;
   const outOfStock = product.stock_status === 'out_of_stock' || product.stock_quantity === 0;
   const images = product.images?.length ? product.images : [];
   const totalPrice = product.selling_price * qty;
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null || images.length <= 1) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+      setImageIndex(prev =>
+        diff > 0
+          ? Math.min(prev + 1, images.length - 1)
+          : Math.max(prev - 1, 0)
+      );
+    }
+    touchStartX.current = null;
+  }
+
+  function handleLightboxTouchStart(e: React.TouchEvent) {
+    lightboxTouchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleLightboxTouchEnd(e: React.TouchEvent) {
+    if (lightboxTouchStartY.current === null) return;
+    const diff = e.changedTouches[0].clientY - lightboxTouchStartY.current;
+    if (diff > 80) setLightboxOpen(false);
+    lightboxTouchStartY.current = null;
+  }
 
   const handleAddToCart = () => {
     for (let i = 0; i < qty; i++) {
@@ -45,10 +112,15 @@ export function ProductDetailClient({ product, category }: ProductDetailClientPr
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto pb-28">
-        {/* Product image */}
+      <div className="flex-1 overflow-y-auto pb-40">
+        {/* Product image gallery */}
         <div className="relative bg-gray-50">
-          <div className="h-64 flex items-center justify-center relative">
+          <div
+            className="h-64 flex items-center justify-center relative cursor-pointer select-none"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onClick={() => images[imageIndex] && setLightboxOpen(true)}
+          >
             {images[imageIndex] ? (
               <Image
                 src={images[imageIndex]}
@@ -61,27 +133,80 @@ export function ProductDetailClient({ product, category }: ProductDetailClientPr
               <div className="text-6xl">🛒</div>
             )}
 
-            {/* Offer badge on image */}
+            {/* Offer badge */}
             {product.offer_percentage > 0 && (
               <span className="absolute top-4 left-4 bg-error text-white text-xs font-bold px-2 py-1 rounded-lg">
                 {Math.round(product.offer_percentage)}% OFF
               </span>
             )}
+
+            {/* Image counter */}
+            {images.length > 1 && (
+              <span className="absolute top-3 right-3 text-xs text-[#6B7280] bg-white/80 px-2 py-0.5 rounded-full">
+                {imageIndex + 1} / {images.length}
+              </span>
+            )}
           </div>
 
-          {/* Image carousel dots */}
+          {/* Dots */}
           {images.length > 1 && (
-            <div className="flex justify-center gap-1.5 pb-3">
+            <div className="flex justify-center items-center gap-1.5 pb-3">
               {images.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setImageIndex(i)}
-                  className={`w-2 h-2 rounded-full transition-colors ${i === imageIndex ? 'bg-primary-600' : 'bg-gray-300'}`}
+                  aria-label={`Image ${i + 1}`}
+                  className={`rounded-full transition-all ${
+                    i === imageIndex
+                      ? 'w-2 h-2 bg-[#7C3AED]'
+                      : 'w-1.5 h-1.5 bg-gray-300'
+                  }`}
                 />
               ))}
             </div>
           )}
         </div>
+
+        {/* Lightbox */}
+        {lightboxOpen && (
+          <div
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center animate-fadeIn"
+            onClick={() => setLightboxOpen(false)}
+            onTouchStart={handleLightboxTouchStart}
+            onTouchEnd={handleLightboxTouchEnd}
+          >
+            {/* Close button */}
+            <button
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/20 text-white"
+              onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Counter in lightbox */}
+            {images.length > 1 && (
+              <span className="absolute top-5 left-1/2 -translate-x-1/2 text-sm text-white/70">
+                {imageIndex + 1} / {images.length}
+              </span>
+            )}
+
+            {/* Image — stop propagation so tapping image itself doesn't close */}
+            <div
+              className="relative w-full h-4/5 max-w-lg"
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+            >
+              <Image
+                src={images[imageIndex]}
+                alt={product.name}
+                fill
+                className="object-contain"
+                sizes="100vw"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Product info */}
         <div className="px-4 py-4 space-y-4">
@@ -153,19 +278,59 @@ export function ProductDetailClient({ product, category }: ProductDetailClientPr
             </div>
           )}
 
-          {/* SKU */}
-          {product.sku && (
-            <div>
-              <p className="text-xs text-[#6B7280]">SKU</p>
-              <p className="text-sm font-mono text-[#1A1A1A] mt-1">{product.sku}</p>
-            </div>
-          )}
 
           {/* Stock warning */}
           {product.stock_status === 'low_stock' && (
             <p className="text-sm text-amber-600 font-medium">⚡ Only {product.stock_quantity} left!</p>
           )}
         </div>
+
+        {/* People also bought */}
+        {alsoLiked.length > 0 && (
+          <div className="px-4 pb-4 border-t border-gray-100 pt-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-3">People also bought</h3>
+            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+              {alsoLiked.map(item => (
+                <MiniProductCard key={item.id} product={item} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Top in category */}
+        {topInCategory.length > 0 && (
+          <div className="px-4 pb-4 border-t border-gray-100 pt-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-3">
+              Top in {category?.name ?? 'this category'}
+            </h3>
+            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+              {topInCategory.map(item => (
+                <MiniProductCard key={item.id} product={item} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Similar products + see all bar */}
+        {similarProducts.length > 0 && (
+          <div className="px-4 pb-4 border-t border-gray-100 pt-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-3">Similar products</h3>
+            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+              {similarProducts.map(item => (
+                <MiniProductCard key={item.id} product={item} />
+              ))}
+            </div>
+            <a
+              href={`/category/${category?.slug ?? 'all'}`}
+              className="flex items-center justify-between mt-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100"
+            >
+              <span className="text-sm font-medium text-gray-700">
+                See all {category?.name ?? ''} products
+              </span>
+              <span className="text-purple-600 text-sm font-medium">→</span>
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Fixed bottom button */}
@@ -180,13 +345,13 @@ export function ProductDetailClient({ product, category }: ProductDetailClientPr
               onClick={() => router.push('/cart')}
               className="w-full py-3 rounded-xl border-2 border-primary-600 text-primary-600 font-semibold text-lg hover:bg-primary-50"
             >
-              View Cart · {formatCurrency(cartItem!.quantity * product.selling_price)}
+              Go to Cart · {formatCurrency(cartItem!.quantity * product.selling_price)}
             </button>
             <button
               onClick={handleAddToCart}
               className="w-full py-3 rounded-xl bg-primary-50 text-primary-600 font-semibold text-lg hover:bg-primary-100"
             >
-              Add More
+              Continue Shopping
             </button>
           </div>
         ) : (

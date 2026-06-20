@@ -1,91 +1,95 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, CreditCard } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, MapPin } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { createClient } from '@/lib/supabase/client';
-import { AddressSelector } from '@/components/customer/AddressSelector';
-import { Button } from '@/components/ui/Button';
-import { Spinner } from '@/components/ui/Spinner';
+import { getCustomer, type Customer } from '@/lib/customer';
 import { formatCurrency } from '@/lib/utils/format';
-import type { Address } from '@/types';
-import type { RazorpayResponse } from '@/types';
-import toast from 'react-hot-toast';
 
 declare global {
   interface Window {
-    Razorpay: new (options: Record<string, unknown>) => {
-      open: () => void;
-      on: (event: string, handler: (response: RazorpayResponse) => void) => void;
-    };
+    Razorpay: new (options: Record<string, unknown>) => { open: () => void };
   }
 }
 
+function loadRazorpayScript(): Promise<void> {
+  return new Promise(resolve => {
+    if ((window as Window & typeof globalThis).Razorpay) return resolve();
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve();
+    document.body.appendChild(script);
+  });
+}
+
 export default function CheckoutPage() {
-  const [mounted, setMounted] = useState(false);
-  const { items, getSubtotal, clearCart } = useCartStore();
-  const { user } = useAuth();
   const router = useRouter();
-  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
-  const [paying, setPaying] = useState(false);
-  const supabase = createClient();
+  const { items, getSubtotal, clearCart } = useCartStore();
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const paymentSucceeded = useRef(false);
+
+  // Step 1: mark Zustand as hydrated from localStorage
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  // Step 2: run auth + cart checks only after hydration
+  useEffect(() => {
+    if (!hydrated) return;
+    const c = getCustomer();
+    if (!c) { window.location.href = '/auth/login'; return; }
+    if (items.length === 0 && !paymentSucceeded.current) { window.location.href = '/'; return; }
+    setCustomer(c);
+    setMounted(true);
+  }, [hydrated, items]);
+
   const subtotal = getSubtotal();
   const deliveryCharge = subtotal >= 299 ? 0 : 20;
   const total = subtotal + deliveryCharge;
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    // Load Razorpay script
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => { document.body.removeChild(script); };
-  }, []);
-
-  useEffect(() => {
-    if (items.length === 0) router.push('/cart');
-  }, [items, router]);
-
-  const handlePayment = async () => {
-    if (!selectedAddress || !user) {
-      toast.error('Please select a delivery address');
-      return;
-    }
-
-    setPaying(true);
+  async function handlePayment() {
+    if (!customer) return;
+    setLoading(true);
 
     try {
       // 1. Create Razorpay order
       const res = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: Math.round(total * 100) }), // paise
+        body: JSON.stringify({ amount: total }),
       });
-      const { order } = await res.json();
-      if (!order?.id) throw new Error('Failed to create payment order');
+      const { orderId, amount, currency } = await res.json();
+      if (!orderId) throw new Error('Failed to create payment order');
 
-      // 2. Open Razorpay checkout
-      const rzp = new window.Razorpay({
+      // 2. Load Razorpay SDK
+      await loadRazorpayScript();
+
+      // 3. Open Razorpay checkout
+      const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: order.amount,
-        currency: 'INR',
+        amount,
+        currency,
         name: 'VillageMart',
         description: 'Order Payment',
-        order_id: order.id,
+        order_id: orderId,
         prefill: {
-          contact: `+91${user.phone}`,
-          name: user.name ?? '',
+          name: customer.name,
+          contact: `+91${customer.phone}`,
         },
         theme: { color: '#7C3AED' },
-        modal: { ondismiss: () => setPaying(false) },
-        handler: async (response: RazorpayResponse) => {
-          // 3. Verify payment
+        modal: {
+          ondismiss: () => setLoading(false),
+        },
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          // 4. Verify payment + save order
           const verifyRes = await fetch('/api/razorpay/verify-payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -93,118 +97,92 @@ export default function CheckoutPage() {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
+              orderData: {
+                items: items.map(({ product, quantity }) => ({
+                  id: product.id,
+                  name: product.name,
+                  selling_price: product.selling_price,
+                  merchant_id: product.merchant_id,
+                  quantity,
+                })),
+                customer,
+                subtotal,
+                deliveryCharge,
+                total,
+                merchantId: items[0]?.product.merchant_id ?? null,
+              },
             }),
           });
-          const { verified } = await verifyRes.json();
 
-          if (!verified) {
-            toast.error('Payment verification failed. Contact support.');
-            setPaying(false);
-            return;
+          const result = await verifyRes.json();
+          if (result.success) {
+            paymentSucceeded.current = true;
+            clearCart();
+            window.location.href = `/order-confirmation/${result.orderId}`;
+          } else {
+            alert('Payment verification failed. Please contact support.');
+            setLoading(false);
           }
-
-          // 4. Create order in Supabase
-          const orderItems = items.map(item => ({
-            product_id: item.product.id,
-            product_snapshot: {
-              name: item.product.name,
-              selling_price: item.product.selling_price,
-              mrp: item.product.mrp,
-              images: item.product.images,
-              unit: item.product.unit,
-            },
-            quantity: item.quantity,
-            unit_price: item.product.selling_price,
-            total_price: item.product.selling_price * item.quantity,
-          }));
-
-          const merchantId = items[0]?.product.merchant_id ?? null;
-
-          const { data: newOrder, error } = await supabase
-            .from('orders')
-            .insert({
-              customer_id: user.id,
-              merchant_id: merchantId,
-              delivery_type: merchantId ? 'marketplace' : 'own_store',
-              status: 'pending',
-              address_id: selectedAddress.id,
-              delivery_address: selectedAddress,
-              subtotal,
-              delivery_charge: deliveryCharge,
-              discount_amount: 0,
-              commission_amount: 0,
-              tax_amount: 0,
-              total_amount: total,
-              payment_status: 'paid',
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-            })
-            .select()
-            .single();
-
-          if (error || !newOrder) {
-            toast.error('Order creation failed. Contact support.');
-            setPaying(false);
-            return;
-          }
-
-          // 5. Insert order items
-          await supabase.from('order_items').insert(
-            orderItems.map(item => ({ ...item, order_id: newOrder.id }))
-          );
-
-          // 6. Deduct stock
-          for (const item of items) {
-            await supabase.rpc('decrement_stock', {
-              p_product_id: item.product.id,
-              p_qty: item.quantity,
-            });
-          }
-
-          clearCart();
-          toast.success('Order placed successfully! 🎉');
-          router.push(`/orders/${newOrder.id}`);
         },
-      });
+      };
 
+      const rzp = new window.Razorpay(options);
       rzp.open();
     } catch (err) {
-      toast.error('Something went wrong. Please try again.');
-      setPaying(false);
+      console.error(err);
+      setLoading(false);
     }
-  };
+  }
 
-  if (!mounted || items.length === 0) return null;
+  if (!hydrated || !mounted || !customer || items.length === 0) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
-      <div className="sticky top-0 z-40 bg-white border-b border-[#E5E7EB] px-4 py-3">
+    <div className="min-h-screen bg-gray-50 pb-28">
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+        <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-100">
+          <ArrowLeft className="w-5 h-5 text-[#1A1A1A]" />
+        </button>
         <h1 className="text-lg font-bold text-[#1A1A1A]">Checkout</h1>
       </div>
 
       <div className="px-4 py-4 space-y-4">
-        {/* Address */}
-        <div>
-          <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">Delivery Address</h3>
-          <AddressSelector selected={selectedAddress} onSelect={setSelectedAddress} />
-        </div>
-
-        {/* Order summary */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4">
-          <h3 className="text-sm font-semibold text-[#1A1A1A] mb-3">Order Summary</h3>
+        {/* Order items */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <h2 className="text-sm font-semibold text-[#1A1A1A] mb-3">
+            Order Summary ({items.length} {items.length === 1 ? 'item' : 'items'})
+          </h2>
           <div className="space-y-2">
             {items.map(({ product, quantity }) => (
-              <div key={product.id} className="flex justify-between text-sm">
-                <span className="text-[#6B7280] flex-1 truncate">{product.name} × {quantity}</span>
-                <span className="font-medium ml-2">{formatCurrency(product.selling_price * quantity)}</span>
+              <div key={product.id} className="flex justify-between py-2 border-b border-gray-50 last:border-0">
+                <span className="text-sm text-[#6B7280] flex-1 truncate pr-2">
+                  {quantity}× {product.name}
+                </span>
+                <span className="text-sm font-medium text-[#1A1A1A] shrink-0">
+                  {formatCurrency(product.selling_price * quantity)}
+                </span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Bill */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 space-y-2">
-          <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">Bill Details</h3>
+        {/* Delivery address */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+          <h2 className="text-sm font-semibold text-[#1A1A1A] mb-3 flex items-center gap-1.5">
+            <MapPin className="w-4 h-4 text-[#7C3AED]" /> Delivering to
+          </h2>
+          <p className="font-medium text-[#1A1A1A]">{customer.name}</p>
+          <p className="text-sm text-[#6B7280] mt-0.5">{customer.address}</p>
+          {(customer.landmark || customer.area) && (
+            <p className="text-sm text-[#9CA3AF] mt-0.5">
+              {[customer.landmark, customer.area].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+
+        {/* Bill details */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
+          <h2 className="text-sm font-semibold text-[#1A1A1A] mb-3">Bill Details</h2>
           <div className="flex justify-between text-sm">
             <span className="text-[#6B7280]">Subtotal</span>
             <span>{formatCurrency(subtotal)}</span>
@@ -212,32 +190,32 @@ export default function CheckoutPage() {
           <div className="flex justify-between text-sm">
             <span className="text-[#6B7280]">Delivery</span>
             {deliveryCharge === 0
-              ? <span className="text-success font-medium">FREE</span>
+              ? <span className="text-green-600 font-medium">FREE</span>
               : <span>{formatCurrency(deliveryCharge)}</span>
             }
           </div>
-          <div className="flex justify-between font-bold border-t border-[#E5E7EB] pt-2 text-base">
+          <div className="flex justify-between font-bold text-base border-t border-gray-100 pt-2">
             <span>Total</span>
-            <span className="text-primary-600">{formatCurrency(total)}</span>
+            <span className="text-[#7C3AED]">{formatCurrency(total)}</span>
           </div>
         </div>
 
         {/* Security note */}
-        <div className="flex items-center gap-2 text-xs text-[#6B7280]">
-          <ShieldCheck className="w-4 h-4 text-success" />
-          <span>100% secure payment via Razorpay. No COD available.</span>
+        <div className="flex items-center gap-2 text-xs text-[#9CA3AF]">
+          <ShieldCheck className="w-4 h-4 text-green-500 shrink-0" />
+          100% secure payment via Razorpay
         </div>
+      </div>
 
-        {/* Pay button */}
-        <Button
-          fullWidth size="lg"
+      {/* Fixed pay button */}
+      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white border-t border-gray-100">
+        <button
           onClick={handlePayment}
-          loading={paying}
-          disabled={!selectedAddress || paying}
+          disabled={loading}
+          className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-60 text-white rounded-2xl py-4 font-semibold text-base transition-colors"
         >
-          <CreditCard className="w-5 h-5" />
-          Pay {formatCurrency(total)} via UPI
-        </Button>
+          {loading ? 'Processing…' : `Pay ${formatCurrency(total)} via UPI / Card`}
+        </button>
       </div>
     </div>
   );

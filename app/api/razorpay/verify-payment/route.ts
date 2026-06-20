@@ -1,0 +1,109 @@
+import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
+import { createClient } from '@supabase/supabase-js';
+import { sendWhatsAppNotification } from '@/lib/whatsapp';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export async function POST(request: NextRequest) {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      orderData,
+    } = await request.json();
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return NextResponse.json({ error: 'Missing payment parameters' }, { status: 400 });
+    }
+
+    // Verify signature
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+      .update(body)
+      .digest('hex');
+
+    if (expectedSignature !== razorpay_signature) {
+      return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 });
+    }
+
+    // Save order
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        order_number: `VM${Date.now()}`,
+        customer_name: orderData.customer.name,
+        customer_phone: orderData.customer.phone,
+        merchant_id: orderData.merchantId || null,
+        delivery_address: {
+          name: orderData.customer.name,
+          phone: orderData.customer.phone,
+          address: orderData.customer.address,
+          landmark: orderData.customer.landmark || '',
+          area: orderData.customer.area,
+        },
+        subtotal: orderData.subtotal,
+        delivery_charge: orderData.deliveryCharge ?? 0,
+        total_amount: orderData.total,
+        tax_amount: 0,
+        discount_amount: 0,
+        commission_amount: orderData.total * 0.10,
+        payment_status: 'paid',
+        razorpay_order_id,
+        razorpay_payment_id,
+        status: 'pending',
+        delivery_type: 'delivery',
+        notes: orderData.customer.landmark || '',
+      })
+      .select()
+      .single();
+
+    if (orderError || !order) {
+      console.error('Order insert error:', orderError);
+      return NextResponse.json({ error: 'Failed to save order' }, { status: 500 });
+    }
+
+    // Insert order items
+    const orderItems = orderData.items.map((item: any) => ({
+      order_id: order.id,
+      product_id: item.id,
+      product_snapshot: {
+        name: item.name,
+        price: item.selling_price,
+        image: item.images?.[0] ?? null,
+        unit: item.unit ?? 'piece',
+      },
+      quantity: item.quantity,
+      unit_price: item.selling_price,
+      total_price: item.selling_price * item.quantity,
+    }));
+
+    const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+    if (itemsError) {
+      console.error('Order items insert error:', itemsError);
+    }
+
+    // Fire-and-forget WhatsApp notification on order placement
+    if (order.customer_phone) {
+      const shortId = order.id.slice(0, 8).toUpperCase();
+      const message = `🛍️ Order received! Your VillageMart order of ₹${order.total_amount} has been placed successfully. We'll notify you once it's confirmed. Order ID: #${shortId}`;
+      (async () => {
+        try {
+          await sendWhatsAppNotification(order.customer_phone, message);
+        } catch (err) {
+          console.error('[whatsapp] order placement notification failed:', err);
+        }
+      })();
+    }
+
+    return NextResponse.json({ success: true, orderId: order.id });
+  } catch (error) {
+    console.error('Payment verification error:', error);
+    return NextResponse.json({ error: 'Verification failed' }, { status: 500 });
+  }
+}

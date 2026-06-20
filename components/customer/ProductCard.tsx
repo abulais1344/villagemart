@@ -75,7 +75,6 @@ export function ProductCard({ product }: ProductCardProps) {
 
         {/* Details */}
         <div className="p-2.5">
-          <p className="text-xs text-[#6B7280] mb-0.5">{product.unit}</p>
           <p className="text-sm font-medium text-[#1A1A1A] line-clamp-2 leading-tight">{product.name}</p>
 
           <div className="flex items-center justify-between mt-2">

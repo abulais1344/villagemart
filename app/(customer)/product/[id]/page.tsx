@@ -44,5 +44,41 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   const product: Product = { ...rawProduct, category, merchant } as Product;
 
-  return <ProductDetailClient product={product} category={category} />;
+  // Similar products (same category, excluding current)
+  const { data: similarProducts } = await supabase
+    .from('vm_products')
+    .select('*')
+    .eq('category_id', product.category_id)
+    .eq('is_active', true)
+    .neq('id', product.id)
+    .limit(8);
+
+  // Top/featured products in same category
+  const { data: topInCategory } = await supabase
+    .from('vm_products')
+    .select('*')
+    .eq('category_id', product.category_id)
+    .eq('is_active', true)
+    .eq('is_featured', true)
+    .neq('id', product.id)
+    .limit(6);
+
+  // People also bought — featured products from other categories (cross-sell)
+  const { data: alsoLiked } = await supabase
+    .from('vm_products')
+    .select('*')
+    .eq('is_active', true)
+    .eq('is_featured', true)
+    .neq('category_id', product.category_id)
+    .limit(8);
+
+  return (
+    <ProductDetailClient
+      product={product}
+      category={category}
+      similarProducts={similarProducts ?? []}
+      topInCategory={topInCategory ?? []}
+      alsoLiked={alsoLiked ?? []}
+    />
+  );
 }

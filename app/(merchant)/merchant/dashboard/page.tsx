@@ -1,0 +1,181 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useMerchant } from '../MerchantProvider';
+import { MerchantHeader } from '@/components/merchant/MerchantHeader';
+
+const STATUS_COLOR: Record<string, string> = {
+  pending:   'bg-yellow-100 text-yellow-700',
+  preparing: 'bg-blue-100 text-blue-700',
+  accepted:  'bg-blue-100 text-blue-700',
+  packed:    'bg-purple-100 text-purple-700',
+  ready:     'bg-green-100 text-green-700',
+  delivered: 'bg-gray-100 text-gray-600',
+  cancelled: 'bg-red-100 text-red-700',
+};
+
+function fmt(amount: number) {
+  return `₹${amount.toLocaleString('en-IN')}`;
+}
+
+function shortDate(iso: string) {
+  return new Date(iso).toLocaleString('en-IN', {
+    day: '2-digit', month: 'short',
+    hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+}
+
+function countableOrder(o: any) {
+  return o.payment_status === 'paid' || o.status !== 'cancelled';
+}
+
+export default function MerchantDashboard() {
+  const merchant = useMerchant();
+  const router = useRouter();
+
+  const [allOrders, setAllOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/merchant/orders')
+      .then(r => r.json())
+      .then(json => {
+        setAllOrders(json.orders ?? []);
+        setLoading(false);
+      });
+  }, []);
+
+  // ── commission ───────────────────────────────────────────────────────────
+  const commissionRate: number = merchant.commission_rate ?? 10;
+  const keepRate = (100 - commissionRate) / 100;
+
+  // ── date boundaries ──────────────────────────────────────────────────────
+  const now = new Date();
+  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  weekStart.setHours(0, 0, 0, 0);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  // ── stat computations ────────────────────────────────────────────────────
+  const todayOrders  = allOrders.filter(o => new Date(o.created_at) >= todayStart);
+  const pendingCount = allOrders.filter(o => o.status === 'pending').length;
+
+  const earn = (o: any) => (o.total_amount ?? 0) * keepRate;
+
+  const incomeToday = todayOrders.filter(countableOrder).reduce((s, o) => s + earn(o), 0);
+  const incomeWeek  = allOrders.filter(o => new Date(o.created_at) >= weekStart  && countableOrder(o)).reduce((s, o) => s + earn(o), 0);
+  const incomeMonth = allOrders.filter(o => new Date(o.created_at) >= monthStart && countableOrder(o)).reduce((s, o) => s + earn(o), 0);
+  const incomeTotal = allOrders.filter(countableOrder).reduce((s, o) => s + earn(o), 0);
+
+  const recentOrders = allOrders.slice(0, 5);
+
+  const STAT_CARDS = [
+    { label: "Today's Orders",  value: todayOrders.length, emoji: '📦', bg: 'bg-purple-50' },
+    { label: "Today's Revenue", value: fmt(incomeToday),   emoji: '💰', bg: 'bg-green-50'  },
+    { label: 'Pending Orders',  value: pendingCount,       emoji: '⏳', bg: 'bg-yellow-50' },
+    { label: 'Total Orders',    value: allOrders.length,   emoji: '📋', bg: 'bg-blue-50'   },
+  ];
+
+  const INCOME_ROWS = [
+    { label: 'Today',      amount: incomeToday },
+    { label: 'This Week',  amount: incomeWeek  },
+    { label: 'This Month', amount: incomeMonth },
+    { label: 'All Time',   amount: incomeTotal },
+  ];
+
+  return (
+    <>
+      <MerchantHeader storeName={merchant.store_name} />
+      <main className="px-4 py-4 space-y-4">
+        {loading ? (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />
+              ))}
+            </div>
+            <div className="h-40 bg-gray-100 rounded-2xl animate-pulse" />
+            <div className="h-56 bg-gray-100 rounded-2xl animate-pulse" />
+          </>
+        ) : (
+          <>
+            {/* Stat cards */}
+            <div className="grid grid-cols-2 gap-3">
+              {STAT_CARDS.map(card => (
+                <div key={card.label} className={`${card.bg} rounded-2xl p-4`}>
+                  <p className="text-2xl mb-1">{card.emoji}</p>
+                  <p className="text-2xl font-bold text-gray-900">{card.value}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{card.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Income overview */}
+            <div className="bg-white rounded-2xl shadow-sm p-4">
+              <div className="flex items-baseline justify-between mb-3">
+                <h2 className="text-sm font-bold text-gray-900">Income Overview</h2>
+                <span className="text-xs text-gray-400">After {commissionRate}% platform commission</span>
+              </div>
+              <div className="space-y-0">
+                {INCOME_ROWS.map((row, i) => (
+                  <div
+                    key={row.label}
+                    className={`flex items-center justify-between py-2.5 ${i < INCOME_ROWS.length - 1 ? 'border-b border-gray-100' : ''}`}
+                  >
+                    <span className="text-sm text-gray-500">{row.label}</span>
+                    <span className="text-sm font-bold text-gray-900">{fmt(row.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent orders */}
+            <div className="bg-white rounded-2xl shadow-sm p-4">
+              <h2 className="text-sm font-bold text-gray-900 mb-3">Recent Orders</h2>
+              {recentOrders.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">No orders yet</p>
+              ) : (
+                <div className="space-y-0">
+                  {recentOrders.map((order, i) => (
+                    <div
+                      key={order.id}
+                      className={`py-3 ${i < recentOrders.length - 1 ? 'border-b border-gray-100' : ''}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-mono text-xs text-gray-400">
+                              #{order.id.slice(0, 8).toUpperCase()}
+                            </span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLOR[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                              {order.status}
+                            </span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {order.customer_name ?? '—'}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">{shortDate(order.created_at)}</p>
+                        </div>
+                        <span className="text-sm font-bold text-[#7C3AED] shrink-0">
+                          {fmt(order.total_amount ?? 0)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => router.push('/merchant/orders')}
+                className="mt-3 w-full text-center text-sm text-[#7C3AED] font-medium pt-3 border-t border-gray-100"
+              >
+                View all orders →
+              </button>
+            </div>
+          </>
+        )}
+      </main>
+    </>
+  );
+}

@@ -3,22 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  Search,
-  MessageCircle,
-  Zap,
-  Leaf,
-  Package,
-  Home,
-  Pill,
-  Cookie,
-  Sandwich,
-  Egg,
-  ShoppingBasket,
-  Milk,
-  ShoppingCart,
-  MapPin,
-} from 'lucide-react';
+import { Search, MessageCircle, ShoppingCart, MapPin } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { ProductCard } from './ProductCard';
 import { formatCurrency } from '@/lib/utils/format';
@@ -29,30 +14,70 @@ interface HomePageClientProps {
   ownProducts: Product[];
   featuredProducts: Product[];
   merchants: Merchant[];
+  foodMerchants: Merchant[];
+}
+
+function getCategoryIcon(slug: string): string {
+  const icons: Record<string, string> = {
+    'dairy': '🥛',
+    'bread-bakery': '🍞',
+    'eggs': '🥚',
+    'fruits-vegetables': '🥬',
+    'groceries': '🛒',
+    'snacks': '🍪',
+    'household': '🏠',
+    'personal-care': '🧴',
+    'baby-care': '👶',
+    'medicine': '💊',
+  };
+  return icons[slug] ?? '📦';
+}
+
+function getCategoryColor(slug: string): string {
+  const colors: Record<string, string> = {
+    'dairy': '#FEF9C3',
+    'bread-bakery': '#FEE2E2',
+    'eggs': '#DCFCE7',
+    'fruits-vegetables': '#DCFCE7',
+    'groceries': '#EDE9FE',
+    'snacks': '#FEF3C7',
+    'household': '#F3F4F6',
+    'personal-care': '#FCE7F3',
+    'baby-care': '#DBEAFE',
+    'medicine': '#D1FAE5',
+  };
+  return colors[slug] ?? '#F3F4F6';
+}
+
+function getCategoryMarathi(slug: string): string {
+  const marathi: Record<string, string> = {
+    'dairy': 'दूध',
+    'bread-bakery': 'ब्रेड',
+    'eggs': 'अंडी',
+    'fruits-vegetables': 'भाज्या',
+    'groceries': 'किराणा',
+    'snacks': 'नाश्ता',
+    'household': 'घरगुती',
+    'personal-care': 'सौंदर्य',
+    'baby-care': 'बाळ',
+    'medicine': 'औषध',
+  };
+  return marathi[slug] ?? '';
 }
 
 const SEARCH_PLACEHOLDERS = [
   'दूध, ब्रेड, अंडी शोधा...',
   'Search groceries, dairy, snacks...',
-  'किराणा, दैनंदिन वस्तू...',
+  'Search milk, bread, eggs...',
 ];
 
-const CATEGORY_CONFIG = [
-  { slug: 'dairy', icon: Milk, bgColor: '#FEF3C7', iconColor: '#F59E0B', label: 'Dairy', marathi: 'दूध' },
-  { slug: 'bread', icon: Sandwich, bgColor: '#FEE2E2', iconColor: '#EF4444', label: 'Bread', marathi: 'ब्रेड' },
-  { slug: 'eggs', icon: Egg, bgColor: '#ECFDF5', iconColor: '#10B981', label: 'Eggs', marathi: 'अंडी' },
-  { slug: 'vegetables', icon: Leaf, bgColor: '#EFF6FF', iconColor: '#3B82F6', label: 'Veggies', marathi: 'भाज्या' },
-  { slug: 'grocery', icon: ShoppingBasket, bgColor: '#F5F0FF', iconColor: '#7C3AED', label: 'Grocery', marathi: 'किराणा' },
-  { slug: 'snacks', icon: Cookie, bgColor: '#FFF7ED', iconColor: '#F97316', label: 'Snacks', marathi: 'नाश्ता' },
-  { slug: 'medicine', icon: Pill, bgColor: '#F0FDF4', iconColor: '#22C55E', label: 'Medicine', marathi: 'औषध' },
-  { slug: 'home', icon: Home, bgColor: '#F3F4F6', iconColor: '#6B7280', label: 'Household', marathi: 'घरगुती' },
-];
 
 export function HomePageClient({
   categories,
   ownProducts,
   featuredProducts,
   merchants,
+  foodMerchants,
 }: HomePageClientProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -117,7 +142,7 @@ export function HomePageClient({
         {/* Hero Section */}
         <div className="border-l-4 border-primary-600 bg-white p-4 rounded-r-lg">
           <p className="text-[10px] text-[#6B7280] mb-1">आपला गावातील किराणा दुकान</p>
-          <h1 className="text-2xl font-bold text-[#1A1A1A] mb-1">Order online, get at home</h1>
+          <h1 className="text-2xl font-bold text-[#1A1A1A] mb-1">Food, groceries & daily essentials delivered across Ardhapur</h1>
           <p className="text-xs text-primary-600 font-medium">⚡ Delivered within Ardhapur · Same day</p>
 
           {/* Trust badges */}
@@ -150,40 +175,76 @@ export function HomePageClient({
           </div>
         </div>
 
-        {/* Categories Grid */}
-        {categories.length > 0 && (
-          <section>
-            <h2 className="text-base font-bold text-[#1A1A1A] mb-3">Categories</h2>
-            <div className="grid grid-cols-4 gap-2">
-              {CATEGORY_CONFIG.slice(0, 8).map(cat => {
-                const Icon = cat.icon;
-                return (
-                  <Link key={cat.slug} href={`/category/${cat.slug}`}>
-                    <div className="flex flex-col items-center gap-2 p-2">
-                      <div
-                        className="w-16 h-16 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: cat.bgColor }}
-                      >
-                        <Icon className="w-6 h-6" style={{ color: cat.iconColor }} />
-                      </div>
-                      <div className="text-center w-full">
-                        <p className="text-[11px] font-medium text-[#1A1A1A] leading-tight">{cat.label}</p>
-                        <p className="text-[10px] text-[#6B7280] leading-tight">{cat.marathi}</p>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        )}
 
-        {/* Our Store */}
+
+        {/* Food Near You */}
+        {foodMerchants.length > 0 && (
+          <div className="py-3">
+            <div className="flex items-center justify-between px-4 mb-3">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">🍛 Food Near You</h2>
+                <p className="text-xs text-gray-500">Dhabas, home cooks & restaurants in Ardhapur</p>
+              </div>
+              <a href="/category/restaurants" className="text-xs font-medium text-purple-600">See all →</a>
+            </div>
+            <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ scrollbarWidth: 'none' as any }}>
+              {foodMerchants.map((merchant) => (
+                <a key={merchant.id} href={`/stores/${merchant.id}`}
+                  className="flex-shrink-0 bg-white border border-gray-100 rounded-2xl p-3"
+                  style={{ minWidth: 176 }}>
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold mb-2 mx-auto"
+                    style={{ background: '#FEE2E2' }}>
+                    {merchant.store_name.charAt(0)}
+                  </div>
+                  <p className="text-xs font-semibold text-gray-900 text-center truncate">{merchant.store_name}</p>
+                  {merchant.cuisine_type && (
+                    <p className="text-xs text-gray-400 text-center truncate">{merchant.cuisine_type}</p>
+                  )}
+                  <div className="flex items-center justify-center gap-1 mt-2">
+                    <span className={`w-1.5 h-1.5 rounded-full ${merchant.is_open ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    <span className="text-xs text-gray-500">
+                      {merchant.is_open ? 'Open' : 'Closed'} · ~{merchant.avg_delivery_time} mins
+                    </span>
+                  </div>
+                  {merchant.min_order_amount > 0 && (
+                    <p className="text-xs text-gray-400 text-center mt-1">Min ₹{merchant.min_order_amount}</p>
+                  )}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Need It Now */}
+        <div className="px-4 py-3">
+          <p className="text-base font-semibold text-gray-900 mb-1">Everyday Essentials</p>
+          <p className="text-xs text-gray-500 mb-3">रोजच्या गरजा · Daily must-haves</p>
+          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            {[
+              { label: 'Milk', emoji: '🥛', slug: 'dairy' },
+              { label: 'Bread', emoji: '🍞', slug: 'bread-bakery' },
+              { label: 'Eggs', emoji: '🥚', slug: 'dairy' },
+              { label: 'Onions', emoji: '🧅', slug: 'fruits-vegetables' },
+              { label: 'Tomatoes', emoji: '🍅', slug: 'fruits-vegetables' },
+              { label: 'Potatoes', emoji: '🥔', slug: 'fruits-vegetables' },
+              { label: 'Rice', emoji: '🌾', slug: 'groceries' },
+              { label: 'Oil', emoji: '🫙', slug: 'groceries' },
+              { label: 'Medicine', emoji: '💊', slug: 'medicines' },
+              { label: 'Snacks', emoji: '🍪', slug: 'snacks' },
+            ].map(item => (
+              <a key={item.label} href={`/category/${item.slug}`}
+                className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-white border border-purple-300 rounded-full text-sm font-medium text-purple-700">
+                <span>{item.emoji}</span>
+                <span className="whitespace-nowrap">{item.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+        {/* VillageMart Express */}
         <section>
           <div className="flex items-start justify-between mb-3">
             <div>
-              <h2 className="text-base font-bold text-[#1A1A1A]">Our Store</h2>
-              <p className="text-xs text-[#6B7280]">VillageMart inventory · Fresh stock daily</p>
+              <h2 className="text-base font-bold text-[#1A1A1A]">VillageMart Express</h2>
+              <p className="text-xs text-[#6B7280]">Fast delivery from our warehouse</p>
             </div>
             <a href="/category/all" className="text-xs text-primary-600 font-medium mt-1">
               See all →
@@ -202,6 +263,31 @@ export function HomePageClient({
 
         {/* Trust Section */}
         <section>
+        {/* Categories Grid — dynamic from Supabase */}
+        {categories.length > 0 && (
+          <section>
+            <h2 className="text-base font-bold text-[#1A1A1A] mb-3">Categories</h2>
+            <div className="grid grid-cols-4 gap-2">
+              {categories.map(cat => (
+                <Link key={cat.id} href={`/category/${cat.slug}`}>
+                  <div className="flex flex-col items-center gap-2 p-2">
+                    <div
+                      className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl"
+                      style={{ backgroundColor: getCategoryColor(cat.slug) }}
+                    >
+                      <span>{getCategoryIcon(cat.slug)}</span>
+                    </div>
+                    <div className="text-center w-full">
+                      <p className="text-[11px] font-medium text-[#1A1A1A] leading-tight">{cat.name}</p>
+                      <p className="text-[10px] text-[#6B7280] leading-tight">{getCategoryMarathi(cat.slug)}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
           <h2 className="text-base font-bold text-[#1A1A1A] mb-3">Why VillageMart?</h2>
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
             <div className="shrink-0 w-36 bg-white border-l-4 border-primary-600 rounded-r-lg px-3 py-3">
@@ -223,42 +309,6 @@ export function HomePageClient({
             </div>
           </div>
         </section>
-
-        {/* Local Stores */}
-        {merchants.length > 0 && (
-          <section>
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h2 className="text-base font-bold text-[#1A1A1A]">Local Stores</h2>
-                <p className="text-xs text-[#6B7280]">Order from your favourite shops</p>
-              </div>
-            </div>
-            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-              {merchants.map(merchant => (
-                <Link key={merchant.id} href={`/stores/${merchant.id}`}>
-                  <div className="shrink-0 w-40 bg-white border border-[#E5E7EB] rounded-xl p-3">
-                    <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-xs font-bold text-primary-600 mb-2">
-                      {merchant.store_name
-                        ?.split(' ')
-                        .map(w => w[0])
-                        .join('')
-                        .toUpperCase()}
-                    </div>
-                    <p className="text-xs font-semibold text-[#1A1A1A] line-clamp-1">{merchant.store_name}</p>
-                    <p className="text-[10px] text-[#6B7280] mt-1">
-                      {merchant.is_open ? (
-                        <span className="text-green-600">● Open</span>
-                      ) : (
-                        <span className="text-[#6B7280]">● Closed</span>
-                      )}
-                    </p>
-                    <p className="text-[10px] text-[#6B7280] mt-1">~30 mins</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* Popular Products */}
         {featuredWithCat.length > 0 && (
