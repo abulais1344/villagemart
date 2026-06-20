@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Phone, ClipboardList, ChevronRight, LogOut, Edit2, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { createClient } from '@/lib/supabase/client';
 
 interface Customer {
   name: string;
@@ -33,12 +34,18 @@ export default function ProfilePage() {
   const openEdit = () => { setForm(customer); setEditing(true); };
   const cancelEdit = () => setEditing(false);
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     const updated: Customer = { ...form, phone: customer.phone };
     localStorage.setItem('vm_customer', JSON.stringify(updated));
     setCustomer(updated);
     setEditing(false);
     toast.success('Address updated!');
+
+    const supabase = createClient();
+    await supabase.from('vm_users').upsert(
+      { phone: customer.phone, name: updated.name, address: updated.address, landmark: updated.landmark, area: updated.area },
+      { onConflict: 'phone' }
+    );
   };
 
   const handleLogout = () => {

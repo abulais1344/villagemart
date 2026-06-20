@@ -40,9 +40,9 @@ export default function LoginPage() {
       localStorage.setItem('vm_customer', JSON.stringify({
         name: data.name,
         phone,
-        address: (data as any).address ?? '',
-        landmark: (data as any).landmark ?? '',
-        area: (data as any).area ?? '',
+        address: data.address ?? '',
+        landmark: data.landmark ?? '',
+        area: data.area ?? '',
       }));
       toast.success(`Welcome back, ${data.name}! 👋`);
       router.push('/');
@@ -57,10 +57,9 @@ export default function LoginPage() {
     e.preventDefault();
     const supabase = createClient();
 
-    // Upsert into vm_users (insert if new, update if phone already exists without address)
     await supabase.from('vm_users').upsert(
-      { phone, name, address, landmark, area } as any,
-      { onConflict: 'phone', ignoreDuplicates: false }
+      { phone, name, address, landmark, area },
+      { onConflict: 'phone' }
     );
 
     localStorage.setItem('vm_customer', JSON.stringify({ name, phone, address, landmark, area }));
