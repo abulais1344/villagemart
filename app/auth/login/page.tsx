@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
+import { createClient } from '@/lib/supabase/client';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,21 +15,55 @@ export default function LoginPage() {
   const [landmark, setLandmark] = useState('');
   const [area, setArea] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const [checkLoading, setCheckLoading] = useState(false);
 
-  function handlePhoneSubmit(e: React.FormEvent) {
+  async function handlePhoneSubmit(e: React.FormEvent) {
     e.preventDefault();
     setPhoneError('');
     if (!/^[6-9]\d{9}$/.test(phone)) {
       setPhoneError('Enter a valid 10-digit Indian mobile number');
       return;
     }
-    setStep(2);
+
+    setCheckLoading(true);
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('vm_users')
+      .select('name, address, landmark, area')
+      .eq('phone', phone)
+      .maybeSingle();
+    setCheckLoading(false);
+
+    if (data?.name) {
+      // Returning customer — skip step 2
+      localStorage.setItem('vm_customer', JSON.stringify({
+        name: data.name,
+        phone,
+        address: (data as any).address ?? '',
+        landmark: (data as any).landmark ?? '',
+        area: (data as any).area ?? '',
+      }));
+      toast.success(`Welcome back, ${data.name}! 👋`);
+      router.push('/');
+    } else {
+      // New customer — go to step 2, pre-fill name if partial record exists
+      if (data?.name) setName(data.name);
+      setStep(2);
+    }
   }
 
-  function handleProfileSubmit(e: React.FormEvent) {
+  async function handleProfileSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const supabase = createClient();
+
+    // Upsert into vm_users (insert if new, update if phone already exists without address)
+    await supabase.from('vm_users').upsert(
+      { phone, name, address, landmark, area } as any,
+      { onConflict: 'phone', ignoreDuplicates: false }
+    );
+
     localStorage.setItem('vm_customer', JSON.stringify({ name, phone, address, landmark, area }));
-    router.push('/cart');
+    router.push('/');
   }
 
   const fieldClass = 'w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:border-transparent';
@@ -75,7 +111,7 @@ export default function LoginPage() {
               </div>
               {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
 
-              <Button type="submit" fullWidth size="lg">
+              <Button type="submit" fullWidth size="lg" loading={checkLoading}>
                 Continue
               </Button>
             </form>
