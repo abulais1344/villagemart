@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Search, MessageCircle, ShoppingCart, MapPin } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
@@ -186,20 +187,24 @@ export function HomePageClient({
                 <h2 className="text-base font-bold text-gray-900">🍛 Food Near You</h2>
                 <p className="text-xs text-gray-500">Dhabas, home cooks & restaurants</p>
               </div>
-              <a href="/stores" className="text-xs font-medium text-purple-600">See all →</a>
+              <Link href="/stores" className="text-xs font-medium text-purple-600">See all →</Link>
             </div>
             <div className="flex gap-3 overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
-              {foodMerchants.map((merchant) => (
-                <a key={merchant.id} href={`/stores/${merchant.id}`}
+              {foodMerchants.map((merchant, index) => (
+                <Link key={merchant.id} href={`/stores/${merchant.id}`}
                   className="flex-shrink-0 bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden"
                   style={{ minWidth: 160 }}>
                   {(merchant as any).cover_image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={(merchant as any).cover_image_url}
-                      alt={merchant.store_name}
-                      className="w-full h-28 object-cover bg-gray-100"
-                    />
+                    <div className="relative w-full h-28 bg-gray-100">
+                      <Image
+                        src={(merchant as any).cover_image_url}
+                        alt={merchant.store_name}
+                        fill
+                        className="object-cover"
+                        sizes="160px"
+                        priority={index === 0}
+                      />
+                    </div>
                   ) : (
                     <div className="w-full h-28 bg-[#7C3AED] flex items-center justify-center">
                       <span className="text-3xl font-bold text-white/40">{merchant.store_name.charAt(0).toUpperCase()}</span>
@@ -220,7 +225,7 @@ export function HomePageClient({
                         : deliveryRange(merchant.avg_delivery_time)}
                     </p>
                   </div>
-                </a>
+                </Link>
               ))}
             </div>
           </div>
@@ -242,11 +247,11 @@ export function HomePageClient({
               { label: 'Medicine', emoji: '💊', slug: 'medicines' },
               { label: 'Snacks', emoji: '🍪', slug: 'snacks' },
             ].map(item => (
-              <a key={item.label} href={`/category/${item.slug}`}
+              <Link key={item.label} href={`/category/${item.slug}`}
                 className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-purple-300 rounded-full text-sm font-medium text-purple-700">
                 <span>{item.emoji}</span>
                 <span className="whitespace-nowrap">{item.label}</span>
-              </a>
+              </Link>
             ))}
           </div>
         </section>
@@ -258,7 +263,7 @@ export function HomePageClient({
               <h2 className="text-base font-bold text-[#1A1A1A]">VillageMart Express</h2>
               <p className="text-xs text-[#6B7280]">Fast delivery from our warehouse</p>
             </div>
-            <a href="/category/all" className="text-xs text-primary-600 font-medium mt-1">See all →</a>
+            <Link href="/category/all" className="text-xs text-primary-600 font-medium mt-1">See all →</Link>
           </div>
           {ownWithCat.length > 0 ? (
             <div className="grid grid-cols-2 gap-2.5">

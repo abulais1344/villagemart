@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
 
 export const revalidate = 60;
@@ -55,16 +56,20 @@ export default async function StoresPage() {
 
       {/* Grid */}
       <div className="grid grid-cols-2 gap-3 px-4 pt-4">
-        {list.map((merchant: any) => (
+        {list.map((merchant: any, index: number) => (
           <Link key={merchant.id} href={`/stores/${merchant.id}`} className="block">
             {/* Cover image */}
             {merchant.cover_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={merchant.cover_image_url}
-                alt={merchant.store_name}
-                className="w-full h-36 object-cover rounded-lg bg-gray-100"
-              />
+              <div className="relative w-full h-36 rounded-lg overflow-hidden bg-gray-100">
+                <Image
+                  src={merchant.cover_image_url}
+                  alt={merchant.store_name}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 50vw, 25vw"
+                  priority={index === 0}
+                />
+              </div>
             ) : (
               <div className="w-full h-36 rounded-lg bg-purple-600 flex items-center justify-center">
                 <span className="text-4xl font-bold text-white/40">
