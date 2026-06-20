@@ -27,12 +27,13 @@ export default function LoginPage() {
 
     setCheckLoading(true);
     const supabase = createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('vm_users')
-      .select('name, address, landmark, area')
+      .select('name, phone, address, landmark, area')
       .eq('phone', phone)
       .maybeSingle();
     setCheckLoading(false);
+    if (error) console.error('vm_users lookup error:', error.message);
 
     if (data?.name) {
       // Returning customer — skip step 2
