@@ -1,13 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
@@ -45,7 +43,7 @@ export default function LoginPage() {
         area: data.area || '',
       }));
       toast.success(`Welcome back, ${data.name}! 👋`);
-      router.push('/');
+      window.location.href = '/';
     } else {
       // New customer — go to step 2, pre-fill name if partial record exists
       if (data?.name) setName(data.name);
@@ -63,7 +61,7 @@ export default function LoginPage() {
     );
 
     localStorage.setItem('vm_customer', JSON.stringify({ name, phone, address, landmark, area }));
-    router.push('/');
+    window.location.href = '/';
   }
 
   const fieldClass = 'w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:border-transparent';
