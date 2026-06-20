@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import {
   Plus, Search, Edit2, Trash2, ToggleLeft, ToggleRight,
   ChevronDown, Check, Package, X,
@@ -226,7 +226,7 @@ function ProductRow({
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export default function AdminProductsPage() {
+function AdminProductsPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -480,5 +480,13 @@ export default function AdminProductsPage() {
         </div>
       </Modal>
     </>
+  );
+}
+
+export default function AdminProductsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading...</div>}>
+      <AdminProductsPageInner />
+    </Suspense>
   );
 }
