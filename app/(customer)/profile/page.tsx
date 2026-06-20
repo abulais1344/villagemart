@@ -17,18 +17,27 @@ interface Customer {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Customer>({ name: '', phone: '', address: '', landmark: '', area: '' });
 
   useEffect(() => {
-    console.log('vm_customer from storage:', localStorage.getItem('vm_customer'));
-    const raw = localStorage.getItem('vm_customer');
-    if (!raw) { router.push('/auth/login'); return; }
-    const c: Customer = JSON.parse(raw);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const stored = localStorage.getItem('vm_customer');
+    console.log('profile - vm_customer:', stored);
+    if (!stored) {
+      router.push('/auth/login');
+      return;
+    }
+    const c: Customer = JSON.parse(stored);
     setCustomer(c);
     setForm(c);
-  }, [router]);
+  }, [mounted]);
 
   if (!customer) return null;
 

@@ -43,7 +43,9 @@ export default function LoginPage() {
         area: data.area || '',
       }));
       toast.success(`Welcome back, ${data.name}! 👋`);
-      window.location.href = '/';
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
     } else {
       // New customer — go to step 2, pre-fill name if partial record exists
       if (data?.name) setName(data.name);
