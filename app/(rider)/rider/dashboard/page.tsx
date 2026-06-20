@@ -132,14 +132,14 @@ export default function RiderDashboard() {
                     </div>
                     <div className="flex items-start gap-2 text-sm">
                       <div className="w-2 h-2 rounded-full bg-error mt-1.5 shrink-0" />
-                      <p className="text-[#6B7280]">{order.delivery_address?.full_address}</p>
+                      <p className="text-[#6B7280]">{(order.delivery_address as any)?.full_address ?? (order.delivery_address as any)?.address}</p>
                     </div>
                   </div>
 
                   <div className="flex justify-between items-center mt-3 pt-3 border-t border-[#E5E7EB]">
                     <span className="text-sm font-bold text-primary-600">{formatCurrency(order.total_amount)}</span>
                     <a
-                      href={`https://maps.google.com/?q=${order.delivery_address?.latitude},${order.delivery_address?.longitude}`}
+                      href={`https://maps.google.com/?q=${(order.delivery_address as any)?.latitude},${(order.delivery_address as any)?.longitude}`}
                       target="_blank"
                       rel="noreferrer"
                       onClick={e => e.stopPropagation()}

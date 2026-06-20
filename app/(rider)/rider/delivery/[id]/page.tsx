@@ -101,10 +101,10 @@ export default function DeliveryDetailPage() {
             <div className="w-3 h-3 rounded-full bg-error" />
             <h3 className="text-sm font-semibold text-[#1A1A1A]">Delivery Location</h3>
           </div>
-          <p className="text-sm text-[#6B7280] mb-3">{order.delivery_address?.full_address}</p>
-          {order.delivery_address?.landmark && <p className="text-xs text-[#6B7280] mb-3">Near: {order.delivery_address.landmark}</p>}
+          <p className="text-sm text-[#6B7280] mb-3">{(order.delivery_address as any)?.full_address ?? (order.delivery_address as any)?.address}</p>
+          {(order.delivery_address as any)?.landmark && <p className="text-xs text-[#6B7280] mb-3">Near: {(order.delivery_address as any)?.landmark}</p>}
           <a
-            href={`https://maps.google.com/?q=${order.delivery_address?.latitude},${order.delivery_address?.longitude}`}
+            href={`https://maps.google.com/?q=${(order.delivery_address as any)?.latitude},${(order.delivery_address as any)?.longitude}`}
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-center gap-2 py-2 bg-primary-600 rounded-xl text-sm font-medium text-white"

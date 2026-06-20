@@ -197,8 +197,8 @@ export function HomePageClient({
                     {merchant.store_name.charAt(0)}
                   </div>
                   <p className="text-xs font-semibold text-gray-900 text-center truncate">{merchant.store_name}</p>
-                  {merchant.cuisine_type && (
-                    <p className="text-xs text-gray-400 text-center truncate">{merchant.cuisine_type}</p>
+                  {(merchant as any).cuisine_type && (
+                    <p className="text-xs text-gray-400 text-center truncate">{(merchant as any).cuisine_type}</p>
                   )}
                   <div className="flex items-center justify-center gap-1 mt-2">
                     <span className={`w-1.5 h-1.5 rounded-full ${merchant.is_open ? 'bg-green-500' : 'bg-gray-300'}`} />

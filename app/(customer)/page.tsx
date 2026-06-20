@@ -54,7 +54,7 @@ export default async function HomePage() {
   if (merchantsResult.error) console.error('[home] merchants:', merchantsResult.error.message);
   if (foodResult.error) console.error('[home] food:', foodResult.error.message);
 
-  const categories: Category[] = catResult.data ?? [];
+  const categories = (catResult.data ?? []) as Category[];
   const featured: Product[] = featuredResult.data ?? [];
   const ownProducts: Product[] = ownResult.data ?? [];
   const merchants: Merchant[] = merchantsResult.data ?? [];
