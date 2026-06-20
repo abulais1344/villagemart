@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { HomePageClient } from '@/components/customer/HomePageClient';
 import type { Category, Product, Merchant } from '@/types';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
 
 export const metadata = {
   title: "VillageMart — Ardhapur's Online Store",

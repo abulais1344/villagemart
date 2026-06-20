@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { ProductDetailClient } from '@/components/customer/ProductDetailClient';
 import type { Product } from '@/types';
 
+export const revalidate = 60;
+
 export const dynamic = 'force-dynamic';
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
