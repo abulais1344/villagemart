@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { ImageUpload } from '@/components/shared/ImageUpload';
 
 interface MerchantFormModalProps {
   merchant?: any | null;
@@ -32,6 +33,7 @@ export function MerchantFormModal({ merchant, onClose, onSaved }: MerchantFormMo
   const [description, setDescription]          = useState(merchant?.description ?? '');
   const [opening_time, setOpeningTime]         = useState(merchant?.opening_time ?? '08:00');
   const [closing_time, setClosingTime]         = useState(merchant?.closing_time ?? '22:00');
+  const [cover_image_url, setCoverImageUrl]    = useState<string>(merchant?.cover_image_url ?? '');
 
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
@@ -64,6 +66,7 @@ export function MerchantFormModal({ merchant, onClose, onSaved }: MerchantFormMo
       description:       description.trim() || null,
       opening_time:      opening_time || null,
       closing_time:      closing_time || null,
+      cover_image_url:   cover_image_url || null,
     };
 
     const { error: dbError } = isEdit
@@ -277,7 +280,16 @@ export function MerchantFormModal({ merchant, onClose, onSaved }: MerchantFormMo
           placeholder="Authentic home-style food. Dal, roti, sabzi daily."
         />
 
-        {/* ── Section 6: Opening Hours ── */}
+        {/* ── Section 6: Cover Image ── */}
+        <p className={sectionCls}>Cover Image</p>
+        <ImageUpload
+          bucket="merchants"
+          onUpload={url => setCoverImageUrl(url)}
+          currentUrl={cover_image_url || null}
+          label=""
+        />
+
+        {/* ── Section 7: Opening Hours ── */}
         <p className={sectionCls}>Opening Hours</p>
 
         <div className="grid grid-cols-2 gap-3">

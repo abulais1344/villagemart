@@ -190,25 +190,37 @@ export function HomePageClient({
             <div className="flex gap-3 overflow-x-auto px-4 pb-2" style={{ scrollbarWidth: 'none' as any }}>
               {foodMerchants.map((merchant) => (
                 <a key={merchant.id} href={`/stores/${merchant.id}`}
-                  className="flex-shrink-0 bg-white border border-gray-100 rounded-2xl p-3"
+                  className="flex-shrink-0 bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden"
                   style={{ minWidth: 176 }}>
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-semibold mb-2 mx-auto"
-                    style={{ background: '#FEE2E2' }}>
-                    {merchant.store_name.charAt(0)}
-                  </div>
-                  <p className="text-xs font-semibold text-gray-900 text-center truncate">{merchant.store_name}</p>
-                  {(merchant as any).cuisine_type && (
-                    <p className="text-xs text-gray-400 text-center truncate">{(merchant as any).cuisine_type}</p>
+                  {/* Cover image */}
+                  {(merchant as any).cover_image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={(merchant as any).cover_image_url}
+                      alt={merchant.store_name}
+                      className="w-full h-36 object-cover bg-gray-100"
+                    />
+                  ) : (
+                    <div className="w-full h-36 bg-[#7C3AED] flex items-center justify-center">
+                      <span className="text-4xl font-bold text-white/40">{merchant.store_name.charAt(0).toUpperCase()}</span>
+                    </div>
                   )}
-                  <div className="flex items-center justify-center gap-1 mt-2">
-                    <span className={`w-1.5 h-1.5 rounded-full ${merchant.is_open ? 'bg-green-500' : 'bg-gray-300'}`} />
-                    <span className="text-xs text-gray-500">
-                      {merchant.is_open ? 'Open' : 'Closed'} · ~{merchant.avg_delivery_time} mins
-                    </span>
+                  {/* Info */}
+                  <div className="p-3">
+                    <p className="text-xs font-semibold text-gray-900 truncate">{merchant.store_name}</p>
+                    {(merchant as any).cuisine_type && (
+                      <p className="text-xs text-gray-400 truncate">{(merchant as any).cuisine_type}</p>
+                    )}
+                    <div className="flex items-center gap-1 mt-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full ${merchant.is_open ? 'bg-green-500' : 'bg-gray-300'}`} />
+                      <span className="text-xs text-gray-500">
+                        {merchant.is_open ? 'Open' : 'Closed'} · ~{merchant.avg_delivery_time} mins
+                      </span>
+                    </div>
+                    {merchant.min_order_amount > 0 && (
+                      <p className="text-xs text-gray-400 mt-0.5">Min ₹{merchant.min_order_amount}</p>
+                    )}
                   </div>
-                  {merchant.min_order_amount > 0 && (
-                    <p className="text-xs text-gray-400 text-center mt-1">Min ₹{merchant.min_order_amount}</p>
-                  )}
                 </a>
               ))}
             </div>

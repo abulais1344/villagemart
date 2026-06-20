@@ -39,12 +39,12 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
       </Link>
 
       {/* Banner */}
-      <div className="relative h-44 bg-primary-100">
-        {merchant.banner_url ? (
-          <Image src={merchant.banner_url} alt={merchant.store_name} fill className="object-cover" />
+      <div className="relative h-48 bg-primary-100">
+        {(merchant as any).cover_image_url ? (
+          <Image src={(merchant as any).cover_image_url} alt={merchant.store_name} fill className="object-cover" sizes="100vw" />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-primary-200 to-primary-300 flex items-center justify-center">
-            <span className="text-6xl">🏪</span>
+          <div className="w-full h-full bg-gradient-to-br from-[#7C3AED] to-[#6D28D9] flex items-center justify-center">
+            <span className="text-7xl font-bold text-white/30">{merchant.store_name.charAt(0).toUpperCase()}</span>
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
