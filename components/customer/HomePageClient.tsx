@@ -226,32 +226,7 @@ export function HomePageClient({
           </div>
         )}
 
-        {/* 5. Categories */}
-        {categories.length > 0 && (
-          <section>
-            <h2 className="text-base font-bold text-[#1A1A1A] mb-2">Categories</h2>
-            <div className="grid grid-cols-4 gap-2">
-              {categories.map(cat => (
-                <Link key={cat.id} href={`/category/${cat.slug}`}>
-                  <div className="flex flex-col items-center gap-1.5 p-1.5">
-                    <div
-                      className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
-                      style={{ backgroundColor: getCategoryColor(cat.slug) }}
-                    >
-                      <span>{getCategoryIcon(cat.slug)}</span>
-                    </div>
-                    <div className="text-center w-full">
-                      <p className="text-[11px] font-medium text-[#1A1A1A] leading-tight">{cat.name}</p>
-                      <p className="text-[10px] text-[#6B7280] leading-tight">{getCategoryMarathi(cat.slug)}</p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 6. Everyday Essentials */}
+        {/* 4. Everyday Essentials */}
         <section>
           <p className="text-base font-semibold text-gray-900 mb-2">Everyday Essentials</p>
           <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
@@ -276,7 +251,19 @@ export function HomePageClient({
           </div>
         </section>
 
-        {/* 7. VillageMart Express */}
+        {/* 5. Popular Products */}
+        {featuredWithCat.length > 0 && (
+          <section>
+            <h2 className="text-base font-bold text-[#1A1A1A] mb-2">Popular Products</h2>
+            <div className="grid grid-cols-2 gap-2.5">
+              {featuredWithCat.slice(0, 4).map(p => (
+                <ProductCard key={p.id} product={p as Product} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* 6. VillageMart Express */}
         <section>
           <div className="flex items-start justify-between mb-2">
             <div>
@@ -296,13 +283,26 @@ export function HomePageClient({
           )}
         </section>
 
-        {/* 8. Popular Products */}
-        {featuredWithCat.length > 0 && (
+        {/* 7. Categories */}
+        {categories.length > 0 && (
           <section>
-            <h2 className="text-base font-bold text-[#1A1A1A] mb-2">Popular Products</h2>
-            <div className="grid grid-cols-2 gap-2.5">
-              {featuredWithCat.slice(0, 4).map(p => (
-                <ProductCard key={p.id} product={p as Product} />
+            <h2 className="text-base font-bold text-[#1A1A1A] mb-2">Categories</h2>
+            <div className="grid grid-cols-4 gap-2">
+              {categories.map(cat => (
+                <Link key={cat.id} href={`/category/${cat.slug}`}>
+                  <div className="flex flex-col items-center gap-1.5 p-1.5">
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
+                      style={{ backgroundColor: getCategoryColor(cat.slug) }}
+                    >
+                      <span>{getCategoryIcon(cat.slug)}</span>
+                    </div>
+                    <div className="text-center w-full">
+                      <p className="text-[11px] font-medium text-[#1A1A1A] leading-tight">{cat.name}</p>
+                      <p className="text-[10px] text-[#6B7280] leading-tight">{getCategoryMarathi(cat.slug)}</p>
+                    </div>
+                  </div>
+                </Link>
               ))}
             </div>
           </section>
