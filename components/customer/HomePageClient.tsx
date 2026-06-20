@@ -186,7 +186,7 @@ export function HomePageClient({
                 <h2 className="text-base font-bold text-gray-900">🍛 Food Near You</h2>
                 <p className="text-xs text-gray-500">Dhabas, home cooks & restaurants</p>
               </div>
-              <a href="/category/restaurants" className="text-xs font-medium text-purple-600">See all →</a>
+              <a href="/stores" className="text-xs font-medium text-purple-600">See all →</a>
             </div>
             <div className="flex gap-3 overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
               {foodMerchants.map((merchant) => (
