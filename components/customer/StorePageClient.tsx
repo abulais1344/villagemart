@@ -40,15 +40,8 @@ function getCuisineTags(cuisineType: string | null): string[] {
 }
 
 // ── Bestseller detection ──────────────────────────────────────────────────────
-const BESTSELLER_KEYWORDS = ['kebab', 'biryani', 'paneer', 'butter', 'special'];
-
 function isBestseller(product: Product): boolean {
-  const discountPct = product.mrp > 0
-    ? (product.mrp - product.selling_price) / product.mrp
-    : 0;
-  if (discountPct >= 0.10) return true;
-  const name = product.name.toLowerCase();
-  return BESTSELLER_KEYWORDS.some(kw => name.includes(kw));
+  return product.is_bestseller === true;
 }
 
 type Filter = 'all' | 'veg' | 'nonveg';

@@ -41,8 +41,21 @@ export default function MerchantMenuPage() {
 
   async function toggleAvailable(productId: string, currentState: boolean) {
     await supabase.from('vm_products').update({ is_active: !currentState }).eq('id', productId);
-    // Optimistic update — no need to re-fetch
     setMenu(prev => prev.map(p => p.id === productId ? { ...p, is_active: !currentState } : p));
+  }
+
+  async function toggleBestseller(productId: string, currentState: boolean) {
+    // Optimistic update
+    setMenu(prev => prev.map(p => p.id === productId ? { ...p, is_bestseller: !currentState } : p));
+    const res = await fetch('/api/merchant/products', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: productId, is_bestseller: !currentState }),
+    });
+    if (!res.ok) {
+      // Revert on error
+      setMenu(prev => prev.map(p => p.id === productId ? { ...p, is_bestseller: currentState } : p));
+    }
   }
 
   return (
@@ -65,8 +78,8 @@ export default function MerchantMenuPage() {
           </div>
         ) : (
           menu.map(product => (
-            <div key={product.id} className="bg-white rounded-2xl p-4 border border-gray-100 mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div key={product.id} className="bg-white rounded-2xl p-4 border border-gray-100 mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-2xl overflow-hidden shrink-0">
                   {product.images?.[0] ? (
                     <img
@@ -78,22 +91,39 @@ export default function MerchantMenuPage() {
                     <span>{getFoodEmoji(product.name)}</span>
                   )}
                 </div>
-                <div>
-                  <p className="font-medium text-gray-900">{product.name}</p>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-medium text-gray-900 truncate">{product.name}</p>
+                    {product.is_bestseller && (
+                      <span className="text-[10px] text-orange-600 font-semibold whitespace-nowrap">🔥 Bestseller</span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-500">₹{product.selling_price}</p>
                 </div>
               </div>
 
-              <button
-                onClick={() => toggleAvailable(product.id, product.is_active)}
-                className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${
-                  product.is_active ? 'bg-[#7C3AED]' : 'bg-gray-300'
-                }`}
-              >
-                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                  product.is_active ? 'left-7' : 'left-1'
-                }`} />
-              </button>
+              <div className="flex items-center gap-3 shrink-0">
+                {/* Bestseller toggle */}
+                <button
+                  onClick={() => toggleBestseller(product.id, !!product.is_bestseller)}
+                  title={product.is_bestseller ? 'Remove bestseller' : 'Mark as bestseller'}
+                  className="flex flex-col items-center"
+                >
+                  <span className={`text-xl leading-none ${product.is_bestseller ? 'text-orange-400' : 'text-gray-200'}`}>⭐</span>
+                </button>
+
+                {/* Available toggle */}
+                <button
+                  onClick={() => toggleAvailable(product.id, product.is_active)}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    product.is_active ? 'bg-[#7C3AED]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                    product.is_active ? 'left-7' : 'left-1'
+                  }`} />
+                </button>
+              </div>
             </div>
           ))
         )}

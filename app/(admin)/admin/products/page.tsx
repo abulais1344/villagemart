@@ -110,6 +110,7 @@ function ProductRow({
   selected,
   onSelect,
   onToggleActive,
+  onToggleBestseller,
   onDelete,
   onStockUpdate,
   highlight,
@@ -118,6 +119,7 @@ function ProductRow({
   selected: boolean;
   onSelect: (id: string) => void;
   onToggleActive: (p: Product) => void;
+  onToggleBestseller: (p: Product) => void;
   onDelete: (id: string) => void;
   onStockUpdate: (id: string, qty: number) => void;
   highlight: boolean;
@@ -164,7 +166,10 @@ function ProductRow({
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[#1A1A1A] truncate">{product.name}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-semibold text-[#1A1A1A] truncate">{product.name}</p>
+            {(product as any).is_bestseller && <span className="text-sm shrink-0">🔥</span>}
+          </div>
           <p className="text-xs text-[#6B7280]">
             {(product.category as { name: string } | undefined)?.name ?? '—'} · {product.unit}
           </p>
@@ -212,6 +217,13 @@ function ProductRow({
             title={product.is_active ? 'Deactivate' : 'Activate'}
           >
             {product.is_active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+          </button>
+          <button
+            onClick={() => onToggleBestseller(product)}
+            title={(product as any).is_bestseller ? 'Remove bestseller' : 'Mark as bestseller'}
+            className={(product as any).is_bestseller ? 'text-orange-400' : 'text-gray-300'}
+          >
+            <span className="text-base leading-none">⭐</span>
           </button>
           <Link href={`/admin/products/${product.id}/edit`} className="text-primary-600 hover:text-primary-700" title="Edit">
             <Edit2 className="w-4 h-4" />
@@ -307,6 +319,19 @@ function AdminProductsPageInner() {
     } catch {
       setProducts(prev => prev.map(x => x.id === p.id ? { ...x, is_active: p.is_active } : x));
       toast.error('Failed to update status');
+    }
+  };
+
+  const handleToggleBestseller = async (p: Product) => {
+    const next = !(p as any).is_bestseller;
+    setProducts(prev => prev.map(x => x.id === p.id ? { ...x, is_bestseller: next } : x));
+    const { error } = await supabase
+      .from('vm_products')
+      .update({ is_bestseller: next })
+      .eq('id', p.id);
+    if (error) {
+      setProducts(prev => prev.map(x => x.id === p.id ? { ...x, is_bestseller: (p as any).is_bestseller } : x));
+      toast.error('Failed to update bestseller');
     }
   };
 
@@ -460,6 +485,7 @@ function AdminProductsPageInner() {
                 selected={selected.has(p.id)}
                 onSelect={toggleSelect}
                 onToggleActive={handleToggleActive}
+                onToggleBestseller={handleToggleBestseller}
                 onDelete={id => setConfirmDelete(id)}
                 onStockUpdate={handleStockUpdate}
                 highlight={p.id === highlightId}

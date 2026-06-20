@@ -63,6 +63,7 @@ export interface Product {
   images: string[];
   is_active: boolean;
   is_featured: boolean;
+  is_bestseller: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;
