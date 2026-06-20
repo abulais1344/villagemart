@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
-const PROTECTED_ROUTES = ['/orders', '/profile', '/addresses'];
+const PROTECTED_ROUTES: string[] = [];
 const ROLE_ROUTES = [
   { prefix: '/merchant/', role: 'merchant' },
   { prefix: '/rider/', role: 'rider' },
@@ -28,7 +28,9 @@ export async function proxy(request: NextRequest) {
     pathname === '/merchant-login' ||
     pathname.startsWith('/checkout') ||
     pathname.startsWith('/order-confirmation') ||
-    pathname.startsWith('/orders')
+    pathname.startsWith('/orders') ||
+    pathname.startsWith('/profile') ||
+    pathname.startsWith('/addresses')
   ) {
     return NextResponse.next();
   }
