@@ -49,6 +49,7 @@ export default function EditProductPage() {
         sku: data.sku ?? null,
         is_featured: data.is_featured,
         is_active: data.is_active,
+        is_veg: data.is_veg,
         images: data.images,
       });
       toast.success('Product updated!');

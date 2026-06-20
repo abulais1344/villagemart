@@ -12,7 +12,7 @@ import type { Product } from '@/types';
 interface ProductFormProps {
   initial?: Partial<Product>;
   categories: { id: string; name: string }[];
-  onSubmit: (data: ProductFormData & { images: string[] }) => Promise<void>;
+  onSubmit: (data: ProductFormData & { images: string[]; is_veg: boolean }) => Promise<void>;
   loading?: boolean;
 }
 
@@ -20,6 +20,7 @@ const UNITS = ['piece', 'kg', 'gram', '500g', '250g', 'litre', '500ml', '250ml',
 
 export function ProductForm({ initial, categories, onSubmit, loading }: ProductFormProps) {
   const [images, setImages] = useState<string[]>(initial?.images ?? []);
+  const [isVeg, setIsVeg] = useState<boolean>(initial?.is_veg ?? true);
   const { register, handleSubmit, formState: { errors }, watch } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema) as Resolver<ProductFormData>,
     defaultValues: {
@@ -43,7 +44,7 @@ export function ProductForm({ initial, categories, onSubmit, loading }: ProductF
   const discount = mrp > 0 ? Math.round(((mrp - selling) / mrp) * 100) : 0;
 
   return (
-    <form onSubmit={handleSubmit((d) => onSubmit({ ...(d as ProductFormData), images }))} className="space-y-4">
+    <form onSubmit={handleSubmit((d) => onSubmit({ ...(d as ProductFormData), images, is_veg: isVeg }))} className="space-y-4">
       <ImageUpload
         bucket="products"
         onUpload={url => setImages(prev => [...prev.filter(u => u !== url), url])}
@@ -52,6 +53,31 @@ export function ProductForm({ initial, categories, onSubmit, loading }: ProductF
       />
 
       <Input label="Product Name *" error={errors.name?.message} {...register('name')} placeholder="e.g. Amul Milk 500ml" />
+
+      {/* Food Type */}
+      <div>
+        <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Food Type *</label>
+        <div className="flex gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              checked={isVeg === true}
+              onChange={() => setIsVeg(true)}
+              className="accent-green-600"
+            />
+            <span className="text-sm">🟢 Veg</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              checked={isVeg === false}
+              onChange={() => setIsVeg(false)}
+              className="accent-red-500"
+            />
+            <span className="text-sm">🔴 Non Veg</span>
+          </label>
+        </div>
+      </div>
 
       <div>
         <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Category *</label>

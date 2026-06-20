@@ -28,6 +28,7 @@ export interface ProductPayload {
   sku?: string | null;
   is_featured: boolean;
   is_active: boolean;
+  is_veg?: boolean;
   images: string[];
   merchant_id?: string | null;
 }
@@ -55,6 +56,7 @@ export async function createProduct(data: ProductPayload) {
       merchant_id: data.merchant_id ?? null,
       is_featured: data.is_featured,
       is_active: data.is_active,
+      is_veg: data.is_veg ?? true,
       images: data.images,
       stock_status,
     })
@@ -89,6 +91,7 @@ export async function updateProduct(id: string, data: ProductPayload) {
       sku,
       is_featured: data.is_featured,
       is_active: data.is_active,
+      is_veg: data.is_veg ?? true,
       images: data.images,
       stock_status,
     })

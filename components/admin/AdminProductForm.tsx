@@ -22,6 +22,7 @@ const schema = z.object({
   stock_quantity: z.number().int().min(0, 'Stock cannot be negative'),
   low_stock_threshold: z.number().int().min(0).default(10),
   sku: z.string().optional(),
+  is_veg: z.boolean().default(true),
   is_featured: z.boolean().default(false),
   is_active: z.boolean().default(true),
   images: z.array(z.string()).default([]),
@@ -63,6 +64,7 @@ export function AdminProductForm({ initial, categories, onSubmit, loading }: Adm
       stock_quantity: initial?.stock_quantity ?? 0,
       low_stock_threshold: initial?.low_stock_threshold ?? 10,
       sku: initial?.sku ?? '',
+      is_veg: initial?.is_veg ?? true,
       is_featured: initial?.is_featured ?? false,
       is_active: initial?.is_active ?? true,
       images: initial?.images ?? [],
@@ -103,6 +105,33 @@ export function AdminProductForm({ initial, categories, onSubmit, loading }: Adm
         placeholder="e.g. Amul Milk 500ml"
         {...register('name')}
       />
+
+      {/* Food Type */}
+      <div>
+        {label('Food Type', true)}
+        <div className="flex gap-4 mt-1">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              value="true"
+              checked={watch('is_veg') === true}
+              onChange={() => setValue('is_veg', true, { shouldValidate: false })}
+              className="accent-green-600"
+            />
+            <span className="text-sm">🟢 Veg</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              value="false"
+              checked={watch('is_veg') === false}
+              onChange={() => setValue('is_veg', false, { shouldValidate: false })}
+              className="accent-red-500"
+            />
+            <span className="text-sm">🔴 Non Veg</span>
+          </label>
+        </div>
+      </div>
 
       {/* Description */}
       <div>

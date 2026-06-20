@@ -53,7 +53,7 @@ export default function MerchantProductsPage() {
     setLoading(false);
   };
 
-  const handleSave = async (data: ProductFormData & { images: string[] }) => {
+  const handleSave = async (data: ProductFormData & { images: string[]; is_veg: boolean }) => {
     if (!merchantId) return;
     setSaving(true);
     const offerPct = data.mrp > 0 ? ((data.mrp - data.selling_price) / data.mrp) * 100 : 0;

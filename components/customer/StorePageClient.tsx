@@ -8,14 +8,8 @@ import { useCartStore } from '@/store/cartStore';
 import { formatCurrency } from '@/lib/utils/format';
 import type { Product } from '@/types';
 
-// ── Veg / Non-veg detection ──────────────────────────────────────────────────
-const NON_VEG_KEYWORDS = [
-  'chicken', 'mutton', 'fish', 'egg', 'prawn', 'meat', 'beef', 'pork', 'non-veg', 'non veg',
-];
-
 function isNonVeg(product: Product): boolean {
-  const text = `${product.name} ${product.description ?? ''}`.toLowerCase();
-  return NON_VEG_KEYWORDS.some(kw => text.includes(kw));
+  return product.is_veg === false;
 }
 
 // ── Cuisine tags (mirrored from HomePageClient) ───────────────────────────────
