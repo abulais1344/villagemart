@@ -60,16 +60,18 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Combined filter: veg/nonveg + search
-  const filtered = products.filter(p => {
-    if (filter === 'veg' && isNonVeg(p)) return false;
-    if (filter === 'nonveg' && !isNonVeg(p)) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return p.name.toLowerCase().includes(q) || (p.description ?? '').toLowerCase().includes(q);
-    }
-    return true;
-  });
+  // Combined filter: veg/nonveg + search, bestsellers first
+  const filtered = products
+    .filter(p => {
+      if (filter === 'veg' && isNonVeg(p)) return false;
+      if (filter === 'nonveg' && !isNonVeg(p)) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return p.name.toLowerCase().includes(q) || (p.description ?? '').toLowerCase().includes(q);
+      }
+      return true;
+    })
+    .sort((a, b) => (b.is_bestseller ? 1 : 0) - (a.is_bestseller ? 1 : 0));
 
   const merchantItems = mounted
     ? items.filter(i => i.product.merchant_id === merchant.id)
