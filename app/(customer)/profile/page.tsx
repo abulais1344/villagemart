@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState<Customer>({ name: '', phone: '', address: '', landmark: '', area: '' });
 
   useEffect(() => {
+    console.log('vm_customer from storage:', localStorage.getItem('vm_customer'));
     const raw = localStorage.getItem('vm_customer');
     if (!raw) { router.push('/auth/login'); return; }
     const c: Customer = JSON.parse(raw);

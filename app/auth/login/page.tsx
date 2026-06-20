@@ -39,10 +39,10 @@ export default function LoginPage() {
       // Returning customer — skip step 2
       localStorage.setItem('vm_customer', JSON.stringify({
         name: data.name,
-        phone,
-        address: data.address ?? '',
-        landmark: data.landmark ?? '',
-        area: data.area ?? '',
+        phone: data.phone,
+        address: data.address || '',
+        landmark: data.landmark || '',
+        area: data.area || '',
       }));
       toast.success(`Welcome back, ${data.name}! 👋`);
       router.push('/');
