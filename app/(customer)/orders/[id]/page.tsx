@@ -118,9 +118,9 @@ export default function OrderDetailPage() {
         {/* Delivery address */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4">
           <h2 className="text-sm font-semibold text-[#1A1A1A] mb-2">Delivery Address</h2>
-          <p className="text-sm text-[#6B7280]">{order.delivery_address?.address}</p>
-          {order.delivery_address?.landmark && (
-            <p className="text-xs text-[#6B7280]">Near: {order.delivery_address.landmark}</p>
+          <p className="text-sm text-[#6B7280]">{(order.delivery_address as any)?.address}</p>
+          {(order.delivery_address as any)?.landmark && (
+            <p className="text-xs text-[#6B7280]">Near: {(order.delivery_address as any)?.landmark}</p>
           )}
         </div>
 
