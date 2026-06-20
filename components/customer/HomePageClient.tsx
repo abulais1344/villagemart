@@ -251,19 +251,7 @@ export function HomePageClient({
           </div>
         </section>
 
-        {/* 5. Popular Products */}
-        {featuredWithCat.length > 0 && (
-          <section>
-            <h2 className="text-base font-bold text-[#1A1A1A] mb-2">Popular Products</h2>
-            <div className="grid grid-cols-2 gap-2.5">
-              {featuredWithCat.slice(0, 4).map(p => (
-                <ProductCard key={p.id} product={p as Product} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 6. VillageMart Express */}
+        {/* 5. VillageMart Express */}
         <section>
           <div className="flex items-start justify-between mb-2">
             <div>
@@ -283,7 +271,7 @@ export function HomePageClient({
           )}
         </section>
 
-        {/* 7. Categories */}
+        {/* 6. Categories */}
         {categories.length > 0 && (
           <section>
             <h2 className="text-base font-bold text-[#1A1A1A] mb-2">Categories</h2>
@@ -303,6 +291,18 @@ export function HomePageClient({
                     </div>
                   </div>
                 </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* 7. Popular Products */}
+        {featuredWithCat.length > 0 && (
+          <section>
+            <h2 className="text-base font-bold text-[#1A1A1A] mb-2">Popular Products</h2>
+            <div className="grid grid-cols-2 gap-2.5">
+              {featuredWithCat.slice(0, 4).map(p => (
+                <ProductCard key={p.id} product={p as Product} />
               ))}
             </div>
           </section>
