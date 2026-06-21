@@ -120,8 +120,12 @@ export default function LocationPickerModal({
                 searchInputRef.current,
                 {
                   componentRestrictions: { country: 'in' },
-                  fields: ['geometry'],
-                },
+                  locationBias: {
+                    center: { lat: 19.2819, lng: 77.3736 },
+                    radius: 30000,
+                  },
+                  fields: ['geometry', 'formatted_address', 'address_components'],
+                } as google.maps.places.AutocompleteOptions,
               );
               autocomplete.addListener('place_changed', () => {
                 const place = autocomplete.getPlace();
