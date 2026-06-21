@@ -104,7 +104,7 @@ export default function LocationPickerModal({
 
           let foundArea = '';
           let foundPincode = '';
-          for (const comp of r.address_components as any[]) {
+          for (const comp of (r.address_components as any[])) {
             const types: string[] = comp.types;
             if (
               !foundArea &&
