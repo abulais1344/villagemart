@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Search, MessageCircle, ShoppingCart, MapPin } from 'lucide-react';
+import { Search, Bell, ShoppingCart, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { ProductCard } from './ProductCard';
 import { formatCurrency } from '@/lib/utils/format';
@@ -106,11 +106,18 @@ export function HomePageClient({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [searchPlaceholderIndex, setSearchPlaceholderIndex] = useState(0);
+  const [customer, setCustomer] = useState<{ name?: string; area?: string; address?: string } | null>(null);
   const { items, getSubtotal } = useCartStore();
   const cartTotal = getSubtotal();
   const itemCount = items.length;
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+    try {
+      const raw = localStorage.getItem('vm_customer');
+      if (raw) setCustomer(JSON.parse(raw));
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -130,17 +137,19 @@ export function HomePageClient({
     <div className="min-h-screen bg-white">
       {/* 1. Location Header */}
       <div className="sticky top-0 z-30 bg-white border-b border-[#E5E7EB] px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-1">
-            <MapPin className="w-4 h-4 text-primary-600 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[10px] text-[#6B7280]">Delivering to</p>
-              <p className="text-xs font-bold text-[#1A1A1A] truncate">Ardhapur, Maharashtra ↓</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-2">
+          {/* Left: address */}
+          <Link href="/profile" className="min-w-0 flex-1">
+            <p className="text-[10px] text-gray-400">Delivering to</p>
+            <p className="text-sm font-semibold text-gray-900 truncate max-w-[180px]">
+              {mounted ? (customer?.area || customer?.address || 'Ardhapur') : 'Ardhapur'} ↓
+            </p>
+          </Link>
+
+          {/* Right: bell, cart, profile avatar */}
+          <div className="flex items-center gap-1 shrink-0">
             <button className="p-2 rounded-xl hover:bg-gray-100">
-              <MessageCircle className="w-5 h-5 text-[#6B7280]" />
+              <Bell className="w-5 h-5 text-[#6B7280]" />
             </button>
             <Link href="/cart" className="p-2 rounded-xl hover:bg-gray-100 relative">
               <ShoppingCart className="w-5 h-5 text-[#6B7280]" />
@@ -148,6 +157,17 @@ export function HomePageClient({
                 <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                   {itemCount > 9 ? '9+' : itemCount}
                 </span>
+              )}
+            </Link>
+            <Link href="/profile" className="p-1 rounded-xl hover:bg-gray-100">
+              {mounted && customer?.name ? (
+                <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-bold">
+                  {customer.name.charAt(0).toUpperCase()}
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                  <User className="w-4 h-4 text-gray-500" />
+                </div>
               )}
             </Link>
           </div>

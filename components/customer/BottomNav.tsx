@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, ShoppingCart, ClipboardList, User } from 'lucide-react';
+import { Home, Search, ShoppingCart, ClipboardList } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 
 const NAV = [
@@ -11,7 +11,6 @@ const NAV = [
   { href: '/search', icon: Search, label: 'Search' },
   { href: '/cart', icon: ShoppingCart, label: 'Cart', badge: true },
   { href: '/orders', icon: ClipboardList, label: 'Orders' },
-  { href: '/profile', icon: User, label: 'Profile' },
 ];
 
 export function BottomNav() {
