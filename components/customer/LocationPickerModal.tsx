@@ -95,7 +95,7 @@ export default function LocationPickerModal({
 
             const map = new window.google.maps.Map(mapRef.current, {
               center,
-              zoom: 18,
+              zoom: 19,
               disableDefaultUI: true,
               zoomControl: true,
               gestureHandling: 'greedy',
