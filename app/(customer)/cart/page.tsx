@@ -2,18 +2,33 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Minus, Plus, Trash2, ShoppingCart, Tag, MapPin } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { Header } from '@/components/customer/Header';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/lib/utils/format';
-import { getCustomer, type Customer } from '@/lib/customer';
+import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
+import { AddressManager } from '@/components/customer/AddressManager';
+
+const LocationPickerModal = dynamic(
+  () => import('@/components/customer/LocationPickerModal'),
+  { ssr: false },
+);
+
+const LABEL_EMOJI: Record<AddressData['label'], string> = {
+  Home: '🏠',
+  Work: '💼',
+  Other: '📍',
+};
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, getSubtotal } = useCartStore();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [showAddressSheet, setShowAddressSheet] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -24,6 +39,43 @@ export default function CartPage() {
   const subtotal = getSubtotal();
   const deliveryCharge = subtotal >= 299 ? 0 : 20;
   const total = subtotal + deliveryCharge;
+
+  const activeAddr: AddressData | null =
+    customer?.addresses?.length
+      ? (customer.addresses[customer.active_address_index ?? 0] ?? null)
+      : null;
+
+  const fallbackAddr =
+    !activeAddr && customer?.address
+      ? { address: customer.address, area: customer.area ?? '' }
+      : null;
+
+  function handleAddressChange(_addr: AddressData) {
+    setCustomer(getCustomer());
+  }
+
+  function handleAddNew(data: AddressData) {
+    const raw = localStorage.getItem('vm_customer');
+    if (!raw) return;
+    const c = JSON.parse(raw);
+    const existing: AddressData[] = c.addresses ?? [];
+    if (existing.length >= 3) return;
+    const updated = [...existing, data];
+    const newActive = updated.length - 1;
+    localStorage.setItem(
+      'vm_customer',
+      JSON.stringify({
+        ...c,
+        addresses: updated,
+        active_address_index: newActive,
+        address: data.address,
+        area: data.area,
+        lat: data.lat,
+        lng: data.lng,
+      }),
+    );
+    setCustomer(getCustomer());
+  }
 
   if (!mounted) return null;
 
@@ -91,32 +143,73 @@ export default function CartPage() {
 
         {/* Delivery address */}
         <div>
-          <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">Delivery Address</h3>
-          {customer ? (
-            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4">
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="font-medium text-gray-900">{customer.name}</p>
-                <p className="text-sm text-gray-600 mt-0.5">{customer.address}</p>
-                {(customer.landmark || customer.area) && (
-                  <p className="text-sm text-gray-500 mt-0.5">
-                    {[customer.landmark, customer.area].filter(Boolean).join(' · ')}
+          <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">Deliver to</h3>
+
+          {activeAddr ? (
+            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {LABEL_EMOJI[activeAddr.label]} {activeAddr.label} · {activeAddr.area}
                   </p>
-                )}
+                  <p className="text-xs text-gray-500 mt-0.5 leading-snug">{activeAddr.address}</p>
+                </div>
+                <span className="text-green-500 text-base font-bold shrink-0">✓</span>
               </div>
-              <button
-                onClick={() => router.push('/auth/login')}
-                className="mt-2 text-xs text-[#7C3AED] font-medium"
-              >
-                Change address
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowAddressSheet(true)}
+                  className="flex-1 py-2 text-xs font-semibold text-purple-600 border border-purple-200 rounded-xl hover:bg-purple-50 transition-colors"
+                >
+                  Change
+                </button>
+                <button
+                  onClick={() => setShowPicker(true)}
+                  className="flex-1 py-2 text-xs font-semibold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Add New
+                </button>
+              </div>
+            </div>
+          ) : fallbackAddr ? (
+            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">
+                    📍 {fallbackAddr.area || 'Saved Address'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-snug">{fallbackAddr.address}</p>
+                </div>
+                <span className="text-green-500 text-base font-bold shrink-0">✓</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowAddressSheet(true)}
+                  className="flex-1 py-2 text-xs font-semibold text-purple-600 border border-purple-200 rounded-xl hover:bg-purple-50 transition-colors"
+                >
+                  Change
+                </button>
+                <button
+                  onClick={() => setShowPicker(true)}
+                  className="flex-1 py-2 text-xs font-semibold text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                >
+                  Add New
+                </button>
+              </div>
             </div>
           ) : (
-            <button
-              onClick={() => router.push('/auth/login')}
-              className="w-full border-2 border-dashed border-purple-200 rounded-xl py-4 text-[#7C3AED] text-sm font-medium"
-            >
-              + Add delivery address
-            </button>
+            <div className="space-y-2">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <p className="text-sm font-semibold text-amber-700">📍 Add delivery address</p>
+                <p className="text-xs text-amber-600 mt-0.5">Please add an address to continue</p>
+              </div>
+              <button
+                onClick={() => setShowPicker(true)}
+                className="w-full bg-purple-600 text-white rounded-xl py-3 text-sm font-semibold"
+              >
+                Add Address
+              </button>
+            </div>
           )}
         </div>
 
@@ -164,6 +257,17 @@ export default function CartPage() {
           {customer ? `Proceed to Checkout · ${formatCurrency(total)}` : 'Add address to continue'}
         </Button>
       </main>
+
+      <AddressManager
+        isOpen={showAddressSheet}
+        onClose={() => setShowAddressSheet(false)}
+        onAddressChange={handleAddressChange}
+      />
+      <LocationPickerModal
+        isOpen={showPicker}
+        onClose={() => setShowPicker(false)}
+        onSave={handleAddNew}
+      />
     </>
   );
 }
