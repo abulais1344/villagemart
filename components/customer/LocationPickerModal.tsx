@@ -61,6 +61,9 @@ export default function LocationPickerModal({
       lng: defaultLng ?? ARDHAPUR_CENTER.lng,
     };
 
+    setTimeout(() => {
+    if (!mapDivRef.current || mapInstance.current) return;
+
     const map = new G.Map(mapDivRef.current, {
       center,
       zoom: 15,
@@ -70,6 +73,10 @@ export default function LocationPickerModal({
 
     mapInstance.current = map;
     geocoderRef.current = new G.Geocoder();
+
+    // Force the map to recalculate container size after modal animation
+    G.event.trigger(map, 'resize');
+    map.setCenter(center);
 
     // Reverse geocode when map comes to rest
     map.addListener('idle', () => {
@@ -127,6 +134,7 @@ export default function LocationPickerModal({
         }
       });
     }
+    }, 100);
   }, [mapsLoaded, defaultLat, defaultLng]);
 
   function handleCurrentLocation() {
@@ -179,7 +187,7 @@ export default function LocationPickerModal({
           </div>
         ) : (
           <>
-            <div ref={mapDivRef} className="w-full h-full bg-gray-100" />
+            <div ref={mapDivRef} style={{ width: '100%', height: '256px' }} className="w-full" />
 
             {/* Fixed center pin */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
