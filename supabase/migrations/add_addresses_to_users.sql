@@ -1,0 +1,3 @@
+ALTER TABLE vm_users
+  ADD COLUMN IF NOT EXISTS addresses JSONB DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS active_address_index INTEGER DEFAULT 0;

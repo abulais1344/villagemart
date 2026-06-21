@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft, ShieldCheck, MapPin } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { getCustomer, type Customer } from '@/lib/customer';
 import { formatCurrency } from '@/lib/utils/format';
+import { isWithinDeliveryZone } from '@/lib/delivery-zone';
 
 declare global {
   interface Window {
@@ -30,6 +32,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [zoneOk, setZoneOk] = useState<boolean | null>(null);
   const paymentSucceeded = useRef(false);
 
   // Step 1: mark Zustand as hydrated from localStorage
@@ -44,6 +47,9 @@ export default function CheckoutPage() {
     if (!c) { window.location.href = '/auth/login'; return; }
     if (items.length === 0 && !paymentSucceeded.current) { window.location.href = '/'; return; }
     setCustomer(c);
+    if (typeof c.lat === 'number' && typeof c.lng === 'number') {
+      setZoneOk(isWithinDeliveryZone(c.lat, c.lng));
+    }
     setMounted(true);
   }, [hydrated, items]);
 
@@ -200,6 +206,30 @@ export default function CheckoutPage() {
           </div>
         </div>
 
+        {/* Delivery zone status */}
+        {zoneOk === false && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+            <p className="text-sm font-semibold text-red-600">⚠️ Delivery not available</p>
+            <p className="text-xs text-red-500 mt-0.5 leading-snug">
+              We currently deliver only within 10 km of Ardhapur. Please update your delivery location.
+            </p>
+            <Link href="/" className="text-xs text-purple-600 font-semibold mt-1.5 inline-block">
+              Change location →
+            </Link>
+          </div>
+        )}
+        {zoneOk === null && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <p className="text-sm font-semibold text-amber-700">📍 Location not pinned</p>
+            <p className="text-xs text-amber-600 mt-0.5 leading-snug">
+              Set your exact delivery location to ensure we can reach you.
+            </p>
+            <Link href="/" className="text-xs text-purple-600 font-semibold mt-1.5 inline-block">
+              Set location →
+            </Link>
+          </div>
+        )}
+
         {/* Security note */}
         <div className="flex items-center gap-2 text-xs text-[#9CA3AF]">
           <ShieldCheck className="w-4 h-4 text-green-500 shrink-0" />
@@ -211,7 +241,7 @@ export default function CheckoutPage() {
       <div className="fixed bottom-16 left-0 right-0 p-4 bg-white border-t border-gray-100">
         <button
           onClick={handlePayment}
-          disabled={loading}
+          disabled={loading || zoneOk === false}
           className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-60 text-white rounded-2xl py-4 font-semibold text-base transition-colors"
         >
           {loading ? 'Processing…' : `Pay ${formatCurrency(total)} via UPI / Card`}

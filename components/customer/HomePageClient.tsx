@@ -9,6 +9,8 @@ import { useCartStore } from '@/store/cartStore';
 import { ProductCard } from './ProductCard';
 import { formatCurrency } from '@/lib/utils/format';
 import type { Category, Product, Merchant } from '@/types';
+import type { Customer, AddressData } from '@/lib/customer';
+import { AddressManager } from './AddressManager';
 
 interface HomePageClientProps {
   categories: Category[];
@@ -106,7 +108,8 @@ export function HomePageClient({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [searchPlaceholderIndex, setSearchPlaceholderIndex] = useState(0);
-  const [customer, setCustomer] = useState<{ name?: string; area?: string; address?: string } | null>(null);
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [showAddressSheet, setShowAddressSheet] = useState(false);
   const { items, getSubtotal } = useCartStore();
   const cartTotal = getSubtotal();
   const itemCount = items.length;
@@ -126,6 +129,15 @@ export function HomePageClient({
     return () => clearInterval(interval);
   }, []);
 
+  function handleAddressChange(_addr: AddressData) {
+    try {
+      const raw = localStorage.getItem('vm_customer');
+      if (raw) setCustomer(JSON.parse(raw));
+    } catch {}
+  }
+
+  const activeAddr = customer?.addresses?.[customer.active_address_index ?? 0] ?? null;
+
   const catMap = new Map(categories.map(c => [c.id, c]));
   const withCategory = (products: Product[]) =>
     products.map(p => ({ ...p, category: catMap.get(p.category_id) ?? null }));
@@ -139,12 +151,16 @@ export function HomePageClient({
       <div className="sticky top-0 z-30 bg-white border-b border-[#E5E7EB] px-4 py-3">
         <div className="flex items-center justify-between gap-2">
           {/* Left: address */}
-          <Link href="/profile" className="min-w-0 flex-1">
+          <button onClick={() => setShowAddressSheet(true)} className="min-w-0 flex-1 text-left">
             <p className="text-[10px] text-gray-400">Delivering to</p>
-            <p className="text-sm font-semibold text-gray-900 truncate max-w-[180px]">
-              {mounted ? (customer?.area || customer?.address || 'Ardhapur') : 'Ardhapur'} ↓
+            <p className={`text-sm font-semibold truncate max-w-[180px] ${mounted && activeAddr ? 'text-gray-900' : 'text-purple-600'}`}>
+              {mounted
+                ? activeAddr
+                  ? `${activeAddr.label === 'Home' ? '🏠' : activeAddr.label === 'Work' ? '💼' : '📍'} ${activeAddr.label} · ${activeAddr.area || 'Ardhapur'}`
+                  : customer?.area || customer?.address || 'Set location'
+                : 'Ardhapur'} ↓
             </p>
-          </Link>
+          </button>
 
           {/* Right: bell, cart, profile avatar */}
           <div className="flex items-center gap-1 shrink-0">
@@ -334,6 +350,12 @@ export function HomePageClient({
         )}
 
       </main>
+
+      <AddressManager
+        isOpen={showAddressSheet}
+        onClose={() => setShowAddressSheet(false)}
+        onAddressChange={handleAddressChange}
+      />
 
       {/* Floating Cart Pill */}
       {mounted && itemCount > 0 && (

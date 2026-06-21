@@ -1,9 +1,22 @@
+export interface AddressData {
+  label: 'Home' | 'Work' | 'Other';
+  address: string;
+  area: string;
+  lat: number;
+  lng: number;
+  pincode: string;
+}
+
 export interface Customer {
   name: string;
   phone: string;
   address: string;
   landmark: string;
   area: string;
+  lat?: number;
+  lng?: number;
+  addresses?: AddressData[];
+  active_address_index?: number;
 }
 
 export function getCustomer(): Customer | null {
