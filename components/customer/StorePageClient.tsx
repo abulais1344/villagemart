@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Minus, Plus } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
@@ -290,17 +291,15 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
 
       {/* ── Sticky Cart Bar ── */}
       {mounted && cartCount > 0 && (
-        <div className="fixed bottom-16 left-4 right-4 z-50">
-          <button
-            onClick={() => router.push('/cart')}
-            className="w-full bg-purple-600 text-white rounded-xl py-3 px-4 flex items-center justify-between shadow-lg"
-          >
-            <span className="text-sm font-semibold">
-              {cartCount} item{cartCount !== 1 ? 's' : ''} · {formatCurrency(cartTotal)}
-            </span>
-            <span className="text-sm font-semibold">View Cart →</span>
-          </button>
-        </div>
+        <Link
+          href="/cart"
+          className="fixed bottom-16 left-4 right-4 z-50 bg-purple-600 text-white rounded-xl py-3 px-4 flex items-center justify-between shadow-lg"
+        >
+          <span className="text-sm font-semibold">
+            {cartCount} item{cartCount !== 1 ? 's' : ''} · {formatCurrency(cartTotal)}
+          </span>
+          <span className="text-sm font-semibold">View Cart →</span>
+        </Link>
       )}
     </div>
   );

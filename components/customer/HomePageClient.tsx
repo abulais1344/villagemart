@@ -142,14 +142,14 @@ export function HomePageClient({
             <button className="p-2 rounded-xl hover:bg-gray-100">
               <MessageCircle className="w-5 h-5 text-[#6B7280]" />
             </button>
-            <button className="p-2 rounded-xl hover:bg-gray-100 relative">
+            <Link href="/cart" className="p-2 rounded-xl hover:bg-gray-100 relative">
               <ShoppingCart className="w-5 h-5 text-[#6B7280]" />
               {mounted && itemCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                   {itemCount > 9 ? '9+' : itemCount}
                 </span>
               )}
-            </button>
+            </Link>
           </div>
         </div>
       </div>
