@@ -6,6 +6,13 @@ import Link from 'next/link';
 import { ArrowLeft, Phone, ClipboardList, ChevronRight, LogOut, Edit2, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { createClient } from '@/lib/supabase/client';
+import type { AddressData } from '@/lib/customer';
+
+const LABEL_EMOJI: Record<AddressData['label'], string> = {
+  Home: '🏠',
+  Work: '💼',
+  Other: '📍',
+};
 
 interface Customer {
   name: string;
@@ -13,6 +20,8 @@ interface Customer {
   address: string;
   landmark: string;
   area: string;
+  addresses?: AddressData[];
+  active_address_index?: number;
 }
 
 export default function ProfilePage() {
@@ -161,6 +170,31 @@ export default function ProfilePage() {
                   <X className="w-4 h-4" /> Cancel
                 </button>
               </div>
+            </div>
+          ) : customer.addresses && customer.addresses.length > 0 ? (
+            <div className="space-y-2">
+              {customer.addresses.map((addr, i) => {
+                const isActive = i === (customer.active_address_index ?? 0);
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-2.5 rounded-xl px-3 py-2.5 ${
+                      isActive ? 'bg-purple-50' : 'bg-gray-50'
+                    }`}
+                  >
+                    <span className="text-base mt-0.5 shrink-0">{LABEL_EMOJI[addr.label]}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-gray-800">{addr.label}</span>
+                        {isActive && (
+                          <span className="w-2 h-2 rounded-full bg-purple-600 shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5 leading-snug">{addr.address}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="space-y-0.5 text-sm text-gray-600">
