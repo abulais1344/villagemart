@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { X, Plus, Check, Trash2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -45,6 +45,23 @@ async function syncToSupabase(
   }
 }
 
+function persist(newAddresses: AddressData[], newActive: number) {
+  const raw = localStorage.getItem('vm_customer');
+  if (!raw) return;
+  const c: Customer = JSON.parse(raw);
+  const addr = newAddresses[newActive];
+  const updated = {
+    ...c,
+    addresses: newAddresses,
+    active_address_index: newActive,
+    ...(addr
+      ? { address: addr.address, area: addr.area, lat: addr.lat, lng: addr.lng }
+      : {}),
+  };
+  localStorage.setItem('vm_customer', JSON.stringify(updated));
+  if (c.phone) syncToSupabase(c.phone, newAddresses, newActive);
+}
+
 export function AddressManager({ isOpen, onClose, onAddressChange }: Props) {
   const [addresses, setAddresses] = useState<AddressData[]>(() => {
     const c = readCustomer();
@@ -56,24 +73,37 @@ export function AddressManager({ isOpen, onClose, onAddressChange }: Props) {
   });
   const [showPicker, setShowPicker] = useState(false);
 
-  if (!isOpen) return null;
+  // Re-sync on every open; fall back to Supabase when localStorage has no addresses
+  useEffect(() => {
+    if (!isOpen) return;
 
-  function persist(newAddresses: AddressData[], newActive: number) {
-    const raw = localStorage.getItem('vm_customer');
-    if (!raw) return;
-    const c: Customer = JSON.parse(raw);
-    const addr = newAddresses[newActive];
-    const updated = {
-      ...c,
-      addresses: newAddresses,
-      active_address_index: newActive,
-      ...(addr
-        ? { address: addr.address, area: addr.area, lat: addr.lat, lng: addr.lng }
-        : {}),
-    };
-    localStorage.setItem('vm_customer', JSON.stringify(updated));
-    if (c.phone) syncToSupabase(c.phone, newAddresses, newActive);
-  }
+    const c = readCustomer();
+    const local: AddressData[] = c?.addresses ?? [];
+
+    if (local.length > 0) {
+      setAddresses(local);
+      setActiveIndex(c?.active_address_index ?? 0);
+      return;
+    }
+
+    if (!c?.phone) return;
+    const supabase = createClient();
+    supabase
+      .from('vm_users')
+      .select('addresses, active_address_index')
+      .eq('phone', c.phone)
+      .single()
+      .then(({ data }) => {
+        if (!data?.addresses?.length) return;
+        const remoteAddresses: AddressData[] = data.addresses;
+        const remoteActive: number = data.active_address_index ?? 0;
+        setAddresses(remoteAddresses);
+        setActiveIndex(remoteActive);
+        persist(remoteAddresses, remoteActive);
+      });
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   function selectAddress(i: number) {
     setActiveIndex(i);
