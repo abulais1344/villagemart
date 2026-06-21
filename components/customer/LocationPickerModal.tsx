@@ -61,80 +61,82 @@ export default function LocationPickerModal({
       lng: defaultLng ?? ARDHAPUR_CENTER.lng,
     };
 
-    setTimeout(() => {
-    if (!mapDivRef.current || mapInstance.current) return;
+    const initMap = () => {
+      if (!mapDivRef.current || mapInstance.current) return;
 
-    const map = new G.Map(mapDivRef.current, {
-      center,
-      zoom: 15,
-      disableDefaultUI: true,
-      zoomControl: true,
-    });
+      const map = new G.Map(mapDivRef.current, {
+        center,
+        zoom: 15,
+        disableDefaultUI: true,
+        zoomControl: true,
+      });
 
-    mapInstance.current = map;
-    geocoderRef.current = new G.Geocoder();
+      mapInstance.current = map;
+      geocoderRef.current = new G.Geocoder();
 
-    // Force the map to recalculate container size after modal animation
-    G.event.trigger(map, 'resize');
-    map.setCenter(center);
+      // Force the map to recalculate container size after modal animation
+      G.event.trigger(map, 'resize');
+      map.setCenter(center);
 
-    // Reverse geocode when map comes to rest
-    map.addListener('idle', () => {
-      const c = map.getCenter();
-      if (!c) return;
+      // Reverse geocode when map comes to rest
+      map.addListener('idle', () => {
+        const c = map.getCenter();
+        if (!c) return;
 
-      const newLat = c.lat();
-      const newLng = c.lng();
-      setLat(newLat);
-      setLng(newLng);
-      setInZone(isWithinDeliveryZone(newLat, newLng));
-      setGeocoding(true);
+        const newLat = c.lat();
+        const newLng = c.lng();
+        setLat(newLat);
+        setLng(newLng);
+        setInZone(isWithinDeliveryZone(newLat, newLng));
+        setGeocoding(true);
 
-      const reqId = ++geocodeCounter.current;
+        const reqId = ++geocodeCounter.current;
 
-      geocoderRef.current.geocode(
-        { location: { lat: newLat, lng: newLng } },
-        (results: any[], status: string) => {
-          if (reqId !== geocodeCounter.current) return;
-          setGeocoding(false);
-          if (status !== 'OK' || !results?.[0]) return;
+        geocoderRef.current.geocode(
+          { location: { lat: newLat, lng: newLng } },
+          (results: any[], status: string) => {
+            if (reqId !== geocodeCounter.current) return;
+            setGeocoding(false);
+            if (status !== 'OK' || !results?.[0]) return;
 
-          const r = results[0];
-          setAddress(r.formatted_address);
+            const r = results[0];
+            setAddress(r.formatted_address);
 
-          let foundArea = '';
-          let foundPincode = '';
-          for (const comp of (r.address_components as any[])) {
-            const types: string[] = comp.types;
-            if (
-              !foundArea &&
-              (types.includes('sublocality_level_1') || types.includes('locality'))
-            ) {
-              foundArea = comp.long_name;
+            let foundArea = '';
+            let foundPincode = '';
+            for (const comp of (r.address_components as any[])) {
+              const types: string[] = comp.types;
+              if (
+                !foundArea &&
+                (types.includes('sublocality_level_1') || types.includes('locality'))
+              ) {
+                foundArea = comp.long_name;
+              }
+              if (types.includes('postal_code')) foundPincode = comp.long_name;
             }
-            if (types.includes('postal_code')) foundPincode = comp.long_name;
-          }
-          setArea(foundArea);
-          setPincode(foundPincode);
-        },
-      );
-    });
+            setArea(foundArea);
+            setPincode(foundPincode);
+          },
+        );
+      });
 
-    // Search autocomplete
-    if (searchInputRef.current) {
-      const autocomplete = new G.places.Autocomplete(searchInputRef.current, {
-        componentRestrictions: { country: 'in' },
-        fields: ['geometry'],
-      });
-      autocomplete.addListener('place_changed', () => {
-        const place = autocomplete.getPlace();
-        if (place?.geometry?.location) {
-          map.panTo(place.geometry.location);
-          map.setZoom(15);
-        }
-      });
-    }
-    }, 100);
+      // Search autocomplete
+      if (searchInputRef.current) {
+        const autocomplete = new G.places.Autocomplete(searchInputRef.current, {
+          componentRestrictions: { country: 'in' },
+          fields: ['geometry'],
+        });
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          if (place?.geometry?.location) {
+            map.panTo(place.geometry.location);
+            map.setZoom(15);
+          }
+        });
+      }
+    };
+
+    setTimeout(initMap, 100);
   }, [mapsLoaded, defaultLat, defaultLng]);
 
   function handleCurrentLocation() {
