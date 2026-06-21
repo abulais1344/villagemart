@@ -67,7 +67,7 @@ export default async function StoresPage() {
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 50vw, 25vw"
-                  priority={index === 0}
+                  preload={index === 0}
                 />
               </div>
             ) : (
