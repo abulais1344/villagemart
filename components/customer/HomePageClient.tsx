@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Search, Bell, ShoppingCart, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
+import { createClient } from '@/lib/supabase/client';
 import { ProductCard } from './ProductCard';
 import { formatCurrency } from '@/lib/utils/format';
 import type { Category, Product, Merchant } from '@/types';
@@ -112,6 +113,7 @@ export function HomePageClient({
   const [searchPlaceholderIndex, setSearchPlaceholderIndex] = useState(0);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [showAddressSheet, setShowAddressSheet] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { items, getSubtotal } = useCartStore();
   const cartTotal = getSubtotal();
   const itemCount = items.length;
@@ -120,11 +122,37 @@ export function HomePageClient({
 
   useEffect(() => {
     setMounted(true);
+    let phone: string | null = null;
     try {
       const raw = localStorage.getItem('vm_customer');
-      if (raw) setCustomer(JSON.parse(raw));
+      if (raw) {
+        const c = JSON.parse(raw);
+        setCustomer(c);
+        phone = c.phone ?? null;
+        if (phone) fetchUnread(phone);
+      }
     } catch {}
+
+    const interval = setInterval(() => { if (phone) fetchUnread(phone); }, 30000);
+    function handleRead() { setUnreadCount(0); }
+    window.addEventListener('notificationsRead', handleRead);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('notificationsRead', handleRead);
+    };
   }, []);
+
+  async function fetchUnread(phone: string) {
+    try {
+      const supabase = createClient();
+      const { count } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_phone', phone)
+        .eq('is_read', false);
+      setUnreadCount(count ?? 0);
+    } catch {}
+  }
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -168,9 +196,14 @@ export function HomePageClient({
 
           {/* Right: bell, cart, profile avatar */}
           <div className="flex items-center gap-1 shrink-0">
-            <button className="p-2 rounded-xl hover:bg-gray-100">
+            <Link href="/notifications" className="p-2 rounded-xl hover:bg-gray-100 relative">
               <Bell className="w-5 h-5 text-[#6B7280]" />
-            </button>
+              {mounted && unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-0.5 flex items-center justify-center leading-none">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Link>
             <PulseHint show={mounted && itemCount > 0 && showCartHint} label="View cart 🛒" position="bottom">
               <Link href="/cart" onClick={markCartSeen} className="p-2 rounded-xl hover:bg-gray-100 relative">
                 <ShoppingCart className="w-5 h-5 text-[#6B7280]" />
@@ -214,8 +247,8 @@ export function HomePageClient({
         <div className="bg-[#F5F0FF] rounded-xl px-4 py-2.5">
           <div className="flex items-center justify-between text-xs">
             <div>
-              <span className="font-bold text-primary-600">⚡ Same day delivery</span>
-              <span className="text-[#6B7280] ml-2">Order before 6 PM</span>
+              <span className="font-bold text-primary-600">⚡ 30 min delivery</span>
+              <span className="text-[#6B7280] ml-2">Order before 10 PM</span>
             </div>
             <span className="text-primary-600 font-semibold">Free above ₹199</span>
           </div>

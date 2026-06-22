@@ -84,23 +84,42 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Fire-and-forget WhatsApp notification — never blocks the response
-  if (statusMessages[status]) {
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from('orders')
-          .select('customer_phone')
-          .eq('id', orderId)
-          .single();
-        if (data?.customer_phone) {
-          await sendWhatsAppNotification(data.customer_phone, statusMessages[status]);
+  const IN_APP_NOTIFICATIONS: Record<string, { title: string; body: string }> = {
+    accepted:         { title: 'Order Accepted! 🎉',  body: 'Your order has been accepted and is being prepared.' },
+    out_for_delivery: { title: 'Out for Delivery 🛵', body: 'Your order is on the way!' },
+    delivered:        { title: 'Order Delivered ✅',   body: 'Your order has been delivered. Enjoy!' },
+    cancelled:        { title: 'Order Cancelled ❌',   body: 'Your order has been cancelled. Refund in 5-7 days.' },
+    ready:            { title: 'Order Ready 📦',       body: 'Your order is ready for delivery.' },
+  };
+
+  // Fire-and-forget: WhatsApp + in-app notification (share one customer_phone fetch)
+  (async () => {
+    try {
+      const { data: order } = await supabase
+        .from('orders')
+        .select('customer_phone')
+        .eq('id', orderId)
+        .single();
+
+      if (order?.customer_phone) {
+        if (statusMessages[status]) {
+          await sendWhatsAppNotification(order.customer_phone, statusMessages[status]);
         }
-      } catch (err) {
-        console.error('[whatsapp] notification failed:', err);
+        const msg = IN_APP_NOTIFICATIONS[status];
+        if (msg) {
+          await supabase.from('notifications').insert({
+            user_phone: order.customer_phone,
+            type: 'order_update',
+            title: msg.title,
+            body: msg.body,
+            is_read: false,
+          });
+        }
       }
-    })();
-  }
+    } catch (err) {
+      console.error('[notification] failed:', err);
+    }
+  })();
 
   return NextResponse.json({ success: true });
 }

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { SearchBar } from './SearchBar';
+import { createClient } from '@/lib/supabase/client';
 
 interface HeaderProps {
   location?: string;
@@ -13,12 +14,37 @@ interface HeaderProps {
 
 export function Header({ location = 'Ardhapur, Maharashtra' }: HeaderProps) {
   const [mounted, setMounted] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const itemCount = useCartStore(s => s.getItemCount());
   const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    function handleRead() { setUnreadCount(0); }
+    window.addEventListener('notificationsRead', handleRead);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('notificationsRead', handleRead);
+    };
   }, []);
+
+  async function fetchUnread() {
+    try {
+      const raw = localStorage.getItem('vm_customer');
+      if (!raw) return;
+      const { phone } = JSON.parse(raw);
+      if (!phone) return;
+      const supabase = createClient();
+      const { count } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_phone', phone)
+        .eq('is_read', false);
+      setUnreadCount(count ?? 0);
+    } catch {}
+  }
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-[#E5E7EB] shadow-sm">
@@ -44,6 +70,11 @@ export function Header({ location = 'Ardhapur, Maharashtra' }: HeaderProps) {
         <div className="flex items-center gap-1 shrink-0">
           <Link href="/notifications" className="p-2 rounded-xl hover:bg-gray-100 relative">
             <Bell className="w-5 h-5 text-[#1A1A1A]" />
+            {mounted && unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-0.5 flex items-center justify-center leading-none">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </Link>
           <Link href="/cart" className="p-2 rounded-xl hover:bg-gray-100 relative">
             <ShoppingCart className="w-5 h-5 text-[#1A1A1A]" />

@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, ChevronDown, X } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils/format';
@@ -14,7 +13,6 @@ function isNonVeg(product: Product): boolean {
   return product.is_veg === false;
 }
 
-// ── Cuisine tags (mirrored from HomePageClient) ───────────────────────────────
 const CUISINE_RULES: [RegExp, string][] = [
   [/chicken|non.?veg|arabian|tandoori|kebab|mutton/i, '🍗 Non Veg'],
   [/\bveg\b|north.?indian|\bindian\b|dal|thali|paneer/i, '🥬 Veg'],
@@ -35,9 +33,12 @@ function getCuisineTags(cuisineType: string | null): string[] {
   return tags.length > 0 ? tags : ['🍽️ Meals'];
 }
 
-// ── Bestseller detection ──────────────────────────────────────────────────────
 function isBestseller(product: Product): boolean {
   return product.is_bestseller === true;
+}
+
+function slugCat(cat: string) {
+  return cat.replace(/\s+/g, '-');
 }
 
 type Filter = 'all' | 'veg' | 'nonveg';
@@ -54,10 +55,79 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const [mounted, setMounted] = useState(false);
   const [conflictProduct, setConflictProduct] = useState<Product | null>(null);
   const [otherStoreName, setOtherStoreName] = useState('another restaurant');
+  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [showMenuSheet, setShowMenuSheet] = useState(false);
+  const categoryNavRef = useRef<HTMLDivElement>(null);
   const { items, addItem, updateQuantity, removeItem, clearCart } = useCartStore();
   const supabase = createClient();
 
   useEffect(() => { setMounted(true); }, []);
+
+  // ── IntersectionObserver scroll spy ──────────────────────────────────────
+  useEffect(() => {
+    if (searchQuery.trim()) return;
+
+    const filteredForObs = products.filter(p => {
+      if (filter === 'veg' && isNonVeg(p)) return false;
+      if (filter === 'nonveg' && !isNonVeg(p)) return false;
+      return true;
+    });
+
+    const seen = new Set<string>();
+    const cats: string[] = [];
+    for (const p of filteredForObs) {
+      const cat = p.description?.trim();
+      if (cat && !seen.has(cat)) { seen.add(cat); cats.push(cat); }
+    }
+
+    if (cats.length > 0) setActiveCategory(prev => prev || cats[0]);
+
+    const observers: IntersectionObserver[] = [];
+    cats.forEach(cat => {
+      const el = document.getElementById(`section-${slugCat(cat)}`);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveCategory(cat); },
+        { threshold: 0.1, rootMargin: '-60px 0px -40% 0px' },
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+
+    return () => observers.forEach(o => o.disconnect());
+  }, [products, filter, searchQuery]);
+
+  // ── Auto-scroll active pill into view in nav bar ──────────────────────────
+  useEffect(() => {
+    if (!activeCategory) return;
+    const pill = document.getElementById(`pill-${slugCat(activeCategory)}`);
+    pill?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, [activeCategory]);
+
+  // ── Pill / sheet tap → smooth scroll to section ──────────────────────────
+  function scrollToSection(cat: string) {
+    // expand if collapsed
+    setCollapsedSections(prev => {
+      if (!prev.has(cat)) return prev;
+      const next = new Set(prev);
+      next.delete(cat);
+      return next;
+    });
+    setActiveCategory(cat);
+    const el = document.getElementById(`section-${slugCat(cat)}`);
+    if (!el) return;
+    const y = el.getBoundingClientRect().top + window.scrollY - 160;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  }
+
+  function toggleSection(cat: string) {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  }
 
   async function handleAddItem(product: Product) {
     const otherItem = items.find(i => i.product.merchant_id !== merchant.id);
@@ -75,7 +145,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     addItem(product);
   }
 
-  // Combined filter: veg/nonveg + search, bestsellers first
+  // Combined filter + search, bestsellers first
   const filtered = products
     .filter(p => {
       if (filter === 'veg' && isNonVeg(p)) return false;
@@ -88,9 +158,22 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     })
     .sort((a, b) => (b.is_bestseller ? 1 : 0) - (a.is_bestseller ? 1 : 0));
 
-  const merchantItems = mounted
-    ? items.filter(i => i.product.merchant_id === merchant.id)
-    : [];
+  // Order-preserving unique categories + grouped map
+  const categories: string[] = [];
+  const seenCats = new Set<string>();
+  for (const p of filtered) {
+    const cat = p.description?.trim();
+    if (cat && !seenCats.has(cat)) { seenCats.add(cat); categories.push(cat); }
+  }
+
+  const grouped = new Map<string, Product[]>();
+  for (const p of filtered) {
+    const cat = p.description?.trim() ?? 'Other';
+    if (!grouped.has(cat)) grouped.set(cat, []);
+    grouped.get(cat)!.push(p);
+  }
+
+  const merchantItems = mounted ? items.filter(i => i.product.merchant_id === merchant.id) : [];
   const cartCount = merchantItems.reduce((s, i) => s + i.quantity, 0);
   const cartTotal = merchantItems.reduce((s, i) => s + i.product.selling_price * i.quantity, 0);
 
@@ -101,9 +184,99 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     : '30-40 min';
 
   const cuisineTags = getCuisineTags(merchant.cuisine_type ?? null);
+  const isGrouped = !searchQuery.trim() && categories.length > 0;
+  const popularItems = products.filter(p => isBestseller(p)).slice(0, 8);
 
-  // Track bestseller badge count (cap at 3)
   let bestsellerCount = 0;
+
+  // hideDescription when in grouped mode (description field IS the category name)
+  const renderProduct = (product: Product) => {
+    const qty = mounted ? getQty(product.id) : 0;
+    const nonVeg = isNonVeg(product);
+    const hasDiscount = product.mrp > product.selling_price;
+    const showBestseller = bestsellerCount < 3 && isBestseller(product);
+    if (showBestseller) bestsellerCount++;
+
+    return (
+      <div key={product.id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-100">
+
+        {/* Left */}
+        <div className="flex-1 min-w-0">
+          {/* Row 1: veg dot + bestseller badge */}
+          <div className="flex items-center gap-2 mb-1">
+            <div className={`w-4 h-4 border-2 rounded-sm flex items-center justify-center shrink-0 ${nonVeg ? 'border-red-500' : 'border-green-600'}`}>
+              <div className={`w-2 h-2 rounded-full ${nonVeg ? 'bg-red-500' : 'bg-green-600'}`} />
+            </div>
+            {showBestseller && (
+              <span className="text-[10px] font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
+                🔥 Bestseller
+              </span>
+            )}
+          </div>
+
+          <p className="font-medium text-sm text-gray-900 line-clamp-1">{product.name}</p>
+
+          {/* Only show description when searching (not redundant in flat results) */}
+          {!isGrouped && product.description && (
+            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{product.description}</p>
+          )}
+
+          <div className="flex items-center gap-2 mt-1">
+            <span className="font-semibold text-sm text-gray-900">{formatCurrency(product.selling_price)}</span>
+            {hasDiscount && (
+              <span className="text-xs text-gray-400 line-through">{formatCurrency(product.mrp)}</span>
+            )}
+          </div>
+
+          <div className="mt-2">
+            {mounted && qty > 0 ? (
+              <div className="inline-flex items-center rounded-lg overflow-hidden">
+                <button
+                  onClick={() => (qty <= 1 ? removeItem(product.id) : updateQuantity(product.id, qty - 1))}
+                  className="bg-purple-600 text-white w-8 h-8 flex items-center justify-center"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="bg-purple-600 text-white text-sm font-bold w-8 h-8 flex items-center justify-center border-x border-purple-500">
+                  {qty}
+                </span>
+                <button
+                  onClick={() => updateQuantity(product.id, qty + 1)}
+                  className="bg-purple-600 text-white w-8 h-8 flex items-center justify-center"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => handleAddItem(product)}
+                className="border border-purple-600 text-purple-600 text-sm font-bold px-6 py-1 rounded-lg hover:bg-purple-50 transition-colors"
+              >
+                ADD
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Right: image */}
+        <div className="shrink-0 w-28 h-24 rounded-xl overflow-hidden bg-gray-100">
+          {product.images?.[0] ? (
+            <Image
+              src={product.images[0]}
+              alt={product.name}
+              width={112}
+              height={96}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-purple-50 flex items-center justify-center">
+              <span className="text-3xl">🍽️</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-white pb-32">
@@ -124,7 +297,6 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
 
-        {/* Back */}
         <button
           onClick={() => router.back()}
           className="absolute top-4 left-4 z-10 w-9 h-9 bg-black/40 rounded-full flex items-center justify-center backdrop-blur-sm"
@@ -132,22 +304,17 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
 
-        {/* Open / Closed badge */}
         <div className="absolute top-4 right-4 z-10">
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${merchant.is_open ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}>
             {merchant.is_open ? '● Open' : '● Closed'}
           </span>
         </div>
 
-        {/* Name + cuisine tag pills overlay */}
         <div className="absolute bottom-4 left-4 right-16 z-10">
           <h1 className="text-xl font-bold text-white leading-tight">{merchant.store_name}</h1>
           <div className="flex flex-wrap gap-1 mt-1.5">
             {cuisineTags.map(tag => (
-              <span
-                key={tag}
-                className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm"
-              >
+              <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
                 {tag}
               </span>
             ))}
@@ -172,8 +339,19 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         </div>
       </div>
 
-      {/* ── 3. Veg / Non-veg filter ── */}
-      <div className="bg-white px-4 py-3 flex gap-2 border-b border-gray-100">
+      {/* ── Search bar ── */}
+      <div className="bg-white px-4 pt-3 pb-2 border-b border-gray-100">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="🔍 Search dishes..."
+          className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-purple-400"
+        />
+      </div>
+
+      {/* ── Veg / Non-veg filter ── */}
+      <div className="bg-white px-4 py-2 flex gap-2 border-b border-gray-100">
         {(['all', 'veg', 'nonveg'] as Filter[]).map(f => (
           <button
             key={f}
@@ -187,16 +365,76 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         ))}
       </div>
 
-      {/* ── Search bar ── */}
-      <div className="bg-white px-4 py-3 border-b border-gray-100">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder="🔍 Search dishes..."
-          className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-purple-400"
-        />
-      </div>
+      {/* ── Popular Items ── */}
+      {popularItems.length > 0 && !searchQuery.trim() && (
+        <div className="bg-white pt-4 pb-3 border-b border-gray-100">
+          <h2 className="text-sm font-bold text-gray-900 px-4 mb-3">🔥 Popular Items</h2>
+          <div className="flex gap-3 overflow-x-auto px-4" style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
+            {popularItems.map(product => (
+              <button
+                key={product.id}
+                onClick={() => scrollToSection(product.description?.trim() ?? '')}
+                className="flex-shrink-0 flex flex-col gap-1 text-left"
+              >
+                <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
+                  {product.images?.[0] ? (
+                    <Image
+                      src={product.images[0]}
+                      alt={product.name}
+                      width={80}
+                      height={80}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-purple-50 flex items-center justify-center">
+                      <span className="text-xl">🍽️</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-800 font-medium w-20 line-clamp-2 leading-tight">{product.name}</p>
+                <p className="text-xs font-bold text-gray-900">{formatCurrency(product.selling_price)}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Category nav bar (hidden while searching) ── */}
+      {!searchQuery.trim() && categories.length > 1 && (
+        <div
+          ref={categoryNavRef}
+          className="sticky top-0 z-30 bg-white flex gap-2 overflow-x-auto px-4 py-3"
+          style={{ scrollbarWidth: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' } as React.CSSProperties}
+        >
+          {categories.map(cat => {
+            const catProducts = grouped.get(cat) ?? [];
+            const count = catProducts.length;
+            const allVeg = count > 0 && catProducts.every(p => !isNonVeg(p));
+            const allNonVeg = count > 0 && catProducts.every(p => isNonVeg(p));
+            const isActive = activeCategory === cat;
+            return (
+              <button
+                key={cat}
+                id={`pill-${slugCat(cat)}`}
+                onClick={() => scrollToSection(cat)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                  isActive
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-white text-gray-600 border border-gray-200'
+                }`}
+              >
+                {(allVeg || allNonVeg) && (
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${allVeg ? 'bg-green-500' : 'bg-red-500'}`} />
+                )}
+                {cat}{' '}
+                <span className={`font-normal ${isActive ? 'text-purple-200' : 'text-gray-400'}`}>
+                  ({count})
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── 4. Menu ── */}
       <div className="bg-white mt-2">
@@ -218,109 +456,50 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
                 : 'No non-veg items available here'}
             </p>
           </div>
+        ) : searchQuery.trim() ? (
+          filtered.map(product => renderProduct(product))
         ) : (
-          filtered.map(product => {
-            const qty = mounted ? getQty(product.id) : 0;
-            const nonVeg = isNonVeg(product);
-            const hasDiscount = product.mrp > product.selling_price;
-            const showBestseller = bestsellerCount < 3 && isBestseller(product);
-            if (showBestseller) bestsellerCount++;
-
+          Array.from(grouped.entries()).map(([cat, catProducts]) => {
+            const collapsed = collapsedSections.has(cat);
             return (
-              <div key={product.id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-100">
-
-                {/* Left */}
-                <div className="flex-1 min-w-0">
-                  {/* Veg / Non-veg indicator */}
-                  <div className={`w-4 h-4 border-2 rounded-sm flex items-center justify-center mb-1.5 ${nonVeg ? 'border-red-500' : 'border-green-600'}`}>
-                    <div className={`w-2 h-2 rounded-full ${nonVeg ? 'bg-red-500' : 'bg-green-600'}`} />
+              <div key={cat} id={`section-${slugCat(cat)}`}>
+                {/* Section header — sticky below category nav */}
+                <button
+                  onClick={() => toggleSection(cat)}
+                  className="w-full sticky top-[52px] z-20 flex items-center justify-between bg-gray-50 border-l-4 border-purple-600 px-4 py-3 border-b border-gray-200 text-left"
+                >
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900">{cat}</h3>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {catProducts.length} item{catProducts.length !== 1 ? 's' : ''}
+                    </p>
                   </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-purple-500 transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
+                  />
+                </button>
 
-                  {/* Bestseller badge */}
-                  {showBestseller && (
-                    <span className="text-[10px] font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full w-fit mb-0.5 inline-block">
-                      🔥 Bestseller
-                    </span>
-                  )}
-
-                  <p className="font-semibold text-sm text-gray-900 line-clamp-1">{product.name}</p>
-
-                  {product.description && (
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{product.description}</p>
-                  )}
-
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="font-bold text-sm text-gray-900">{formatCurrency(product.selling_price)}</span>
-                    {hasDiscount && (
-                      <span className="text-xs text-gray-400 line-through">{formatCurrency(product.mrp)}</span>
-                    )}
-                  </div>
-
-                  {/* ADD / Quantity control */}
-                  <div className="mt-2">
-                    {mounted && qty > 0 ? (
-                      <div className="inline-flex items-center rounded-lg overflow-hidden">
-                        <button
-                          onClick={() => (qty <= 1 ? removeItem(product.id) : updateQuantity(product.id, qty - 1))}
-                          className="bg-purple-600 text-white w-8 h-8 flex items-center justify-center"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="bg-purple-600 text-white text-sm font-bold w-8 h-8 flex items-center justify-center border-x border-purple-500">
-                          {qty}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(product.id, qty + 1)}
-                          className="bg-purple-600 text-white w-8 h-8 flex items-center justify-center"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleAddItem(product)}
-                        className="border border-purple-600 text-purple-600 text-sm font-bold px-6 py-1 rounded-lg hover:bg-purple-50 transition-colors"
-                      >
-                        ADD
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right: image */}
-                <div className="shrink-0 w-28 h-24 rounded-xl overflow-hidden bg-gray-100">
-                  {product.images?.[0] ? (
-                    <Image
-                      src={product.images[0]}
-                      alt={product.name}
-                      width={112}
-                      height={96}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-purple-50 flex items-center justify-center">
-                      <span className="text-3xl">🍽️</span>
-                    </div>
-                  )}
-                </div>
+                {/* Products (hidden when collapsed) */}
+                {!collapsed && catProducts.map(product => renderProduct(product))}
               </div>
             );
           })
         )}
       </div>
 
-      {/* ── Sticky Cart Bar ── */}
-      {mounted && cartCount > 0 && (
-        <Link
-          href="/cart"
-          className="fixed bottom-16 left-4 right-4 z-50 bg-purple-600 text-white rounded-xl py-3 px-4 flex items-center justify-between shadow-lg"
+      {/* ── "≡ Menu" FAB ── */}
+      {isGrouped && (
+        <button
+          onClick={() => setShowMenuSheet(true)}
+          className={`fixed right-4 z-40 flex items-center gap-2 bg-gray-900 border border-white/20 shadow-xl rounded-full px-5 py-3 text-sm font-semibold text-white transition-all ${
+            cartCount > 0 ? 'bottom-36' : 'bottom-24'
+          }`}
         >
-          <span className="text-sm font-semibold">
-            {cartCount} item{cartCount !== 1 ? 's' : ''} · {formatCurrency(cartTotal)}
-          </span>
-          <span className="text-sm font-semibold">View Cart →</span>
-        </Link>
+          <span className="text-base leading-none">🍽️</span>
+          Menu
+        </button>
       )}
+
 
       {/* ── Mixed-cart conflict modal ── */}
       {conflictProduct && (
@@ -351,6 +530,55 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
                 Clear &amp; Add
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Menu bottom sheet ── */}
+      {showMenuSheet && (
+        <div
+          className="fixed inset-0 z-50 flex items-end bg-black/40"
+          onClick={() => setShowMenuSheet(false)}
+        >
+          <div
+            className="bg-white rounded-t-2xl w-full max-h-[65vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-gray-300" />
+            </div>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white">
+              <h3 className="text-base font-bold text-gray-900">Menu</h3>
+              <button onClick={() => setShowMenuSheet(false)} className="p-1.5 rounded-full hover:bg-gray-100">
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+            {categories.map(cat => {
+              const catProducts = grouped.get(cat) ?? [];
+              const count = catProducts.length;
+              const allVeg = count > 0 && catProducts.every(p => !isNonVeg(p));
+              const allNonVeg = count > 0 && catProducts.every(p => isNonVeg(p));
+              const dot = allVeg ? '🟢' : allNonVeg ? '🔴' : null;
+              const isActive = activeCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => {
+                    scrollToSection(cat);
+                    setShowMenuSheet(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-3.5 border-b border-gray-100 hover:bg-gray-50 text-left ${isActive ? 'border-l-2 border-l-purple-600 pl-3.5' : ''}`}
+                >
+                  <span className="flex items-center gap-2">
+                    {dot && <span className="text-xs leading-none">{dot}</span>}
+                    <span className={`text-sm font-medium ${isActive ? 'text-purple-600' : 'text-gray-800'}`}>{cat}</span>
+                  </span>
+                  <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full shrink-0">{count}</span>
+                </button>
+              );
+            })}
+            <div className="pb-8" />
           </div>
         </div>
       )}

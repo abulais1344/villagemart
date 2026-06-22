@@ -22,19 +22,20 @@ export function FloatingCartBar() {
 
   return (
     <>
-      <Link
-        href="/cart"
-        className="fixed bottom-20 left-4 right-4 z-40 bg-primary-600 text-white rounded-2xl px-4 py-3 flex items-center justify-between shadow-lg md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-auto md:min-w-80"
-        style={{ animation: 'slideUp 0.3s ease-out' }}
-      >
-        <div className="flex items-center gap-2 flex-1">
-          <ShoppingCart className="w-4 h-4 shrink-0" />
-          <span className="text-sm font-semibold truncate">View cart · {itemCount} items</span>
-        </div>
-        <span className="text-sm font-semibold whitespace-nowrap ml-2">
-          {formatCurrency(cartTotal)} →
-        </span>
-      </Link>
+      <div className="fixed bottom-20 left-0 right-0 px-4 z-40" style={{ animation: 'slideUp 0.3s ease-out' }}>
+        <Link href="/cart">
+          <div className="bg-purple-600 text-white rounded-2xl px-5 py-3.5 flex items-center justify-between shadow-xl shadow-purple-200 mx-auto max-w-sm">
+            <div className="flex items-center gap-2">
+              <div className="bg-purple-500 rounded-lg p-1.5">
+                <ShoppingCart size={16} />
+              </div>
+              <span className="text-sm font-medium">{itemCount} items</span>
+            </div>
+            <span className="text-sm font-semibold">View Cart</span>
+            <span className="text-sm font-semibold">{formatCurrency(cartTotal)} →</span>
+          </div>
+        </Link>
+      </div>
       <style>{`
         @keyframes slideUp {
           from { transform: translateY(80px); opacity: 0; }

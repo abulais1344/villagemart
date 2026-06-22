@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMerchant } from '../MerchantProvider';
 import { MerchantHeader } from '@/components/merchant/MerchantHeader';
+import { createClient } from '@/lib/supabase/client';
 
 const STATUS_TABS = [
   { key: 'all',       label: 'All'       },
@@ -80,12 +81,32 @@ export default function MerchantOrdersPage() {
     prevPendingCount.current = pendingCount;
   }
 
-  async function updateStatus(orderId: string, status: string) {
-    await fetch('/api/merchant/orders', {
+  const MERCHANT_NOTIFICATIONS: Record<string, { title: string; body: (id: string) => string }> = {
+    preparing: { title: 'Order Accepted! 🎉',    body: id => `Your order #${id} has been accepted and is being prepared.` },
+    ready:     { title: 'Order Ready 📦',         body: id => `Your order #${id} is ready for pickup/delivery.` },
+    cancelled: { title: 'Order Cancelled ❌',     body: id => `Your order #${id} has been cancelled. Refund will be processed in 5-7 days.` },
+  };
+
+  async function updateStatus(order: any, status: string) {
+    const res = await fetch('/api/merchant/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId, status }),
+      body: JSON.stringify({ orderId: order.id, status }),
     });
+    if (res.ok) {
+      const msg = MERCHANT_NOTIFICATIONS[status];
+      if (msg && order.customer_phone) {
+        const supabase = createClient();
+        await supabase.from('notifications').insert({
+          user_phone: order.customer_phone,
+          type: 'order_update',
+          title: msg.title,
+          body: msg.body(order.id.slice(-6).toUpperCase()),
+          order_id: order.id,
+          is_read: false,
+        });
+      }
+    }
     loadOrders();
   }
 
@@ -163,13 +184,13 @@ export default function MerchantOrdersPage() {
               {order.status === 'pending' && (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => updateStatus(order.id, 'preparing')}
+                    onClick={() => updateStatus(order, 'preparing')}
                     className="flex-1 bg-[#7C3AED] text-white rounded-xl py-2 text-sm font-medium"
                   >
                     ✅ Accept
                   </button>
                   <button
-                    onClick={() => updateStatus(order.id, 'cancelled')}
+                    onClick={() => updateStatus(order, 'cancelled')}
                     className="flex-1 bg-red-50 text-red-600 border border-red-200 rounded-xl py-2 text-sm"
                   >
                     ❌ Reject
@@ -178,7 +199,7 @@ export default function MerchantOrdersPage() {
               )}
               {order.status === 'preparing' && (
                 <button
-                  onClick={() => updateStatus(order.id, 'ready')}
+                  onClick={() => updateStatus(order, 'ready')}
                   className="w-full bg-green-600 text-white rounded-xl py-2 text-sm font-medium"
                 >
                   🍱 Mark Ready for Pickup
