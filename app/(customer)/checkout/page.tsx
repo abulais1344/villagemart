@@ -178,6 +178,7 @@ export default function CheckoutPage() {
             <MapPin className="w-4 h-4 text-[#7C3AED]" /> Delivering to
           </h2>
           <p className="font-medium text-[#1A1A1A]">{customer.name}</p>
+          <p className="text-sm text-gray-500">📞 {customer.phone}</p>
           <p className="text-sm text-[#6B7280] mt-0.5">{customer.address}</p>
           {(customer.landmark || customer.area) && (
             <p className="text-sm text-[#9CA3AF] mt-0.5">
