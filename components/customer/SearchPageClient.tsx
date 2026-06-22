@@ -49,8 +49,31 @@ export function SearchPageClient({ initialQuery }: Props) {
   const [loading, setLoading] = useState(false);
   const [restaurantLoading, setRestaurantLoading] = useState(false);
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [popularProducts, setPopularProducts] = useState<Product[]>([]);
+  const [nearbyRestaurants, setNearbyRestaurants] = useState<Merchant[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [emptyStateLoading, setEmptyStateLoading] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
+
+  // Fetch empty-state data once on mount
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const raw = localStorage.getItem('vm_recent_searches');
+        if (raw) setRecentSearches(JSON.parse(raw));
+      } catch {}
+      const [pRes, mRes] = await Promise.all([
+        supabase.from('vm_products').select('*, category:categories(*)').eq('is_active', true).is('merchant_id', null).limit(12),
+        supabase.from('merchants').select('*, category:categories(*)').eq('status', 'approved').limit(4),
+      ]);
+      const shuffled = (pRes.data ?? []).sort(() => Math.random() - 0.5).slice(0, 4) as Product[];
+      setPopularProducts(shuffled);
+      setNearbyRestaurants((mRes.data ?? []) as Merchant[]);
+      setEmptyStateLoading(false);
+    };
+    init();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doFetch = useCallback(async (q: string) => {
     setLoading(true);
@@ -147,6 +170,11 @@ export function SearchPageClient({ initialQuery }: Props) {
     const timer = setTimeout(() => {
       router.replace(`/search?q=${encodeURIComponent(query)}`, { scroll: false });
       doFetch(query);
+      setRecentSearches(prev => {
+        const updated = [query, ...prev.filter(s => s !== query)].slice(0, 3);
+        try { localStorage.setItem('vm_recent_searches', JSON.stringify(updated)); } catch {}
+        return updated;
+      });
     }, 300);
 
     return () => clearTimeout(timer);
@@ -199,9 +227,55 @@ export function SearchPageClient({ initialQuery }: Props) {
 
       {/* States */}
       {query.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-5xl mb-3">🔍</p>
-          <p className="text-[#6B7280]">Search for products or stores</p>
+        <div className="space-y-6">
+          {/* Recent searches */}
+          {recentSearches.length > 0 && (
+            <section>
+              <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">Recent Searches</h3>
+              <div className="flex flex-wrap gap-2">
+                {recentSearches.map(term => (
+                  <button
+                    key={term}
+                    onClick={() => setQuery(term)}
+                    className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm px-3 py-1.5 rounded-full transition-colors"
+                  >
+                    <span className="text-xs">🕐</span> {term}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Popular Right Now */}
+          <section>
+            <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">🔥 Popular Right Now</h3>
+            <ProductGrid products={popularProducts} loading={emptyStateLoading} skeletonCount={4} />
+          </section>
+
+          {/* Restaurants Near You */}
+          {(emptyStateLoading || nearbyRestaurants.length > 0) && (
+            <section>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-[#1A1A1A]">🍽️ Restaurants Near You</h3>
+                <Link href="/stores" className="text-xs text-primary-600 font-medium">See all →</Link>
+              </div>
+              {emptyStateLoading ? (
+                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="w-40 shrink-0 h-32 rounded-xl bg-gray-100 animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                  {nearbyRestaurants.map(m => (
+                    <div key={m.id} className="shrink-0">
+                      <StoreCard merchant={m} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </div>
       ) : query.length === 1 ? (
         <div className="text-center py-12">
