@@ -277,7 +277,7 @@ export function HomePageClient({
                         fill
                         className="object-cover"
                         sizes="160px"
-                        preload={index === 0}
+                        priority={index === 0}
                       />
                     </div>
                   ) : (

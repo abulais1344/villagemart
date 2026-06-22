@@ -23,7 +23,8 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
     .select('*, category:categories(*)')
     .eq('merchant_id', id)
     .eq('is_active', true)
-    .order('sort_order');
+    .order('is_bestseller', { ascending: false })
+    .limit(100);
 
   return (
     <>

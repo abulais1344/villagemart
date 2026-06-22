@@ -26,7 +26,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.className}>
+    <html lang="en" className={inter.className} data-scroll-behavior="smooth">
       <body className="bg-white text-[#1A1A1A] min-h-screen">
         {children}
         <Toaster
