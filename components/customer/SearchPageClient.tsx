@@ -32,7 +32,7 @@ interface RestaurantProduct {
   selling_price: number;
   images: string[] | null;
   merchant_id: string;
-  merchant: { id: string; store_name: string } | null;
+  merchant_name: string;
 }
 
 interface Props {
@@ -80,7 +80,7 @@ export function SearchPageClient({ initialQuery }: Props) {
         .limit(10),
       supabase
         .from('vm_products')
-        .select('id, name, selling_price, images, merchant_id, merchant:merchants(id, store_name)')
+        .select('id, name, selling_price, images, merchant_id')
         .or(orFilter)
         .eq('is_active', true)
         .not('merchant_id', 'is', null)
@@ -91,7 +91,6 @@ export function SearchPageClient({ initialQuery }: Props) {
     if (inStockOnly) fetched = fetched.filter(p => p.stock_status !== 'out_of_stock');
     setProducts(fetched);
     setStores(sResult.data ?? []);
-    setRestaurantItems((rResult.data ?? []) as unknown as RestaurantProduct[]);
 
     if (fetched.length === 0) {
       const { data } = await supabase
@@ -104,6 +103,31 @@ export function SearchPageClient({ initialQuery }: Props) {
     }
 
     setLoading(false);
+
+    // Step 2: fetch merchant names for restaurant products
+    const restProducts = rResult.data ?? [];
+    if (restProducts.length > 0) {
+      const merchantIds = [...new Set(restProducts.map(p => p.merchant_id).filter(Boolean))] as string[];
+      const { data: merchantData } = await supabase
+        .from('merchants')
+        .select('id, name')
+        .in('id', merchantIds);
+      const merchantMap = Object.fromEntries(merchantData?.map(m => [m.id, m.name]) ?? []);
+      setRestaurantItems(
+        restProducts
+          .filter(p => p.merchant_id != null)
+          .map(p => ({
+            id: p.id,
+            name: p.name,
+            selling_price: p.selling_price,
+            images: p.images,
+            merchant_id: p.merchant_id,
+            merchant_name: merchantMap[p.merchant_id] ?? 'Restaurant',
+          }))
+      );
+    } else {
+      setRestaurantItems([]);
+    }
     setRestaurantLoading(false);
   }, [inStockOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -265,7 +289,7 @@ export function SearchPageClient({ initialQuery }: Props) {
                     </div>
                     <p className="text-xs font-medium text-gray-800 mt-1 line-clamp-1">{item.name}</p>
                     <p className="text-[10px] text-gray-400 truncate">
-                      {item.merchant?.store_name ?? ''}
+                      {item.merchant_name}
                     </p>
                     <p className="text-xs font-bold text-gray-900 mt-0.5">
                       {formatCurrency(item.selling_price)}
