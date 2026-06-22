@@ -2,16 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { formatCurrency } from '@/lib/utils/format';
 
 export function FloatingCartBar() {
+  const pathname = usePathname();
   const { items, getSubtotal } = useCartStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
+  if (pathname === '/cart' || pathname === '/checkout') return null;
   if (!mounted || items.length === 0) return null;
 
   const itemCount = items.length;
