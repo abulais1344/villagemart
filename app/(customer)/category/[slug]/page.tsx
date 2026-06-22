@@ -7,7 +7,6 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { ProductCard } from '@/components/customer/ProductCard';
 import { BottomNav } from '@/components/customer/BottomNav';
-import { FloatingCartBar } from '@/components/customer/FloatingCartBar';
 import type { Category, Product } from '@/types';
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -101,7 +100,6 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
       </main>
 
       <BottomNav />
-      <FloatingCartBar />
     </div>
   );
 }

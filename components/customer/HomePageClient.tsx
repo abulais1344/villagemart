@@ -11,7 +11,6 @@ import { formatCurrency } from '@/lib/utils/format';
 import type { Category, Product, Merchant } from '@/types';
 import type { Customer, AddressData } from '@/lib/customer';
 import { AddressManager } from './AddressManager';
-import { FloatingCartBar } from './FloatingCartBar';
 import { PulseHint } from './PulseHint';
 import { useFirstVisit } from '@/hooks/useFirstVisit';
 
@@ -369,7 +368,6 @@ export function HomePageClient({
         onAddressChange={handleAddressChange}
       />
 
-      <FloatingCartBar />
     </div>
   );
 }
