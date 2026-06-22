@@ -39,8 +39,25 @@ export async function GET(request: NextRequest) {
     orderItems = items ?? [];
   }
 
+  // Fetch merchant names for orders that have a merchant_id
+  const merchantIds = [
+    ...new Set(orderList.map((o: any) => o.merchant_id).filter(Boolean)),
+  ] as string[];
+
+  let merchantMap: Record<string, string> = {};
+  if (merchantIds.length > 0) {
+    const { data: merchants } = await supabase
+      .from('merchants')
+      .select('id, name')
+      .in('id', merchantIds);
+    merchantMap = Object.fromEntries(
+      merchants?.map((m: any) => [m.id, m.name]) ?? []
+    );
+  }
+
   const result = orderList.map((o: any) => ({
     ...o,
+    merchant_name: merchantMap[o.merchant_id] ?? null,
     items: orderItems.filter((i: any) => i.order_id === o.id),
   }));
 

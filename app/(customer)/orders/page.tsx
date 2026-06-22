@@ -31,18 +31,19 @@ interface Order {
   status: string;
   customer_name: string;
   customer_phone: string;
+  merchant_name: string | null;
   delivery_address: { name?: string; phone?: string; address?: string; landmark?: string; area?: string } | null;
   items: OrderItem[];
 }
 
 // ── status badge config ────────────────────────────────────────────────────
 const STATUS: Record<string, { label: string; cls: string; Icon: typeof Clock }> = {
-  pending:   { label: 'Pending',    cls: 'text-yellow-600 bg-yellow-50',  Icon: Clock        },
+  pending:   { label: 'Pending',    cls: 'text-amber-700 bg-amber-100',   Icon: Clock        },
   confirmed: { label: 'Confirmed',  cls: 'text-blue-600 bg-blue-50',      Icon: CheckCircle2 },
   preparing: { label: 'Preparing',  cls: 'text-orange-600 bg-orange-50',  Icon: Clock        },
-  ready:     { label: 'Ready',      cls: 'text-purple-600 bg-purple-50',  Icon: CheckCircle2 },
-  delivered: { label: 'Delivered',  cls: 'text-green-600 bg-green-50',    Icon: CheckCircle2 },
-  cancelled: { label: 'Cancelled',  cls: 'text-red-600 bg-red-50',        Icon: XCircle      },
+  ready:     { label: 'Ready',      cls: 'text-green-700 bg-green-100',   Icon: CheckCircle2 },
+  delivered: { label: 'Delivered',  cls: 'text-gray-500 bg-gray-100',     Icon: CheckCircle2 },
+  cancelled: { label: 'Cancelled',  cls: 'text-red-600 bg-red-100',       Icon: XCircle      },
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -142,9 +143,12 @@ export default function OrdersPage() {
       <div className="max-w-lg mx-auto space-y-3 px-4 py-4 pb-24">
         {orders.map(order => {
           const expanded = expandedId === order.id;
-          const firstName = order.items[0]?.product_snapshot?.name ?? 'Item';
-          const extra = order.items.length - 1;
           const addr = order.delivery_address;
+          const names = order.items
+            .map(i => i.product_snapshot?.name)
+            .filter(Boolean) as string[];
+          const itemSummary = names.slice(0, 2).join(', ') +
+            (names.length > 2 ? ` +${names.length - 2} more` : '');
 
           return (
             <div
@@ -156,20 +160,32 @@ export default function OrdersPage() {
                 className="w-full text-left px-4 py-4"
                 onClick={() => toggleExpand(order.id)}
               >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <p className="text-sm font-semibold text-[#1A1A1A] truncate flex-1">
-                    {firstName}{extra > 0 && <span className="text-[#6B7280] font-normal"> +{extra} more</span>}
+                {/* Merchant name + short order ID */}
+                <div className="flex items-center justify-between gap-2 mb-0.5">
+                  <p className="text-sm font-semibold text-[#7C3AED] truncate flex-1">
+                    {order.merchant_name ?? 'VillageMart'}
                   </p>
-                  <StatusBadge status={order.status} />
+                  <span className="text-[10px] text-gray-400 font-mono shrink-0">
+                    #{order.id.slice(-6).toUpperCase()}
+                  </span>
                 </div>
+
+                {/* Item count + summary */}
+                <p className="text-xs text-[#6B7280] mb-1">
+                  {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                  {itemSummary ? ` · ${itemSummary}` : ''}
+                </p>
 
                 <p className="text-xs text-[#9CA3AF] mb-2">{formatDate(order.created_at)}</p>
 
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold text-[#1A1A1A]">₹{order.total_amount}</p>
-                  <span className="text-xs font-medium text-[#7C3AED]">
-                    {expanded ? 'Hide details ▲' : 'View details ▼'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <StatusBadge status={order.status} />
+                    <span className="text-xs font-medium text-[#7C3AED]">
+                      {expanded ? '▲' : '▼'}
+                    </span>
+                  </div>
                 </div>
               </button>
 
