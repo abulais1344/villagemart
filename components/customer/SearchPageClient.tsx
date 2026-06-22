@@ -3,9 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, X } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ProductGrid } from '@/components/customer/ProductGrid';
 import { StoreCard } from '@/components/customer/StoreCard';
+import { formatCurrency } from '@/lib/utils/format';
 import type { Product, Merchant } from '@/types';
 
 const ALIASES: Record<string, string> = {
@@ -23,6 +26,15 @@ const ALIASES: Record<string, string> = {
   'sabji': 'vegetables',
 };
 
+interface RestaurantProduct {
+  id: string;
+  name: string;
+  selling_price: number;
+  images: string[] | null;
+  merchant_id: string;
+  merchant: { id: string; store_name: string } | null;
+}
+
 interface Props {
   initialQuery: string;
 }
@@ -33,13 +45,16 @@ export function SearchPageClient({ initialQuery }: Props) {
   const [products, setProducts] = useState<Product[]>([]);
   const [stores, setStores] = useState<Merchant[]>([]);
   const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [restaurantItems, setRestaurantItems] = useState<RestaurantProduct[]>([]);
   const [loading, setLoading] = useState(false);
+  const [restaurantLoading, setRestaurantLoading] = useState(false);
   const [inStockOnly, setInStockOnly] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
   const doFetch = useCallback(async (q: string) => {
     setLoading(true);
+    setRestaurantLoading(true);
     setSuggestions([]);
 
     const resolvedQuery = ALIASES[q.toLowerCase().trim()] ?? q;
@@ -49,7 +64,7 @@ export function SearchPageClient({ initialQuery }: Props) {
       .flatMap(t => [`name.ilike.%${t}%`, `description.ilike.%${t}%`])
       .join(',');
 
-    const [pResult, sResult] = await Promise.all([
+    const [pResult, sResult, rResult] = await Promise.all([
       supabase
         .from('vm_products')
         .select('*, category:categories(*)')
@@ -63,12 +78,20 @@ export function SearchPageClient({ initialQuery }: Props) {
         .ilike('store_name', `%${resolvedQuery}%`)
         .eq('status', 'approved')
         .limit(10),
+      supabase
+        .from('vm_products')
+        .select('id, name, selling_price, images, merchant_id, merchant:merchants(id, store_name)')
+        .or(orFilter)
+        .eq('is_active', true)
+        .not('merchant_id', 'is', null)
+        .limit(4),
     ]);
 
     let fetched = pResult.data ?? [];
     if (inStockOnly) fetched = fetched.filter(p => p.stock_status !== 'out_of_stock');
     setProducts(fetched);
     setStores(sResult.data ?? []);
+    setRestaurantItems((rResult.data ?? []) as unknown as RestaurantProduct[]);
 
     if (fetched.length === 0) {
       const { data } = await supabase
@@ -81,6 +104,7 @@ export function SearchPageClient({ initialQuery }: Props) {
     }
 
     setLoading(false);
+    setRestaurantLoading(false);
   }, [inStockOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounce: 300ms after typing stops → update URL + fetch
@@ -89,7 +113,9 @@ export function SearchPageClient({ initialQuery }: Props) {
       setProducts([]);
       setStores([]);
       setSuggestions([]);
+      setRestaurantItems([]);
       setLoading(false);
+      setRestaurantLoading(false);
       router.replace('/search', { scroll: false });
       return;
     }
@@ -190,6 +216,65 @@ export function SearchPageClient({ initialQuery }: Props) {
               <ProductGrid products={products} loading={loading} />
             </section>
           )}
+
+          {/* Restaurant cross-sell section */}
+          {restaurantLoading ? (
+            <div>
+              <div className="mt-6 mb-3">
+                <p className="text-sm font-semibold text-gray-700">🍽️ Also available at restaurants</p>
+                <p className="text-xs text-gray-400">Order food with your groceries</p>
+              </div>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="w-36 shrink-0 rounded-xl border border-gray-100 p-2 animate-pulse">
+                    <div className="w-full h-24 rounded-lg bg-gray-200" />
+                    <div className="h-3 bg-gray-200 rounded mt-2 w-4/5" />
+                    <div className="h-2.5 bg-gray-100 rounded mt-1 w-3/5" />
+                    <div className="h-3 bg-gray-200 rounded mt-1 w-2/5" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : restaurantItems.length > 0 ? (
+            <div>
+              <div className="mt-6 mb-3">
+                <p className="text-sm font-semibold text-gray-700">🍽️ Also available at restaurants</p>
+                <p className="text-xs text-gray-400">Order food with your groceries</p>
+              </div>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                {restaurantItems.map(item => (
+                  <Link
+                    key={item.id}
+                    href={`/stores/${item.merchant_id}`}
+                    className="w-36 shrink-0 rounded-xl border border-gray-100 p-2"
+                  >
+                    <div className="w-full h-24 rounded-lg overflow-hidden bg-gray-100">
+                      {item.images?.[0] ? (
+                        <Image
+                          src={item.images[0]}
+                          alt={item.name}
+                          width={144}
+                          height={96}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
+                          <span className="text-2xl">🍽️</span>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs font-medium text-gray-800 mt-1 line-clamp-1">{item.name}</p>
+                    <p className="text-[10px] text-gray-400 truncate">
+                      {item.merchant?.store_name ?? ''}
+                    </p>
+                    <p className="text-xs font-bold text-gray-900 mt-0.5">
+                      {formatCurrency(item.selling_price)}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </>
       )}
     </div>
