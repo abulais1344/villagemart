@@ -39,7 +39,7 @@ export default function RefundPage() {
           <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 leading-relaxed">
             <li>Approved refunds are processed within 5–7 business days.</li>
             <li>Refunds are credited to the original payment method (UPI/card via Razorpay).</li>
-            <li>Cash on delivery orders will be refunded via bank transfer or UPI.</li>
+            <li>All payments on VillageMart are prepaid via Razorpay (UPI/card). Refunds are credited back to the original payment method.</li>
           </ul>
         </section>
 
