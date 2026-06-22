@@ -84,14 +84,21 @@ export async function GET(request: NextRequest) {
     if (merchantIds.length > 0) {
       const { data: merchants, error: merchantsError } = await supabase
         .from('merchants')
-        .select('id, name')
+        .select('*')
         .in('id', merchantIds);
+
+      console.log('DEBUG merchants sample:', JSON.stringify(merchants?.[0] ?? null));
+      console.log('DEBUG merchantsError:', merchantsError);
 
       if (merchantsError) {
         console.error('Merchants fetch error:', merchantsError);
       } else {
         merchantMap = Object.fromEntries(
-          merchants?.map((m: any) => [m.id, m.name]) ?? []
+          merchants?.map((m: any) => [
+            m.id,
+            // try every plausible column name
+            m.name ?? m.store_name ?? m.merchant_name ?? m.business_name ?? '',
+          ]) ?? []
         );
       }
     }
