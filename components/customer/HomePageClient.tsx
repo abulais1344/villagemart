@@ -11,6 +11,7 @@ import { formatCurrency } from '@/lib/utils/format';
 import type { Category, Product, Merchant } from '@/types';
 import type { Customer, AddressData } from '@/lib/customer';
 import { AddressManager } from './AddressManager';
+import { FloatingCartBar } from './FloatingCartBar';
 
 interface HomePageClientProps {
   categories: Category[];
@@ -357,29 +358,7 @@ export function HomePageClient({
         onAddressChange={handleAddressChange}
       />
 
-      {/* Floating Cart Pill */}
-      {mounted && itemCount > 0 && (
-        <Link
-          href="/cart"
-          className="fixed bottom-20 left-4 right-4 z-50 bg-primary-600 text-white rounded-2xl px-4 py-3 flex items-center justify-between shadow-lg md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-auto md:min-w-80"
-          style={{ animation: 'slideUp 0.3s ease-out' }}
-        >
-          <div className="flex items-center gap-2 flex-1">
-            <ShoppingCart className="w-4 h-4 shrink-0" />
-            <span className="text-sm font-semibold truncate">View cart · {itemCount} items</span>
-          </div>
-          <span className="text-sm font-semibold whitespace-nowrap ml-2">
-            {formatCurrency(cartTotal)} →
-          </span>
-        </Link>
-      )}
-
-      <style>{`
-        @keyframes slideUp {
-          from { transform: translateY(80px); opacity: 0; }
-          to   { transform: translateY(0);    opacity: 1; }
-        }
-      `}</style>
+      <FloatingCartBar />
     </div>
   );
 }
