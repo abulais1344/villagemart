@@ -54,7 +54,7 @@ export default function CheckoutPage() {
   }, [hydrated, items]);
 
   const subtotal = getSubtotal();
-  const deliveryCharge = subtotal >= 299 ? 0 : 20;
+  const deliveryCharge = subtotal >= 199 ? 0 : 20;
   const total = subtotal + deliveryCharge;
 
   async function handlePayment() {

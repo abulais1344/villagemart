@@ -217,7 +217,7 @@ export function HomePageClient({
               <span className="font-bold text-primary-600">⚡ Same day delivery</span>
               <span className="text-[#6B7280] ml-2">Order before 6 PM</span>
             </div>
-            <span className="text-primary-600 font-semibold">Free above ₹299</span>
+            <span className="text-primary-600 font-semibold">Free above ₹199</span>
           </div>
         </div>
 

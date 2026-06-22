@@ -52,7 +52,7 @@ export default function TermsPage() {
           <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 leading-relaxed">
             <li>All prices are in Indian Rupees (INR) and inclusive of applicable taxes.</li>
             <li>Delivery charges may apply based on order value and distance.</li>
-            <li>Free delivery above ₹299.</li>
+            <li>Free delivery above ₹199.</li>
           </ul>
         </section>
 

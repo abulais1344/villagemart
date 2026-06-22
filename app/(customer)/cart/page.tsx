@@ -40,7 +40,7 @@ export default function CartPage() {
   }, []);
 
   const subtotal = getSubtotal();
-  const deliveryCharge = subtotal >= 299 ? 0 : 20;
+  const deliveryCharge = subtotal >= 199 ? 0 : 20;
   const total = subtotal + deliveryCharge;
 
   const activeAddr: AddressData | null =
@@ -217,11 +217,11 @@ export default function CartPage() {
         </div>
 
         {/* Offer banner */}
-        {subtotal < 299 && (
+        {subtotal < 199 && (
           <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl border border-green-200">
             <Tag className="w-4 h-4 text-green-600 shrink-0" />
             <p className="text-sm text-green-700 font-medium">
-              Add {formatCurrency(299 - subtotal)} more for free delivery!
+              Add {formatCurrency(199 - subtotal)} more for free delivery!
             </p>
           </div>
         )}
