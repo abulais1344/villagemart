@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { MapPin, ShoppingCart, Bell, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { SearchBar } from './SearchBar';
 
@@ -13,6 +14,7 @@ interface HeaderProps {
 export function Header({ location = 'Ardhapur, Maharashtra' }: HeaderProps) {
   const [mounted, setMounted] = useState(false);
   const itemCount = useCartStore(s => s.getItemCount());
+  const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
@@ -55,9 +57,11 @@ export function Header({ location = 'Ardhapur, Maharashtra' }: HeaderProps) {
       </div>
 
       {/* Search */}
-      <div className="px-4 pb-3">
-        <SearchBar navigates />
-      </div>
+      {pathname !== '/search' && (
+        <div className="px-4 pb-3">
+          <SearchBar navigates />
+        </div>
+      )}
     </header>
   );
 }
