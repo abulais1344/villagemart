@@ -217,6 +217,24 @@ export default function ProfilePage() {
           <ChevronRight className="w-4 h-4 text-gray-400" />
         </Link>
 
+        {/* Legal links */}
+        <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-50">
+          {[
+            { href: '/privacy', label: 'Privacy Policy' },
+            { href: '/terms',   label: 'Terms & Conditions' },
+            { href: '/refund',  label: 'Refund Policy' },
+          ].map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex items-center justify-between px-4 py-3.5 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              {label}
+              <ChevronRight className="w-4 h-4 text-gray-400" />
+            </Link>
+          ))}
+        </div>
+
         {/* Logout */}
         <button
           onClick={handleLogout}
