@@ -235,6 +235,14 @@ export default function CheckoutPage() {
           <ShieldCheck className="w-4 h-4 text-green-500 shrink-0" />
           100% secure payment via Razorpay
         </div>
+
+        <div className="flex items-center gap-2 mt-3 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
+          <span className="text-lg">🛵</span>
+          <div>
+            <p className="text-sm font-semibold text-green-700">Estimated delivery: 30-45 min</p>
+            <p className="text-xs text-green-600">Order will be delivered to your address</p>
+          </div>
+        </div>
       </div>
 
       {/* Fixed pay button */}
