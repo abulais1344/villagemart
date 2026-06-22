@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/Button';
 import { ProductImageUpload } from '@/components/shared/ProductImageUpload';
 import type { Product } from '@/types';
 
-// Extended schema with SKU and selling_price ≤ mrp validation
 const schema = z.object({
   name: z.string().min(2, 'Product name is required'),
   description: z.string().optional(),
@@ -33,8 +32,27 @@ const schema = z.object({
 
 export type AdminProductFormData = z.infer<typeof schema>;
 
-const UNITS = ['piece', 'plate', 'kg', 'gram', 'litre', 'ml', 'dozen'];
 const TAX_OPTIONS = [0, 5, 12, 18];
+
+const GENERAL_UNITS = ['piece', 'packet', 'kg', 'g (gram)', 'L (litre)', 'ml', 'dozen', 'box'];
+const DEFAULT_UNITS = ['piece', 'kg', 'g', 'L', 'ml', 'packet'];
+
+const UNIT_OPTIONS: Record<string, string[]> = {
+  'Restaurants & Dhabas': ['Full Plate', 'Half Plate', 'Quarter Plate', 'Single', 'Double', 'Bowl', 'Piece', 'Per Person'],
+  'Dairy': ['ml', 'L (litre)', 'g (gram)', 'kg', 'piece', 'packet'],
+  'Eggs': ['piece', 'dozen (12 eggs)', 'tray (30 eggs)'],
+  'Bread & Bakery': ['piece', 'loaf', 'dozen', 'packet', 'slice'],
+  'Groceries': GENERAL_UNITS,
+  'Snacks': GENERAL_UNITS,
+  'Household': GENERAL_UNITS,
+  'Personal Care': GENERAL_UNITS,
+  'Baby Care': GENERAL_UNITS,
+  'Fruits & Vegetables': ['kg', 'g (gram)', 'piece', 'dozen', 'bunch'],
+};
+
+function getUnitsForCategory(name: string): string[] {
+  return UNIT_OPTIONS[name] ?? DEFAULT_UNITS;
+}
 
 interface AdminProductFormProps {
   initial?: Partial<Product>;
@@ -74,6 +92,11 @@ export function AdminProductForm({ initial, categories, onSubmit, loading }: Adm
   const mrp = watch('mrp');
   const selling = watch('selling_price');
   const images = watch('images');
+  const categoryId = watch('category_id');
+
+  const categoryName = categories.find(c => c.id === categoryId)?.name ?? '';
+  const isRestaurant = categoryName === 'Restaurants & Dhabas';
+  const unitOptions = getUnitsForCategory(categoryName);
 
   // Auto-calculate offer % whenever MRP or selling price changes
   useEffect(() => {
@@ -81,6 +104,16 @@ export function AdminProductForm({ initial, categories, onSubmit, loading }: Adm
       setValue('offer_percentage', Math.round(((mrp - selling) / mrp) * 100), { shouldValidate: false });
     }
   }, [mrp, selling, setValue]);
+
+  // Reset unit to first option when category changes (skip on initial mount)
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setValue('unit', getUnitsForCategory(categoryName)[0], { shouldValidate: false });
+  }, [categoryId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const label = (text: string, required?: boolean) => (
     <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">
@@ -106,32 +139,34 @@ export function AdminProductForm({ initial, categories, onSubmit, loading }: Adm
         {...register('name')}
       />
 
-      {/* Food Type */}
-      <div>
-        {label('Food Type', true)}
-        <div className="flex gap-4 mt-1">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              value="true"
-              checked={watch('is_veg') === true}
-              onChange={() => setValue('is_veg', true, { shouldValidate: false })}
-              className="accent-green-600"
-            />
-            <span className="text-sm">🟢 Veg</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              value="false"
-              checked={watch('is_veg') === false}
-              onChange={() => setValue('is_veg', false, { shouldValidate: false })}
-              className="accent-red-500"
-            />
-            <span className="text-sm">🔴 Non Veg</span>
-          </label>
+      {/* Food Type — only for restaurants */}
+      {isRestaurant && (
+        <div>
+          {label('Food Type', true)}
+          <div className="flex gap-4 mt-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                value="true"
+                checked={watch('is_veg') === true}
+                onChange={() => setValue('is_veg', true, { shouldValidate: false })}
+                className="accent-green-600"
+              />
+              <span className="text-sm">🟢 Veg</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                value="false"
+                checked={watch('is_veg') === false}
+                onChange={() => setValue('is_veg', false, { shouldValidate: false })}
+                className="accent-red-500"
+              />
+              <span className="text-sm">🔴 Non Veg</span>
+            </label>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Description */}
       <div>
@@ -158,7 +193,7 @@ export function AdminProductForm({ initial, categories, onSubmit, loading }: Adm
       <div>
         {label('Unit', true)}
         <select {...register('unit')} className={fieldClass}>
-          {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+          {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
       </div>
 

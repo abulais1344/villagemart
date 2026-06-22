@@ -1,12 +1,12 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { productSchema, type ProductFormData } from '@/lib/utils/validators';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { ImageUpload } from '@/components/shared/ImageUpload';
-import { useState } from 'react';
 import type { Product } from '@/types';
 
 interface ProductFormProps {
@@ -16,12 +16,31 @@ interface ProductFormProps {
   loading?: boolean;
 }
 
-const UNITS = ['piece', 'kg', 'gram', '500g', '250g', 'litre', '500ml', '250ml', 'packet', 'dozen', 'pair'];
+const GENERAL_UNITS = ['piece', 'packet', 'kg', 'g (gram)', 'L (litre)', 'ml', 'dozen', 'box'];
+const DEFAULT_UNITS = ['piece', 'kg', 'g', 'L', 'ml', 'packet'];
+
+const UNIT_OPTIONS: Record<string, string[]> = {
+  'Restaurants & Dhabas': ['Full Plate', 'Half Plate', 'Quarter Plate', 'Single', 'Double', 'Bowl', 'Piece', 'Per Person'],
+  'Dairy': ['ml', 'L (litre)', 'g (gram)', 'kg', 'piece', 'packet'],
+  'Eggs': ['piece', 'dozen (12 eggs)', 'tray (30 eggs)'],
+  'Bread & Bakery': ['piece', 'loaf', 'dozen', 'packet', 'slice'],
+  'Groceries': GENERAL_UNITS,
+  'Snacks': GENERAL_UNITS,
+  'Household': GENERAL_UNITS,
+  'Personal Care': GENERAL_UNITS,
+  'Baby Care': GENERAL_UNITS,
+  'Fruits & Vegetables': ['kg', 'g (gram)', 'piece', 'dozen', 'bunch'],
+};
+
+function getUnitsForCategory(name: string): string[] {
+  return UNIT_OPTIONS[name] ?? DEFAULT_UNITS;
+}
 
 export function ProductForm({ initial, categories, onSubmit, loading }: ProductFormProps) {
   const [images, setImages] = useState<string[]>(initial?.images ?? []);
   const [isVeg, setIsVeg] = useState<boolean>(initial?.is_veg ?? true);
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<ProductFormData>({
+
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema) as Resolver<ProductFormData>,
     defaultValues: {
       name: initial?.name ?? '',
@@ -41,7 +60,24 @@ export function ProductForm({ initial, categories, onSubmit, loading }: ProductF
 
   const mrp = watch('mrp');
   const selling = watch('selling_price');
+  const categoryId = watch('category_id');
   const discount = mrp > 0 ? Math.round(((mrp - selling) / mrp) * 100) : 0;
+
+  const categoryName = categories.find(c => c.id === categoryId)?.name ?? '';
+  const isRestaurant = categoryName === 'Restaurants & Dhabas';
+  const unitOptions = getUnitsForCategory(categoryName);
+
+  // Reset unit to first option when category changes (skip on initial mount)
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setValue('unit', getUnitsForCategory(categoryName)[0]);
+  }, [categoryId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fieldClass = 'w-full rounded-xl border border-[#E5E7EB] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500';
 
   return (
     <form onSubmit={handleSubmit((d) => onSubmit({ ...(d as ProductFormData), images, is_veg: isVeg }))} className="space-y-4">
@@ -54,34 +90,36 @@ export function ProductForm({ initial, categories, onSubmit, loading }: ProductF
 
       <Input label="Product Name *" error={errors.name?.message} {...register('name')} placeholder="e.g. Amul Milk 500ml" />
 
-      {/* Food Type */}
-      <div>
-        <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Food Type *</label>
-        <div className="flex gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              checked={isVeg === true}
-              onChange={() => setIsVeg(true)}
-              className="accent-green-600"
-            />
-            <span className="text-sm">🟢 Veg</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              checked={isVeg === false}
-              onChange={() => setIsVeg(false)}
-              className="accent-red-500"
-            />
-            <span className="text-sm">🔴 Non Veg</span>
-          </label>
+      {/* Food Type — only for restaurants */}
+      {isRestaurant && (
+        <div>
+          <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Food Type *</label>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={isVeg === true}
+                onChange={() => setIsVeg(true)}
+                className="accent-green-600"
+              />
+              <span className="text-sm">🟢 Veg</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={isVeg === false}
+                onChange={() => setIsVeg(false)}
+                className="accent-red-500"
+              />
+              <span className="text-sm">🔴 Non Veg</span>
+            </label>
+          </div>
         </div>
-      </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Category *</label>
-        <select {...register('category_id')} className="w-full rounded-xl border border-[#E5E7EB] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+        <select {...register('category_id')} className={fieldClass}>
           <option value="">Select category</option>
           {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
@@ -90,8 +128,8 @@ export function ProductForm({ initial, categories, onSubmit, loading }: ProductF
 
       <div>
         <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Unit *</label>
-        <select {...register('unit')} className="w-full rounded-xl border border-[#E5E7EB] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-          {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+        <select {...register('unit')} className={fieldClass}>
+          {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
       </div>
 
