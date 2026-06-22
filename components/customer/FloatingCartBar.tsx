@@ -21,7 +21,7 @@ export function FloatingCartBar() {
     <>
       <Link
         href="/cart"
-        className="fixed bottom-20 left-4 right-4 z-50 bg-primary-600 text-white rounded-2xl px-4 py-3 flex items-center justify-between shadow-lg md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-auto md:min-w-80"
+        className="fixed bottom-20 left-4 right-4 z-40 bg-primary-600 text-white rounded-2xl px-4 py-3 flex items-center justify-between shadow-lg md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-auto md:min-w-80"
         style={{ animation: 'slideUp 0.3s ease-out' }}
       >
         <div className="flex items-center gap-2 flex-1">
