@@ -29,7 +29,7 @@ export function PulseHint({ show, label, position = 'top', children }: PulseHint
   return (
     <div
       className="relative inline-block pulse-ring rounded-lg"
-      onAnimationEnd={() => setDone(true)}
+      onAnimationEnd={(e) => { if (e.target === e.currentTarget) setDone(true); }}
     >
       {children}
       {label && (

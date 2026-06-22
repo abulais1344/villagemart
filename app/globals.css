@@ -94,7 +94,9 @@ html {
 }
 
 .pulse-ring {
-  animation: pulse-ring 1.5s ease-in-out 3;
+  animation: pulse-ring 2s ease-in-out 4;
+  animation-delay: 0.3s;
+  animation-fill-mode: both;
 }
 
 @keyframes fade-in-hint {
