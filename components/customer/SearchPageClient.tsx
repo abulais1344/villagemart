@@ -1,0 +1,195 @@
+'use client';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { Search, X } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { ProductGrid } from '@/components/customer/ProductGrid';
+import { StoreCard } from '@/components/customer/StoreCard';
+import type { Product, Merchant } from '@/types';
+
+const ALIASES: Record<string, string> = {
+  'lays': "lay's",
+  'lays chips': "lay's",
+  'britannia': 'bread',
+  'amul': 'milk',
+  'parleg': 'parle',
+  'parle g': 'parle-g',
+  'maggi': 'noodles',
+  'doodh': 'milk',
+  'anda': 'eggs',
+  'ande': 'eggs',
+  'pav': 'bread',
+  'sabji': 'vegetables',
+};
+
+interface Props {
+  initialQuery: string;
+}
+
+export function SearchPageClient({ initialQuery }: Props) {
+  const router = useRouter();
+  const [query, setQuery] = useState(initialQuery);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stores, setStores] = useState<Merchant[]>([]);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
+
+  const doFetch = useCallback(async (q: string) => {
+    setLoading(true);
+    setSuggestions([]);
+
+    const resolvedQuery = ALIASES[q.toLowerCase().trim()] ?? q;
+    const normalizedQuery = resolvedQuery.replace(/['\-.]/g, '').trim();
+    const terms = [resolvedQuery, ...(normalizedQuery !== resolvedQuery ? [normalizedQuery] : [])];
+    const orFilter = terms
+      .flatMap(t => [`name.ilike.%${t}%`, `description.ilike.%${t}%`])
+      .join(',');
+
+    const [pResult, sResult] = await Promise.all([
+      supabase
+        .from('vm_products')
+        .select('*, category:categories(*)')
+        .or(orFilter)
+        .eq('is_active', true)
+        .limit(30),
+      supabase
+        .from('merchants')
+        .select('*, category:categories(*)')
+        .ilike('store_name', `%${resolvedQuery}%`)
+        .eq('status', 'approved')
+        .limit(10),
+    ]);
+
+    let fetched = pResult.data ?? [];
+    if (inStockOnly) fetched = fetched.filter(p => p.stock_status !== 'out_of_stock');
+    setProducts(fetched);
+    setStores(sResult.data ?? []);
+
+    if (fetched.length === 0) {
+      const { data } = await supabase
+        .from('vm_products')
+        .select('*, category:categories(*)')
+        .eq('is_active', true)
+        .limit(4);
+      setSuggestions(data ?? []);
+    }
+
+    setLoading(false);
+  }, [inStockOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounce: 300ms after typing stops → update URL + fetch
+  useEffect(() => {
+    if (query.length < 2) {
+      setProducts([]);
+      setStores([]);
+      setSuggestions([]);
+      setLoading(false);
+      router.replace('/search', { scroll: false });
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      router.replace(`/search?q=${encodeURIComponent(query)}`, { scroll: false });
+      doFetch(query);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query, doFetch]); // doFetch changes when inStockOnly changes → re-fetch
+
+  const handleClear = () => {
+    setQuery('');
+    inputRef.current?.focus();
+  };
+
+  const noResults = !loading && query.length >= 2 && products.length === 0;
+
+  return (
+    <div className="space-y-4">
+      {/* Controlled search input */}
+      <div className="flex items-center gap-2 bg-[#F5F5F7] border border-[#E5E7EB] rounded-xl px-3 h-12">
+        <Search className="w-4 h-4 text-primary-600 shrink-0" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search milk, eggs, bread..."
+          autoFocus
+          className="flex-1 bg-transparent outline-none text-sm placeholder-[#9CA3AF]"
+        />
+        {loading && (
+          <div className="w-4 h-4 rounded-full border-2 border-primary-600 border-t-transparent animate-spin shrink-0" />
+        )}
+        {query.length > 0 && !loading && (
+          <button onClick={handleClear} className="text-gray-400 hover:text-gray-600 shrink-0 p-0.5">
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+        <button
+          onClick={() => setInStockOnly(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+            inStockOnly
+              ? 'bg-primary-600 text-white border-primary-600'
+              : 'border-[#E5E7EB] text-[#6B7280]'
+          }`}
+        >
+          In Stock Only
+        </button>
+      </div>
+
+      {/* States */}
+      {query.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-5xl mb-3">🔍</p>
+          <p className="text-[#6B7280]">Search for products or stores</p>
+        </div>
+      ) : query.length === 1 ? (
+        <div className="text-center py-12">
+          <p className="text-[#9CA3AF] text-sm">Keep typing...</p>
+        </div>
+      ) : (
+        <>
+          {stores.length > 0 && (
+            <section>
+              <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">Stores</h3>
+              <div className="flex gap-3 overflow-x-auto no-scrollbar">
+                {stores.map(s => <div key={s.id} className="shrink-0"><StoreCard merchant={s} /></div>)}
+              </div>
+            </section>
+          )}
+
+          {noResults ? (
+            <div className="space-y-4">
+              <div className="text-center py-6">
+                <p className="text-4xl mb-2">🔍</p>
+                <p className="text-[#1A1A1A] font-medium">No results for &ldquo;{query}&rdquo;</p>
+                <p className="text-sm text-[#6B7280] mt-1">Try a different spelling or keyword</p>
+              </div>
+              {suggestions.length > 0 && (
+                <section>
+                  <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">You might like these</h3>
+                  <ProductGrid products={suggestions} loading={false} />
+                </section>
+              )}
+            </div>
+          ) : (
+            <section>
+              <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">
+                Products {!loading && `(${products.length})`}
+              </h3>
+              <ProductGrid products={products} loading={loading} />
+            </section>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
