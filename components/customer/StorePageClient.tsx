@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Minus, Plus } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
+import { createClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils/format';
 import type { Product } from '@/types';
 
@@ -51,9 +52,28 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const [filter, setFilter] = useState<Filter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [mounted, setMounted] = useState(false);
-  const { items, addItem, updateQuantity, removeItem } = useCartStore();
+  const [conflictProduct, setConflictProduct] = useState<Product | null>(null);
+  const [otherStoreName, setOtherStoreName] = useState('another restaurant');
+  const { items, addItem, updateQuantity, removeItem, clearCart } = useCartStore();
+  const supabase = createClient();
 
   useEffect(() => { setMounted(true); }, []);
+
+  async function handleAddItem(product: Product) {
+    const otherItem = items.find(i => i.product.merchant_id !== merchant.id);
+    if (otherItem) {
+      const otherId = otherItem.product.merchant_id;
+      let name = 'another restaurant';
+      if (otherId) {
+        const { data } = await supabase.from('merchants').select('store_name').eq('id', otherId).single();
+        name = data?.store_name ?? 'another restaurant';
+      }
+      setOtherStoreName(name);
+      setConflictProduct(product);
+      return;
+    }
+    addItem(product);
+  }
 
   // Combined filter: veg/nonveg + search, bestsellers first
   const filtered = products
@@ -258,7 +278,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
                       </div>
                     ) : (
                       <button
-                        onClick={() => addItem(product)}
+                        onClick={() => handleAddItem(product)}
                         className="border border-purple-600 text-purple-600 text-sm font-bold px-6 py-1 rounded-lg hover:bg-purple-50 transition-colors"
                       >
                         ADD
@@ -300,6 +320,39 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
           </span>
           <span className="text-sm font-semibold">View Cart →</span>
         </Link>
+      )}
+
+      {/* ── Mixed-cart conflict modal ── */}
+      {conflictProduct && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3">
+            <p className="font-bold text-gray-900 text-base">Start new order?</p>
+            <p className="text-sm text-gray-600 leading-snug">
+              Your cart has items from{' '}
+              <span className="font-semibold">{otherStoreName}</span>.
+              Clear cart to add items from{' '}
+              <span className="font-semibold">{merchant.store_name}</span>?
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setConflictProduct(null)}
+                className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-semibold text-gray-700"
+              >
+                Keep Cart
+              </button>
+              <button
+                onClick={() => {
+                  clearCart();
+                  addItem(conflictProduct);
+                  setConflictProduct(null);
+                }}
+                className="flex-1 bg-purple-600 text-white rounded-xl py-2.5 text-sm font-semibold"
+              >
+                Clear &amp; Add
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

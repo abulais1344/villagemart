@@ -55,6 +55,7 @@ export function SearchPageClient({ initialQuery }: Props) {
         .select('*, category:categories(*)')
         .or(orFilter)
         .eq('is_active', true)
+        .is('merchant_id', null)
         .limit(30),
       supabase
         .from('merchants')
@@ -74,6 +75,7 @@ export function SearchPageClient({ initialQuery }: Props) {
         .from('vm_products')
         .select('*, category:categories(*)')
         .eq('is_active', true)
+        .is('merchant_id', null)
         .limit(4);
       setSuggestions(data ?? []);
     }
