@@ -274,6 +274,12 @@ export function SearchPageClient({ initialQuery }: Props) {
                   ))}
                 </div>
               )}
+              <Link
+                href="/stores"
+                className="flex items-center gap-1 text-purple-600 text-xs font-medium mt-2 px-1"
+              >
+                See all restaurants →
+              </Link>
             </section>
           )}
         </div>
@@ -294,11 +300,9 @@ export function SearchPageClient({ initialQuery }: Props) {
 
           {noResults ? (
             <div className="space-y-4">
-              <div className="text-center py-6">
-                <p className="text-4xl mb-2">🔍</p>
-                <p className="text-[#1A1A1A] font-medium">No results for &ldquo;{query}&rdquo;</p>
-                <p className="text-sm text-[#6B7280] mt-1">Try a different spelling or keyword</p>
-              </div>
+              <p className="text-sm text-gray-500 py-3">
+                No results for &ldquo;{query}&rdquo; · Try a different keyword
+              </p>
               {suggestions.length > 0 && (
                 <section>
                   <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">You might like these</h3>
@@ -371,6 +375,12 @@ export function SearchPageClient({ initialQuery }: Props) {
                   </Link>
                 ))}
               </div>
+              <Link
+                href="/stores"
+                className="flex items-center gap-1 text-purple-600 text-xs font-medium mt-2 px-1"
+              >
+                See all restaurants →
+              </Link>
             </div>
           ) : null}
         </>
