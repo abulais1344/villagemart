@@ -12,6 +12,8 @@ import type { Category, Product, Merchant } from '@/types';
 import type { Customer, AddressData } from '@/lib/customer';
 import { AddressManager } from './AddressManager';
 import { FloatingCartBar } from './FloatingCartBar';
+import { PulseHint } from './PulseHint';
+import { useFirstVisit } from '@/hooks/useFirstVisit';
 
 interface HomePageClientProps {
   categories: Category[];
@@ -114,6 +116,8 @@ export function HomePageClient({
   const { items, getSubtotal } = useCartStore();
   const cartTotal = getSubtotal();
   const itemCount = items.length;
+  const [showAddHint, markAddSeen] = useFirstVisit('add_product');
+  const [showCartHint, markCartSeen] = useFirstVisit('cart_icon');
 
   useEffect(() => {
     setMounted(true);
@@ -168,14 +172,16 @@ export function HomePageClient({
             <button className="p-2 rounded-xl hover:bg-gray-100">
               <Bell className="w-5 h-5 text-[#6B7280]" />
             </button>
-            <Link href="/cart" className="p-2 rounded-xl hover:bg-gray-100 relative">
-              <ShoppingCart className="w-5 h-5 text-[#6B7280]" />
-              {mounted && itemCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {itemCount > 9 ? '9+' : itemCount}
-                </span>
-              )}
-            </Link>
+            <PulseHint show={mounted && itemCount > 0 && showCartHint} label="View cart 🛒" position="bottom">
+              <Link href="/cart" onClick={markCartSeen} className="p-2 rounded-xl hover:bg-gray-100 relative">
+                <ShoppingCart className="w-5 h-5 text-[#6B7280]" />
+                {mounted && itemCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-primary-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {itemCount > 9 ? '9+' : itemCount}
+                  </span>
+                )}
+              </Link>
+            </PulseHint>
             <Link href="/profile" className="p-1 rounded-xl hover:bg-gray-100">
               {mounted && customer?.name ? (
                 <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-bold">
@@ -304,8 +310,13 @@ export function HomePageClient({
           </div>
           {ownWithCat.length > 0 ? (
             <div className="grid grid-cols-2 gap-2.5">
-              {ownWithCat.slice(0, 6).map(p => (
-                <ProductCard key={p.id} product={p as Product} />
+              {ownWithCat.slice(0, 6).map((p, index) => (
+                <ProductCard
+                  key={p.id}
+                  product={p as Product}
+                  hint={showAddHint && index === 0}
+                  onHintDismiss={markAddSeen}
+                />
               ))}
             </div>
           ) : (

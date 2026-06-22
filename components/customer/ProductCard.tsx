@@ -7,12 +7,15 @@ import { Plus, Minus } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import type { Product } from '@/types';
 import { formatCurrency } from '@/lib/utils/format';
+import { PulseHint } from './PulseHint';
 
 interface ProductCardProps {
   product: Product;
+  hint?: boolean;
+  onHintDismiss?: () => void;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, hint = false, onHintDismiss }: ProductCardProps) {
   const [mounted, setMounted] = useState(false);
   const { items, addItem, updateQuantity, removeItem } = useCartStore();
   const cartItem = items.find(i => i.product.id === product.id);
@@ -25,7 +28,10 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!outOfStock) addItem(product);
+    if (!outOfStock) {
+      addItem(product);
+      onHintDismiss?.();
+    }
   };
 
   const handleIncrease = (e: React.MouseEvent) => {
@@ -98,12 +104,14 @@ export function ProductCard({ product }: ProductCardProps) {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={handleAdd}
-                  className="bg-primary-50 border border-primary-200 text-primary-700 rounded-lg px-3 py-1.5 text-sm font-semibold hover:bg-primary-100 transition-colors"
-                >
-                  ADD
-                </button>
+                <PulseHint show={hint} label="Tap to add 👆">
+                  <button
+                    onClick={handleAdd}
+                    className="bg-primary-50 border border-primary-200 text-primary-700 rounded-lg px-3 py-1.5 text-sm font-semibold hover:bg-primary-100 transition-colors"
+                  >
+                    ADD
+                  </button>
+                </PulseHint>
               )
             )}
           </div>

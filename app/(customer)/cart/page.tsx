@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/lib/utils/format';
 import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
 import { AddressManager } from '@/components/customer/AddressManager';
+import { PulseHint } from '@/components/customer/PulseHint';
+import { useFirstVisit } from '@/hooks/useFirstVisit';
 
 const LocationPickerModal = dynamic(
   () => import('@/components/customer/LocationPickerModal'),
@@ -29,6 +31,7 @@ export default function CartPage() {
   const [mounted, setMounted] = useState(false);
   const [showAddressSheet, setShowAddressSheet] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [showCheckoutHint, markCheckoutSeen] = useFirstVisit('checkout_btn');
   const router = useRouter();
 
   useEffect(() => {
@@ -244,18 +247,21 @@ export default function CartPage() {
           </div>
         </div>
 
-        <Button
-          fullWidth size="lg"
-          onClick={() => {
-            if (!customer) {
-              window.location.href = '/auth/login';
-            } else {
-              window.location.href = '/checkout';
-            }
-          }}
-        >
-          {customer ? `Proceed to Checkout · ${formatCurrency(total)}` : 'Add address to continue'}
-        </Button>
+        <PulseHint show={showCheckoutHint} label="Tap to checkout ✓" position="top">
+          <Button
+            fullWidth size="lg"
+            onClick={() => {
+              markCheckoutSeen();
+              if (!customer) {
+                window.location.href = '/auth/login';
+              } else {
+                window.location.href = '/checkout';
+              }
+            }}
+          >
+            {customer ? `Proceed to Checkout · ${formatCurrency(total)}` : 'Add address to continue'}
+          </Button>
+        </PulseHint>
       </main>
 
       <AddressManager
