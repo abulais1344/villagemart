@@ -88,6 +88,62 @@ export async function POST(request: NextRequest) {
       console.error('Order items insert error:', itemsError);
     }
 
+    // Fire-and-forget admin WhatsApp notification
+    ;(async () => {
+      try {
+        const adminPhone = process.env.ADMIN_WHATSAPP_NUMBER;
+        if (!adminPhone) return;
+
+        let storeName = 'VillageMart';
+        if (orderData.merchantId) {
+          const { data: merchant } = await supabase
+            .from('merchants')
+            .select('store_name')
+            .eq('id', orderData.merchantId)
+            .single();
+          if (merchant?.store_name) storeName = merchant.store_name;
+        }
+
+        const shortId = order.id.slice(-6).toUpperCase();
+        const itemCount = (orderData.items as any[]).reduce((sum: number, item: any) => sum + item.quantity, 0);
+        const addrParts = [
+          orderData.customer.address,
+          orderData.customer.landmark,
+          orderData.customer.area,
+        ].filter(Boolean).join(', ');
+
+        const body = [
+          '🛒 New Order Received!',
+          `Order #${shortId}`,
+          `Customer: ${orderData.customer.name} — ${orderData.customer.phone}`,
+          `Merchant: ${storeName}`,
+          `Items: ${itemCount}`,
+          `Amount: ₹${orderData.total}`,
+          `Address: ${addrParts}`,
+          '',
+          'View: https://villagemart-blond.vercel.app/admin-login',
+        ].join('\n');
+
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken  = process.env.TWILIO_AUTH_TOKEN;
+        const from       = process.env.TWILIO_WHATSAPP_FROM;
+
+        await fetch(
+          `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: 'Basic ' + btoa(`${accountSid}:${authToken}`),
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ From: from!, To: `whatsapp:+${adminPhone}`, Body: body }),
+          }
+        );
+      } catch (err) {
+        console.error('Admin WhatsApp notification failed:', err);
+      }
+    })();
+
     // Fire-and-forget WhatsApp notification on order placement
     if (order.customer_phone) {
       const shortId = order.id.slice(0, 8).toUpperCase();

@@ -12,6 +12,29 @@ import type { Order, OrderStatus } from '@/types';
 import toast from 'react-hot-toast';
 
 const STATUSES: OrderStatus[] = ['pending', 'accepted', 'packed', 'picked_up', 'out_for_delivery', 'delivered', 'cancelled'];
+
+const WA_MESSAGES: Record<string, (name: string, id: string, store: string) => string> = {
+  pending:          (name, id)        => `Hi ${name}! Your order #${id} has been received and is being processed. Thank you for ordering from VillageMart! 🛒`,
+  accepted:         (name, id, store) => `Hi ${name}! Your order #${id} from ${store} has been accepted and is being prepared. 🎉`,
+  packed:           (name, id, store) => `Hi ${name}! Your order #${id} from ${store} is packed and ready! 📦`,
+  ready:            (name, id, store) => `Hi ${name}! Your order #${id} from ${store} is ready and will be picked up soon! 📦`,
+  picked_up:        (name, id, store) => `Hi ${name}! Your order #${id} from ${store} has been picked up and is on its way! 🛵`,
+  out_for_delivery: (name, id, store) => `Hi ${name}! Your order #${id} from ${store} is out for delivery and will reach you soon! 🛵`,
+  delivered:        (name, id, store) => `Hi ${name}! Your order #${id} from ${store} has been delivered. Enjoy your meal! 😊 Please share feedback.`,
+  cancelled:        (name, id)        => `Hi ${name}! We're sorry, your order #${id} has been cancelled. Please contact us for support.`,
+};
+
+function getWhatsAppUrl(order: Order): string | null {
+  if (!order.customer_phone) return null;
+  const phone = order.customer_phone.replace(/[\s\-]/g, '');
+  const e164 = phone.startsWith('91') ? phone : `91${phone}`;
+  const name = order.customer_name ?? 'Customer';
+  const shortId = order.id.slice(-6).toUpperCase();
+  const store = (order.merchant as never as { store_name: string })?.store_name ?? 'VillageMart';
+  const msgFn = WA_MESSAGES[order.status];
+  if (!msgFn) return null;
+  return `https://wa.me/${e164}?text=${encodeURIComponent(msgFn(name, shortId, store))}`;
+}
 const STATUS_VARIANT: Record<string, 'warning' | 'primary' | 'success' | 'error' | 'gray'> = {
   pending: 'warning', accepted: 'primary', packed: 'primary',
   picked_up: 'primary', out_for_delivery: 'primary', delivered: 'success', cancelled: 'error',
@@ -93,8 +116,10 @@ export default function AdminOrdersPage() {
     setUpdating(false);
     if (res.ok) {
       toast.success(`Status updated to ${status.replace('_', ' ')}`);
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: status as OrderStatus } : o));
-      setSelected(null);
+      const updatedOrder = { ...order, status: status as OrderStatus };
+      setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
+      setSelected(updatedOrder);
+      setSelectedStatus(toAdminStatus(status));
       const msg = STATUS_NOTIFICATIONS[status];
 
       if (msg && order.customer_phone) {
@@ -146,7 +171,23 @@ export default function AdminOrdersPage() {
                       <p className="text-xs text-primary-600">{(order.merchant as never as { store_name: string }).store_name}</p>
                     )}
                   </div>
-                  <Badge variant={STATUS_VARIANT[order.status] ?? 'gray'}>{order.status.replace('_', ' ')}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={STATUS_VARIANT[order.status] ?? 'gray'}>{order.status.replace('_', ' ')}</Badge>
+                    {(() => {
+                      const url = getWhatsAppUrl(order);
+                      return url ? (
+                        <span
+                          role="link"
+                          onClick={e => { e.stopPropagation(); window.open(url, '_blank', 'noopener,noreferrer'); }}
+                          className="inline-flex items-center px-2 py-1 rounded-lg text-white text-xs font-medium cursor-pointer select-none"
+                          style={{ backgroundColor: '#25D366' }}
+                          title="Send WhatsApp update"
+                        >
+                          💬
+                        </span>
+                      ) : null;
+                    })()}
+                  </div>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-xs text-[#6B7280]">{order.order_items?.length} items</span>
@@ -166,9 +207,22 @@ export default function AdminOrdersPage() {
               <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide">Customer</p>
               <p className="text-sm font-medium text-[#1A1A1A]">{selected.customer_name}</p>
               {selected.customer_phone && (
-                <a href={`tel:${selected.customer_phone}`} className="text-sm text-primary-600 font-medium">
-                  {selected.customer_phone}
-                </a>
+                <div className="flex items-center gap-2">
+                  <a href={`tel:${selected.customer_phone}`} className="text-sm text-primary-600 font-medium">
+                    {selected.customer_phone}
+                  </a>
+                  {getWhatsAppUrl(selected) && (
+                    <a
+                      href={getWhatsAppUrl(selected)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-xs font-medium"
+                      style={{ backgroundColor: '#25D366' }}
+                    >
+                      💬 WhatsApp
+                    </a>
+                  )}
+                </div>
               )}
             </div>
 
