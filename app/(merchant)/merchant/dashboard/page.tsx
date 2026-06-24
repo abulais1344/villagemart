@@ -7,6 +7,17 @@ import { MerchantHeader } from '@/components/merchant/MerchantHeader';
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 const STATUS_COLOR: Record<string, string> = {
   pending:   'bg-yellow-100 text-yellow-700',
   preparing: 'bg-blue-100 text-blue-700',
@@ -126,6 +137,56 @@ export default function MerchantDashboard() {
           <div>Permission: {Notification.permission}</div>
           <div>VAPID: {VAPID_PUBLIC_KEY ? '✅ ' + VAPID_PUBLIC_KEY.substring(0, 15) + '...' : '❌ missing'}</div>
           <div id="subStatus">Subscription: checking...</div>
+          <button
+            onClick={async () => {
+              try {
+                document.getElementById('subStatus')!.textContent = 'Subscription: testing...';
+
+                const reg: ServiceWorkerRegistration = await Promise.race([
+                  navigator.serviceWorker.ready,
+                  new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error('SW timeout')), 3000)
+                  ),
+                ]);
+
+                document.getElementById('subStatus')!.textContent = 'SW ready ✅ trying subscribe...';
+
+                const sub = await Promise.race([
+                  reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+                  }),
+                  new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error('Subscribe timeout')), 5000)
+                  ),
+                ]);
+
+                document.getElementById('subStatus')!.textContent = 'Subscribed ✅ saving...';
+
+                const res = await fetch('/api/merchant/push-subscription', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ subscription: sub }),
+                });
+
+                document.getElementById('subStatus')!.textContent = 'Saved! Status: ' + res.status;
+              } catch (err: any) {
+                document.getElementById('subStatus')!.textContent = '❌ Error: ' + err.message;
+              }
+            }}
+            style={{
+              marginTop: '8px',
+              background: '#7C3AED',
+              color: 'white',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              width: '100%',
+              cursor: 'pointer',
+            }}
+          >
+            Test Subscribe
+          </button>
         </div>
       )}
 
