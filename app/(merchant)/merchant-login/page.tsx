@@ -11,29 +11,56 @@ export default function MerchantLoginPage() {
   const [error, setError] = useState('');
 
   async function subscribeToPush() {
+    console.log('[Push] subscribeToPush called');
     try {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-
-      const registration = await navigator.serviceWorker.ready;
-      let subscription = await registration.pushManager.getSubscription();
-
-      if (!subscription) {
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') return;
-
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-        });
+      if (!('serviceWorker' in navigator)) {
+        console.log('[Push] serviceWorker not supported');
+        return;
+      }
+      if (!('PushManager' in window)) {
+        console.log('[Push] PushManager not supported');
+        return;
       }
 
-      await fetch('/api/merchant/push-subscription', {
+      console.log('[Push] waiting for SW ready...');
+      const registration = await navigator.serviceWorker.ready;
+      console.log('[Push] SW ready:', registration);
+
+      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      console.log('[Push] VAPID key exists:', !!publicKey);
+      console.log('[Push] VAPID key value:', publicKey?.substring(0, 20) + '...');
+
+      let subscription = await registration.pushManager.getSubscription();
+      console.log('[Push] existing subscription:', subscription);
+
+      if (!subscription) {
+        console.log('[Push] no existing subscription, requesting permission...');
+        const permission = await Notification.requestPermission();
+        console.log('[Push] permission result:', permission);
+        if (permission !== 'granted') {
+          console.log('[Push] permission denied, aborting');
+          return;
+        }
+
+        console.log('[Push] subscribing with VAPID key...');
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: publicKey,
+        });
+        console.log('[Push] new subscription created:', subscription);
+      }
+
+      console.log('[Push] saving subscription to server...');
+      const res = await fetch('/api/merchant/push-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscription }),
       });
+      console.log('[Push] server response status:', res.status);
+      const data = await res.json();
+      console.log('[Push] server response body:', data);
     } catch (err) {
-      console.error('Push subscription failed:', err);
+      console.error('[Push] subscription failed:', err);
     }
   }
 
