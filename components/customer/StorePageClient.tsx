@@ -58,11 +58,34 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [showMenuSheet, setShowMenuSheet] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<Product | null>(null);
+  const [imgVisible, setImgVisible] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const categoryNavRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef(0);
+  const touchDeltaY = useRef(0);
   const { items, addItem, updateQuantity, removeItem, clearCart } = useCartStore();
   const supabase = createClient();
 
   useEffect(() => { setMounted(true); }, []);
+
+  function closeViewer() {
+    setImgVisible(false);
+    setTimeout(() => setSelectedImage(null), 220);
+  }
+
+  useEffect(() => {
+    if (!selectedImage) return;
+    setImgLoaded(false);
+    requestAnimationFrame(() => requestAnimationFrame(() => setImgVisible(true)));
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeViewer(); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [selectedImage]);
 
   // ── IntersectionObserver scroll spy ──────────────────────────────────────
   useEffect(() => {
@@ -188,9 +211,11 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const popularItems = products.filter(p => isBestseller(p)).slice(0, 8);
 
   let bestsellerCount = 0;
+  let productRenderIndex = 0;
 
   // hideDescription when in grouped mode (description field IS the category name)
   const renderProduct = (product: Product) => {
+    const renderIdx = productRenderIndex++;
     const qty = mounted ? getQty(product.id) : 0;
     const nonVeg = isNonVeg(product);
     const hasDiscount = product.mrp > product.selling_price;
@@ -258,8 +283,11 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
           </div>
         </div>
 
-        {/* Right: image */}
-        <div className="shrink-0 w-28 h-24 rounded-xl overflow-hidden bg-gray-100">
+        {/* Right: image — tappable to open fullscreen viewer */}
+        <div
+          className={`shrink-0 w-28 h-24 rounded-xl overflow-hidden bg-gray-100 ${product.images?.[0] ? 'cursor-pointer active:opacity-80' : ''}`}
+          onClick={() => product.images?.[0] && setSelectedImage(product)}
+        >
           {product.images?.[0] ? (
             <Image
               src={product.images[0]}
@@ -267,6 +295,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
               width={112}
               height={96}
               className="w-full h-full object-cover"
+              priority={renderIdx < 6}
             />
           ) : (
             <div className="w-full h-full bg-purple-50 flex items-center justify-center">
@@ -373,8 +402,8 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
             {popularItems.map(product => (
               <button
                 key={product.id}
-                onClick={() => scrollToSection(product.description?.trim() ?? '')}
-                className="flex-shrink-0 flex flex-col gap-1 text-left"
+                onClick={() => product.images?.[0] ? setSelectedImage(product) : scrollToSection(product.description?.trim() ?? '')}
+                className="flex-shrink-0 flex flex-col gap-1 text-left cursor-pointer"
               >
                 <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
                   {product.images?.[0] ? (
@@ -530,6 +559,135 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
                 Clear &amp; Add
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Fullscreen image viewer ── */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col"
+          style={{
+            backgroundColor: `rgba(0,0,0,${imgVisible ? '0.88' : '0'})`,
+            backdropFilter: `blur(${imgVisible ? '6px' : '0px'})`,
+            transition: 'background-color 150ms ease-out, backdrop-filter 150ms ease-out',
+          }}
+          onClick={closeViewer}
+          onTouchStart={e => { touchStartY.current = e.touches[0].clientY; touchDeltaY.current = 0; }}
+          onTouchMove={e => { touchDeltaY.current = e.touches[0].clientY - touchStartY.current; }}
+          onTouchEnd={() => { if (touchDeltaY.current > 80) closeViewer(); }}
+        >
+          {/* Close button */}
+          <button
+            onClick={closeViewer}
+            className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full flex items-center justify-center"
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(8px)',
+              opacity: imgVisible ? 1 : 0,
+              transition: 'opacity 200ms ease-out',
+            }}
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+
+          {/* Image area — fills space above bottom sheet */}
+          <div
+            className="flex-1 min-h-0 flex items-center justify-center px-5 pt-14 bg-black"
+            onClick={e => e.stopPropagation()}
+            style={{
+              opacity: imgVisible ? 1 : 0,
+              transform: imgVisible ? 'scale(1)' : 'scale(0.92)',
+              transition: 'opacity 200ms ease-out, transform 200ms ease-out',
+            }}
+          >
+            <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-black" style={{ height: '50vh' }}>
+              {/* Blur placeholder — renders instantly from cached thumbnail */}
+              <Image
+                src={selectedImage.images![0]}
+                alt=""
+                fill
+                className="object-cover scale-110 blur-xl"
+                style={{ opacity: imgLoaded ? 0 : 1, transition: 'opacity 300ms ease-out' }}
+                sizes="90vw"
+              />
+              {/* Full-res image fades in on load */}
+              <Image
+                src={selectedImage.images![0]}
+                alt={selectedImage.name}
+                fill
+                className="object-cover"
+                style={{ opacity: imgLoaded ? 1 : 0, transition: 'opacity 300ms ease-out' }}
+                sizes="90vw"
+                priority
+                onLoad={() => setImgLoaded(true)}
+              />
+            </div>
+          </div>
+
+          {/* Bottom info card — slides up */}
+          <div
+            className="bg-white rounded-t-3xl px-5 pt-4 pb-10 shrink-0"
+            onClick={e => e.stopPropagation()}
+            style={{
+              transform: imgVisible ? 'translateY(0)' : 'translateY(100%)',
+              transition: 'transform 200ms ease-out',
+            }}
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center mb-3">
+              <div className="w-10 h-1 rounded-full bg-gray-200" />
+            </div>
+
+            {/* Veg dot + name */}
+            <div className="flex items-start gap-2 mb-1">
+              <div className={`mt-1 w-4 h-4 border-2 rounded-sm flex items-center justify-center shrink-0 ${isNonVeg(selectedImage) ? 'border-red-500' : 'border-green-600'}`}>
+                <div className={`w-2 h-2 rounded-full ${isNonVeg(selectedImage) ? 'bg-red-500' : 'bg-green-600'}`} />
+              </div>
+              <p className="text-xl font-bold text-gray-900 leading-snug">{selectedImage.name}</p>
+            </div>
+
+            {/* Price */}
+            <p className="text-lg font-semibold text-purple-600 ml-6 mb-2">{formatCurrency(selectedImage.selling_price)}</p>
+
+            {/* Description (only in search/flat mode — in grouped mode it's the category name) */}
+            {!isGrouped && selectedImage.description && (
+              <p className="text-sm text-gray-500 ml-6 mb-3 leading-relaxed">{selectedImage.description}</p>
+            )}
+
+            {/* Cart control */}
+            {mounted && (() => {
+              const qty = getQty(selectedImage.id);
+              return qty > 0 ? (
+                <div className="flex items-center gap-4 mt-3">
+                  <div className="inline-flex items-center rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => qty <= 1 ? removeItem(selectedImage.id) : updateQuantity(selectedImage.id, qty - 1)}
+                      className="bg-purple-600 text-white w-11 h-11 flex items-center justify-center"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className="bg-purple-600 text-white text-sm font-bold w-11 h-11 flex items-center justify-center border-x border-purple-500">
+                      {qty}
+                    </span>
+                    <button
+                      onClick={() => updateQuantity(selectedImage.id, qty + 1)}
+                      className="bg-purple-600 text-white w-11 h-11 flex items-center justify-center"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <span className="text-sm text-gray-500">{qty} in cart</span>
+                </div>
+              ) : (
+                <button
+                  onClick={() => handleAddItem(selectedImage)}
+                  className="w-full py-4 rounded-xl text-white font-bold text-sm mt-2 shadow-lg shadow-purple-200 bg-gradient-to-r from-purple-600 to-purple-700"
+                >
+                  Add to Cart
+                </button>
+              );
+            })()}
           </div>
         </div>
       )}

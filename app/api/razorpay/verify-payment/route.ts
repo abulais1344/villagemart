@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { sendWhatsAppNotification } from '@/lib/whatsapp';
+import webpush from 'web-push';
+
+webpush.setVapidDetails(
+  process.env.VAPID_EMAIL!,
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+  process.env.VAPID_PRIVATE_KEY!
+);
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -141,6 +148,31 @@ export async function POST(request: NextRequest) {
         );
       } catch (err) {
         console.error('Admin WhatsApp notification failed:', err);
+      }
+    })();
+
+    // Fire-and-forget merchant push notification
+    ;(async () => {
+      try {
+        if (!orderData.merchantId) return;
+        const { data: merchant } = await supabase
+          .from('merchants')
+          .select('push_subscription')
+          .eq('id', orderData.merchantId)
+          .single();
+        if (!merchant?.push_subscription) return;
+
+        const shortId = order.id.slice(-6).toUpperCase();
+        const itemCount = (orderData.items as any[]).reduce((sum: number, item: any) => sum + item.quantity, 0);
+        const payload = JSON.stringify({
+          title: '🛍️ New Order!',
+          body: `Order #${shortId} • ₹${orderData.total} • ${itemCount} item${itemCount !== 1 ? 's' : ''}`,
+        });
+
+        webpush.sendNotification(merchant.push_subscription as webpush.PushSubscription, payload)
+          .catch((err: unknown) => console.error('Merchant push failed:', err));
+      } catch (err) {
+        console.error('Merchant push notification error:', err);
       }
     })();
 

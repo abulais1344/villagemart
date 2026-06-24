@@ -36,6 +36,8 @@ export default function LocationPickerModal({
   const [lng, setLng] = useState(defaultLng ?? ARDHAPUR_CENTER.lng);
   const [inZone, setInZone] = useState<boolean | null>(null);
   const [label, setLabel] = useState<AddressData['label']>('Home');
+  const [flatNo, setFlatNo] = useState('');
+  const [landmark, setLandmark] = useState('');
 
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -154,7 +156,8 @@ export default function LocationPickerModal({
 
   function handleSave() {
     if (!inZone || !address) return;
-    onSave({ label, address, area, lat, lng, pincode });
+    const fullAddress = [flatNo, address, landmark ? `Near: ${landmark}` : ''].filter(Boolean).join(', ');
+    onSave({ label, address: fullAddress, area, lat, lng, pincode });
     onClose();
   }
 
@@ -243,6 +246,25 @@ export default function LocationPickerModal({
         ) : (
           <div className="rounded-xl p-3 border border-gray-200 bg-gray-50 text-center">
             <p className="text-sm text-gray-400">Move the map to select your location</p>
+          </div>
+        )}
+
+        {address && (
+          <div className="space-y-2">
+            <input
+              type="text"
+              value={flatNo}
+              onChange={e => setFlatNo(e.target.value)}
+              placeholder="Flat / House No. *"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400"
+            />
+            <input
+              type="text"
+              value={landmark}
+              onChange={e => setLandmark(e.target.value)}
+              placeholder="Landmark (optional)"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400"
+            />
           </div>
         )}
 

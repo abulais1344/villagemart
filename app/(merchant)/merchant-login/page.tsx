@@ -10,6 +10,33 @@ export default function MerchantLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  async function subscribeToPush() {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        });
+      }
+
+      await fetch('/api/merchant/push-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription }),
+      });
+    } catch (err) {
+      console.error('Push subscription failed:', err);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -25,6 +52,7 @@ export default function MerchantLoginPage() {
     setLoading(false);
 
     if (data.success) {
+      subscribeToPush();
       window.location.href = '/merchant/dashboard';
     } else {
       setError(data.error || 'Login failed');
