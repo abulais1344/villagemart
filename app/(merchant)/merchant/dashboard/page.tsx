@@ -47,9 +47,17 @@ export default function MerchantDashboard() {
   useEffect(() => {
     if (!showDebug) return;
     navigator.serviceWorker.ready.then(reg => {
-      reg.pushManager.getSubscription().then(sub => {
+      Promise.race([
+        reg.pushManager.getSubscription(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 5000)
+        ),
+      ]).then(sub => {
         const el = document.getElementById('subStatus');
         if (el) el.textContent = 'Subscription: ' + (sub ? '✅ exists' : '❌ none');
+      }).catch((err: Error) => {
+        const el = document.getElementById('subStatus');
+        if (el) el.textContent = 'Subscription: ❌ error: ' + err.message;
       });
     });
   }, [showDebug]);
