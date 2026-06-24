@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useMerchant } from '../MerchantProvider';
 import { MerchantHeader } from '@/components/merchant/MerchantHeader';
 
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+
 const STATUS_COLOR: Record<string, string> = {
   pending:   'bg-yellow-100 text-yellow-700',
   preparing: 'bg-blue-100 text-blue-700',
@@ -36,6 +38,21 @@ export default function MerchantDashboard() {
 
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
+
+  useEffect(() => {
+    setShowDebug(new URLSearchParams(window.location.search).has('debug'));
+  }, []);
+
+  useEffect(() => {
+    if (!showDebug) return;
+    navigator.serviceWorker.ready.then(reg => {
+      reg.pushManager.getSubscription().then(sub => {
+        const el = document.getElementById('subStatus');
+        if (el) el.textContent = 'Subscription: ' + (sub ? '✅ exists' : '❌ none');
+      });
+    });
+  }, [showDebug]);
 
   useEffect(() => {
     fetch('/api/merchant/orders')
@@ -88,6 +105,22 @@ export default function MerchantDashboard() {
   return (
     <>
       <MerchantHeader storeName={merchant.store_name} />
+
+      {showDebug && (
+        <div style={{
+          background: '#1a1a1a', color: '#00ff00',
+          padding: '12px', fontSize: '11px',
+          fontFamily: 'monospace', margin: '8px',
+          borderRadius: '8px'
+        }}>
+          <div>SW: {'serviceWorker' in navigator ? '✅' : '❌'}</div>
+          <div>Push: {'PushManager' in window ? '✅' : '❌'}</div>
+          <div>Permission: {Notification.permission}</div>
+          <div>VAPID: {VAPID_PUBLIC_KEY ? '✅ ' + VAPID_PUBLIC_KEY.substring(0, 15) + '...' : '❌ missing'}</div>
+          <div id="subStatus">Subscription: checking...</div>
+        </div>
+      )}
+
       <main className="px-4 py-4 space-y-4">
         {loading ? (
           <>
