@@ -60,6 +60,41 @@ export default function MerchantOrdersPage() {
   const [tab, setTab] = useState('pending');
   const [loading, setLoading] = useState(true);
   const prevPendingCount = useRef<number | null>(null);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [justInstalled, setJustInstalled] = useState(false);
+
+  // Notification permission state
+  useEffect(() => {
+    if ('Notification' in window) setNotifPermission(Notification.permission);
+  }, []);
+
+  // PWA install prompt
+  useEffect(() => {
+    const onPrompt = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
+    const onInstalled = () => { setInstallPrompt(null); setJustInstalled(true); };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+
+  async function handleEnableNotifications() {
+    const permission = await Notification.requestPermission();
+    setNotifPermission(permission);
+  }
+
+  async function handleInstall() {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+      setJustInstalled(true);
+    }
+  }
 
   useEffect(() => {
     loadOrders();
@@ -113,6 +148,41 @@ export default function MerchantOrdersPage() {
   return (
     <>
       <MerchantHeader storeName={merchant.store_name} />
+
+      {/* 🔔 Enable Notifications banner */}
+      {notifPermission === 'default' && (
+        <div className="bg-orange-500 text-white px-4 py-3">
+          <p className="text-sm font-semibold">🔔 Enable Notifications</p>
+          <p className="text-xs opacity-90 mt-0.5">Get notified instantly when new orders arrive</p>
+          <button
+            onClick={handleEnableNotifications}
+            className="mt-2 bg-white text-orange-600 rounded-lg px-4 py-1.5 text-sm font-semibold"
+          >
+            Enable Notifications
+          </button>
+        </div>
+      )}
+
+      {/* 📲 Install App banner */}
+      {installPrompt && (
+        <div className="bg-[#7C3AED] text-white px-4 py-3">
+          <p className="text-sm font-semibold">📲 Install App for easy access</p>
+          <p className="text-xs opacity-90 mt-0.5">Works like a native app!</p>
+          <div className="flex justify-center mt-2">
+            <button
+              onClick={handleInstall}
+              className="bg-white text-[#7C3AED] rounded-lg px-6 py-1.5 text-sm font-semibold"
+            >
+              Install App
+            </button>
+          </div>
+        </div>
+      )}
+      {justInstalled && !installPrompt && (
+        <div className="bg-green-600 text-white text-sm font-medium text-center px-4 py-2">
+          App installed! ✅
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex overflow-x-auto bg-white border-b border-gray-100 sticky top-[61px] z-30"
