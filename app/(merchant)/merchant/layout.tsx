@@ -3,6 +3,11 @@ import { redirect } from 'next/navigation';
 import { createServiceClient } from '@/lib/supabase/server';
 import { MerchantProvider } from './MerchantProvider';
 import { MerchantNav } from '@/components/merchant/MerchantNav';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  manifest: '/merchant-manifest.json',
+};
 
 export default async function MerchantPortalLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
