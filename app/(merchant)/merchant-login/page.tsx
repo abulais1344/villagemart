@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+
 export default function MerchantLoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState('');
@@ -11,6 +13,7 @@ export default function MerchantLoginPage() {
   const [error, setError] = useState('');
 
   async function subscribeToPush() {
+    console.log('[Push] starting...');
     console.log('[Push] subscribeToPush called');
     try {
       if (!('serviceWorker' in navigator)) {
@@ -22,13 +25,16 @@ export default function MerchantLoginPage() {
         return;
       }
 
+      if (!VAPID_PUBLIC_KEY) {
+        console.error('[Push] VAPID_PUBLIC_KEY is empty!');
+        return;
+      }
+      console.log('[Push] VAPID key exists:', true);
+      console.log('[Push] VAPID key value:', VAPID_PUBLIC_KEY.substring(0, 20) + '...');
+
       console.log('[Push] waiting for SW ready...');
       const registration = await navigator.serviceWorker.ready;
       console.log('[Push] SW ready:', registration);
-
-      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      console.log('[Push] VAPID key exists:', !!publicKey);
-      console.log('[Push] VAPID key value:', publicKey?.substring(0, 20) + '...');
 
       let subscription = await registration.pushManager.getSubscription();
       console.log('[Push] existing subscription:', subscription);
@@ -45,7 +51,7 @@ export default function MerchantLoginPage() {
         console.log('[Push] subscribing with VAPID key...');
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: publicKey,
+          applicationServerKey: VAPID_PUBLIC_KEY,
         });
         console.log('[Push] new subscription created:', subscription);
       }
