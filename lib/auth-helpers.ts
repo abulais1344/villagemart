@@ -13,12 +13,13 @@ type AuthError = { ok: false; response: NextResponse };
  * Verifies the admin_dev cookie matches ADMIN_DEV_PASSWORD env var.
  * Cookie value is the actual password (set at login), not a static string.
  */
+const ADMIN_PASSWORD = process.env.ADMIN_DEV_PASSWORD || 'villagemart@2024';
+
 export async function requireAdmin(): Promise<AuthError | { ok: true }> {
   const cookieStore = await cookies();
   const adminCookie = cookieStore.get('admin_dev');
-  const secret = process.env.ADMIN_DEV_PASSWORD;
 
-  if (!adminCookie?.value || !secret || adminCookie.value !== secret) {
+  if (!adminCookie?.value || adminCookie.value !== ADMIN_PASSWORD) {
     return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
 

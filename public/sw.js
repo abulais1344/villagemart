@@ -1,5 +1,23 @@
-self.addEventListener('install', () => {})
-self.addEventListener('fetch', () => {})
+self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('activate', () => self.clients.claim())
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Never intercept: non-GET, API calls, admin/merchant/auth routes
+  if (
+    event.request.method !== 'GET' ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/admin') ||
+    url.pathname.startsWith('/merchant') ||
+    url.pathname.startsWith('/auth')
+  ) {
+    return;
+  }
+
+  // All other GET requests: pass through to network
+  event.respondWith(fetch(event.request));
+})
 
 self.addEventListener('push', function(event) {
   const data = event.data ? event.data.json() : {};

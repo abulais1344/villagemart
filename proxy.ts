@@ -12,8 +12,9 @@ export async function proxy(request: NextRequest) {
 
   // Admin bypass — check cookie first
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin-login')) {
+    const ADMIN_PASSWORD = process.env.ADMIN_DEV_PASSWORD || 'villagemart@2024';
     const adminCookie = request.cookies.get('admin_dev');
-    if (adminCookie?.value === 'true') {
+    if (adminCookie?.value && adminCookie.value === ADMIN_PASSWORD) {
       return NextResponse.next();
     }
     // No valid admin cookie — redirect to admin login

@@ -1,8 +1,6 @@
 'use client';
 
 import { Bell, LogOut } from 'lucide-react';
-import { useAuth } from '@/lib/hooks/useAuth';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 
@@ -11,8 +9,11 @@ interface AdminHeaderProps {
 }
 
 export function AdminHeader({ title }: AdminHeaderProps) {
-  const { signOut } = useAuth();
-  const router = useRouter();
+  async function handleLogout() {
+    await fetch('/api/admin-logout', { method: 'POST' });
+    toast.success('Logged out');
+    window.location.href = '/admin-login';
+  }
 
   return (
     <header className="bg-[#7C3AED] px-4 py-3 flex items-center justify-between">
@@ -33,7 +34,7 @@ export function AdminHeader({ title }: AdminHeaderProps) {
           <Bell className="w-5 h-5 text-white" />
         </button>
         <button
-          onClick={async () => { await signOut(); toast.success('Logged out'); router.push('/auth/login'); }}
+          onClick={handleLogout}
           className="p-2 rounded-xl hover:bg-purple-700 transition-colors"
         >
           <LogOut className="w-5 h-5 text-purple-200" />

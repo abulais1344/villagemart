@@ -27,7 +27,7 @@ export default function AdminLoginPage() {
     setLoading(false);
 
     if (data.success) {
-      router.push('/admin/dashboard');
+      window.location.href = '/admin/dashboard';
     } else {
       setError(data.error || 'Login failed');
     }
