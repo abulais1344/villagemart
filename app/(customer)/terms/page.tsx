@@ -18,14 +18,14 @@ export default function TermsPage() {
         <section>
           <h2 className="font-semibold text-lg text-gray-800 mt-6 mb-2">1. Acceptance of Terms</h2>
           <p className="text-sm text-gray-600 leading-relaxed">
-            By using VillageMart, you agree to these terms and conditions in full.
+            By using Zupr, you agree to these terms and conditions in full.
           </p>
         </section>
 
         <section>
           <h2 className="font-semibold text-lg text-gray-800 mt-6 mb-2">2. Service Description</h2>
           <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 leading-relaxed">
-            <li>VillageMart is a hyperlocal grocery and food delivery platform serving Ardhapur and nearby areas within a 5 km delivery zone.</li>
+            <li>Zupr is a hyperlocal grocery and food delivery platform serving Ardhapur and nearby areas within a 5 km delivery zone.</li>
             <li>We connect customers with local merchants and our own warehouse.</li>
           </ul>
         </section>
@@ -43,7 +43,7 @@ export default function TermsPage() {
           <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 leading-relaxed">
             <li>Orders are subject to product availability and merchant operating hours.</li>
             <li>Estimated delivery times are indicative and may vary.</li>
-            <li>VillageMart reserves the right to cancel orders in case of unavailability or force majeure.</li>
+            <li>Zupr reserves the right to cancel orders in case of unavailability or force majeure.</li>
           </ul>
         </section>
 
@@ -66,7 +66,7 @@ export default function TermsPage() {
         <section>
           <h2 className="font-semibold text-lg text-gray-800 mt-6 mb-2">7. Limitation of Liability</h2>
           <p className="text-sm text-gray-600 leading-relaxed">
-            VillageMart is not liable for delays caused by third-party logistics, natural events, or circumstances beyond our control.
+            Zupr is not liable for delays caused by third-party logistics, natural events, or circumstances beyond our control.
           </p>
         </section>
 
@@ -80,10 +80,10 @@ export default function TermsPage() {
         <section>
           <h2 className="font-semibold text-lg text-gray-800 mt-6 mb-2">9. Contact</h2>
           <p className="text-sm text-gray-600 leading-relaxed">
-            VillageMart, Ardhapur, Nanded District, Maharashtra 431708
+            Zupr, Ardhapur, Nanded District, Maharashtra 431708
             <br />
             Email:{' '}
-            <a href="mailto:support@villagemart.in" className="text-[#7C3AED] underline">support@villagemart.in</a>
+            <a href="mailto:support@zupr.in" className="text-[#7C3AED] underline">support@zupr.in</a>
           </p>
         </section>
       </div>

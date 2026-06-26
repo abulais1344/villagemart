@@ -77,7 +77,7 @@ export default function AdminAnalyticsPage() {
           <StatsGrid stats={[
             { label: 'Total Orders', value: stats.total, icon: <TrendingUp className="w-4 h-4" /> },
             { label: 'Gross Revenue', value: formatCurrency(stats.totalRev), icon: <IndianRupee className="w-4 h-4" />, color: 'bg-green-50 text-success' },
-            { label: 'Your Earnings (Commission)', value: formatCurrency(stats.commission), icon: <IndianRupee className="w-4 h-4" />, color: 'bg-purple-50 text-purple-600' },
+            { label: 'Zupr Platform Earnings', value: formatCurrency(stats.commission), icon: <IndianRupee className="w-4 h-4" />, color: 'bg-purple-50 text-purple-600' },
           ]} />
         </section>
       </main>

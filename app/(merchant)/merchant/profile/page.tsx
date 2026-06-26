@@ -60,6 +60,8 @@ export default function MerchantProfilePage() {
         >
           Logout
         </button>
+
+        <p className="text-xs text-center text-gray-400 mt-6">Powered by Zupr · © 2026 Zupr</p>
       </main>
     </>
   );

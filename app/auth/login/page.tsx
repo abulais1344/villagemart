@@ -1,11 +1,21 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 
+function getRedirectTarget() {
+  const saved = localStorage.getItem('login_redirect') || '/';
+  localStorage.removeItem('login_redirect');
+  return saved;
+}
+
 export default function LoginPage() {
+  const router = useRouter();
   const [step, setStep] = useState<1 | 2>(1);
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
@@ -44,7 +54,7 @@ export default function LoginPage() {
       }));
       toast.success(`Welcome back, ${data.name}! 👋`);
       setTimeout(() => {
-        window.location.href = '/';
+        window.location.href = getRedirectTarget();
       }, 500);
     } else {
       // New customer — go to step 2, pre-fill name if partial record exists
@@ -63,7 +73,7 @@ export default function LoginPage() {
     );
 
     localStorage.setItem('vm_customer', JSON.stringify({ name, phone, address, landmark, area }));
-    window.location.href = '/';
+    window.location.href = getRedirectTarget();
   }
 
   const fieldClass = 'w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:border-transparent';
@@ -72,12 +82,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Hero */}
-      <div className="bg-gradient-to-b from-[#7C3AED] to-[#6D28D9] px-6 pt-16 pb-12 text-white">
+      <div className="bg-gradient-to-b from-[#7C3AED] to-[#6D28D9] px-6 pt-12 pb-12 text-white">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-1 text-purple-200 hover:text-white mb-6"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="text-sm">Back</span>
+        </button>
         <div className="flex items-center gap-2 mb-6">
           <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-            <span className="text-xl">🛒</span>
+            <span className="text-xl font-black text-[#7C3AED]">Z</span>
           </div>
-          <span className="text-2xl font-bold">VillageMart</span>
+          <span className="text-2xl font-bold">Zupr</span>
         </div>
         <h1 className="text-2xl font-bold mb-1">
           {step === 1 ? 'Welcome!' : 'Complete your profile'}
@@ -115,6 +132,20 @@ export default function LoginPage() {
                 Continue
               </Button>
             </form>
+
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-[#E5E7EB]" />
+              <span className="text-xs text-[#9CA3AF] font-medium">OR</span>
+              <div className="flex-1 h-px bg-[#E5E7EB]" />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="w-full py-3 rounded-xl border border-[#E5E7EB] text-sm font-semibold text-[#6B7280] hover:bg-gray-50 transition-colors"
+            >
+              Continue as Guest
+            </button>
           </>
         ) : (
           <>
@@ -196,8 +227,8 @@ export default function LoginPage() {
 
         <p className="text-xs text-[#6B7280] text-center mt-8">
           By continuing, you agree to our{' '}
-          <span className="text-[#7C3AED]">Terms of Service</span> and{' '}
-          <span className="text-[#7C3AED]">Privacy Policy</span>
+          <Link href="/terms" className="text-[#7C3AED]">Terms of Service</Link> and{' '}
+          <Link href="/privacy" className="text-[#7C3AED]">Privacy Policy</Link>
         </p>
       </div>
     </div>

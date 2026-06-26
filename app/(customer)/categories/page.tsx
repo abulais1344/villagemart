@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft } from 'lucide-react';
+import { Header } from '@/components/customer/Header';
 
 export const revalidate = 60;
 
@@ -41,13 +41,9 @@ export default async function CategoriesPage() {
 
   return (
     <div className="min-h-screen bg-white pb-24">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
-        <Link href="/" className="p-1.5 rounded-xl hover:bg-gray-100">
-          <ArrowLeft className="w-5 h-5 text-gray-800" />
-        </Link>
-        <h1 className="text-base font-bold text-gray-900">Categories</h1>
-      </div>
+      <Header />
+
+      <h2 className="text-base font-bold text-gray-900 px-4 pt-3 pb-1">All Categories</h2>
 
       {/* Grid */}
       <div className="grid grid-cols-2 gap-3 px-4 py-3">

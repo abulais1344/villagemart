@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin-login
+Disallow: /admin/
+Disallow: /merchant-login
+Disallow: /merchant/
+Disallow: /api/
+Sitemap: https://zupr.in/sitemap.xml

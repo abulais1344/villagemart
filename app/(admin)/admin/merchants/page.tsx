@@ -79,7 +79,7 @@ export default function AdminMerchantsPage() {
           ) : filtered.length === 0 ? (
             <div className="text-center py-16 text-gray-400">
               <p className="text-4xl mb-2">🏪</p>
-              <p className="text-sm">No merchants found</p>
+              <p className="text-sm">No merchants on Zupr yet</p>
             </div>
           ) : (
             filtered.map(merchant => (

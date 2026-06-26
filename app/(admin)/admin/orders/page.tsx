@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 const STATUSES: OrderStatus[] = ['pending', 'accepted', 'packed', 'picked_up', 'out_for_delivery', 'delivered', 'cancelled'];
 
 const WA_MESSAGES: Record<string, (name: string, id: string, store: string) => string> = {
-  pending:          (name, id)        => `Hi ${name}! Your order #${id} has been received and is being processed. Thank you for ordering from VillageMart! 🛒`,
+  pending:          (name, id)        => `Hi ${name}! Your order #${id} has been received and is being processed. Thank you for ordering from Zupr! 🛒`,
   accepted:         (name, id, store) => `Hi ${name}! Your order #${id} from ${store} has been accepted and is being prepared. 🎉`,
   packed:           (name, id, store) => `Hi ${name}! Your order #${id} from ${store} is packed and ready! 📦`,
   ready:            (name, id, store) => `Hi ${name}! Your order #${id} from ${store} is ready and will be picked up soon! 📦`,
@@ -30,7 +30,7 @@ function getWhatsAppUrl(order: Order): string | null {
   const e164 = phone.startsWith('91') ? phone : `91${phone}`;
   const name = order.customer_name ?? 'Customer';
   const shortId = order.id.slice(-6).toUpperCase();
-  const store = (order.merchant as never as { store_name: string })?.store_name ?? 'VillageMart';
+  const store = (order.merchant as never as { store_name: string })?.store_name ?? 'Zupr';
   const msgFn = WA_MESSAGES[order.status];
   if (!msgFn) return null;
   return `https://wa.me/${e164}?text=${encodeURIComponent(msgFn(name, shortId, store))}`;
@@ -159,7 +159,7 @@ export default function AdminOrdersPage() {
           {loading ? (
             [...Array(5)].map((_, i) => <Skeleton key={i} className="h-28" />)
           ) : orders.length === 0 ? (
-            <div className="text-center py-12 text-[#6B7280]">No orders</div>
+            <div className="text-center py-12 text-[#6B7280]">No orders on Zupr yet</div>
           ) : (
             orders.map(order => (
               <button key={order.id} onClick={() => openModal(order)} className="w-full bg-white rounded-2xl border border-[#E5E7EB] p-4 text-left hover:shadow-md transition-shadow">

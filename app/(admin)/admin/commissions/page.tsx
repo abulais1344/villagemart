@@ -30,7 +30,7 @@ export default function AdminCommissionsPage() {
   const handleSave = async () => {
     setSaving(true);
     await supabase.from('commissions').insert({ type: form.type, rate: parseFloat(form.rate), is_active: true });
-    toast.success('Commission rule added');
+    toast.success('Platform fee rule added');
     setSaving(false);
     setShowForm(false);
     load();
@@ -52,7 +52,7 @@ export default function AdminCommissionsPage() {
       <AdminHeader title="Commissions" />
       <main className="px-4 py-4 space-y-4">
         <div className="flex justify-between">
-          <p className="text-sm text-[#6B7280]">Commission rules</p>
+          <p className="text-sm text-[#6B7280]">Zupr Platform Fees</p>
           <Button size="sm" onClick={() => setShowForm(true)}>
             <Plus className="w-4 h-4" /> Add Rule
           </Button>

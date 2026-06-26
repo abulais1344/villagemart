@@ -1,10 +1,10 @@
 export const statusMessages: Record<string, string> = {
-  pending:          '⏳ Your VillageMart order has been placed! We\'ll confirm it shortly.',
+  pending:          '⏳ Your Zupr order has been placed! We\'ll confirm it shortly.',
   confirmed:        '✅ Your order has been confirmed and is being prepared!',
   preparing:        '👨‍🍳 Your order is being prepared. Hang tight!',
   ready:            '📦 Your order is packed and ready for pickup by our delivery partner!',
   out_for_delivery: '🛵 Your order is on the way! Expected delivery in 20-30 mins.',
-  delivered:        '🎉 Your order has been delivered! Enjoy your meal. Thank you for ordering from VillageMart!',
+  delivered:        '🎉 Your order has been delivered! Enjoy your meal. Thank you for ordering from Zupr!',
   cancelled:        '❌ Your order has been cancelled. If you have any questions, contact us on WhatsApp.',
 };
 

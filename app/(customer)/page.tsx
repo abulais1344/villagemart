@@ -5,9 +5,9 @@ import type { Category, Product, Merchant } from '@/types';
 export const revalidate = 60;
 
 export const metadata = {
-  title: "VillageMart — Ardhapur's Online Store",
+  title: "Ardhapur's Online Store",
   description:
-    'Order groceries, dairy, vegetables and daily essentials online in Ardhapur. Same day delivery. VillageMart.',
+    'Order groceries, dairy, vegetables and daily essentials online in Ardhapur. Same day delivery. Bas order karo. Zupr karo.',
 };
 
 export default async function HomePage() {

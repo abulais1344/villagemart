@@ -39,7 +39,7 @@ export default function RefundPage() {
           <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 leading-relaxed">
             <li>Approved refunds are processed within 5–7 business days.</li>
             <li>Refunds are credited to the original payment method (UPI/card via Razorpay).</li>
-            <li>All payments on VillageMart are prepaid via Razorpay (UPI/card). Refunds are credited back to the original payment method.</li>
+            <li>All payments on Zupr are prepaid via Razorpay (UPI/card). Refunds are credited back to the original payment method.</li>
           </ul>
         </section>
 
@@ -55,7 +55,7 @@ export default function RefundPage() {
           <h2 className="font-semibold text-lg text-gray-800 mt-6 mb-2">5. How to Raise a Refund Request</h2>
           <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 leading-relaxed">
             <li>WhatsApp us at +91-XXXXXXXXXX with your order ID and issue description.</li>
-            <li>Email: <a href="mailto:support@villagemart.in" className="text-[#7C3AED] underline">support@villagemart.in</a></li>
+            <li>Email: <a href="mailto:support@zupr.in" className="text-[#7C3AED] underline">support@zupr.in</a></li>
             <li>We aim to respond within 24 hours.</li>
           </ul>
         </section>
@@ -63,10 +63,10 @@ export default function RefundPage() {
         <section>
           <h2 className="font-semibold text-lg text-gray-800 mt-6 mb-2">6. Contact</h2>
           <p className="text-sm text-gray-600 leading-relaxed">
-            VillageMart, Ardhapur, Nanded District, Maharashtra 431708
+            Zupr, Ardhapur, Nanded District, Maharashtra 431708
             <br />
             Email:{' '}
-            <a href="mailto:support@villagemart.in" className="text-[#7C3AED] underline">support@villagemart.in</a>
+            <a href="mailto:support@zupr.in" className="text-[#7C3AED] underline">support@zupr.in</a>
           </p>
         </section>
       </div>

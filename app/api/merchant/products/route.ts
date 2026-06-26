@@ -12,6 +12,58 @@ async function getMerchantId(): Promise<string | null> {
   return cookieStore.get('merchant_session')?.value ?? null;
 }
 
+export async function GET() {
+  const merchantId = await getMerchantId();
+  if (!merchantId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data, error } = await supabase
+    .from('vm_products')
+    .select('*')
+    .eq('merchant_id', merchantId)
+    .order('name', { ascending: true });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ products: data });
+}
+
+export async function POST(request: NextRequest) {
+  const merchantId = await getMerchantId();
+  if (!merchantId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const { name, description, selling_price, mrp, unit, is_veg, is_bestseller, is_active, images } = body;
+
+  const { data, error } = await supabase
+    .from('vm_products')
+    .insert({
+      name,
+      description,
+      selling_price,
+      mrp,
+      unit,
+      is_veg,
+      is_bestseller,
+      is_active,
+      images: images ?? [],
+      merchant_id: merchantId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ product: data });
+}
+
 export async function PATCH(request: NextRequest) {
   const merchantId = await getMerchantId();
   if (!merchantId) {

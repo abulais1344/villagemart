@@ -65,7 +65,7 @@ export function SearchPageClient({ initialQuery }: Props) {
       } catch {}
       const [pRes, mRes] = await Promise.all([
         supabase.from('vm_products').select('*, category:categories(*)').eq('is_active', true).is('merchant_id', null).limit(12),
-        supabase.from('merchants').select('*, category:categories(*)').eq('status', 'approved').limit(4),
+        supabase.from('merchants').select('*').eq('status', 'approved').limit(4),
       ]);
       const shuffled = (pRes.data ?? []).sort(() => Math.random() - 0.5).slice(0, 4) as Product[];
       setPopularProducts(shuffled);
@@ -97,7 +97,7 @@ export function SearchPageClient({ initialQuery }: Props) {
         .limit(30),
       supabase
         .from('merchants')
-        .select('*, category:categories(*)')
+        .select('*')
         .ilike('store_name', `%${resolvedQuery}%`)
         .eq('status', 'approved')
         .limit(10),
@@ -133,9 +133,9 @@ export function SearchPageClient({ initialQuery }: Props) {
       const merchantIds = [...new Set(restProducts.map(p => p.merchant_id).filter(Boolean))] as string[];
       const { data: merchantData } = await supabase
         .from('merchants')
-        .select('id, name')
+        .select('id, store_name')
         .in('id', merchantIds);
-      const merchantMap = Object.fromEntries(merchantData?.map(m => [m.id, m.name]) ?? []);
+      const merchantMap = Object.fromEntries(merchantData?.map(m => [m.id, m.store_name]) ?? []);
       setRestaurantItems(
         restProducts
           .filter(p => p.merchant_id != null)

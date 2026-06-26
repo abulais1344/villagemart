@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
         const adminPhone = process.env.ADMIN_WHATSAPP_NUMBER;
         if (!adminPhone) return;
 
-        let storeName = 'VillageMart';
+        let storeName = 'Zupr';
         if (orderData.merchantId) {
           const { data: merchant } = await supabase
             .from('merchants')
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
           `Amount: ₹${orderData.total}`,
           `Address: ${addrParts}`,
           '',
-          'View: https://villagemart-blond.vercel.app/admin-login',
+          'View: https://zupr.in/admin-login',
         ].join('\n');
 
         const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
     // Fire-and-forget WhatsApp notification on order placement
     if (order.customer_phone) {
       const shortId = order.id.slice(0, 8).toUpperCase();
-      const message = `🛍️ Order received! Your VillageMart order of ₹${order.total_amount} has been placed successfully. We'll notify you once it's confirmed. Order ID: #${shortId}`;
+      const message = `🛍️ Order received! Your Zupr order of ₹${order.total_amount} has been placed successfully. We'll notify you once it's confirmed. Order ID: #${shortId}`;
       (async () => {
         try {
           await sendWhatsAppNotification(order.customer_phone, message);

@@ -58,17 +58,17 @@ export default function PrivacyPage() {
           <h2 className="font-semibold text-lg text-gray-800 mt-6 mb-2">5. Your Rights</h2>
           <p className="text-sm text-gray-600 leading-relaxed">
             You may request deletion of your account and data by contacting us at{' '}
-            <a href="mailto:support@villagemart.in" className="text-[#7C3AED] underline">support@villagemart.in</a>.
+            <a href="mailto:support@zupr.in" className="text-[#7C3AED] underline">support@zupr.in</a>.
           </p>
         </section>
 
         <section>
           <h2 className="font-semibold text-lg text-gray-800 mt-6 mb-2">6. Contact Us</h2>
           <p className="text-sm text-gray-600 leading-relaxed">
-            VillageMart, Ardhapur, Nanded District, Maharashtra 431708
+            Zupr, Ardhapur, Nanded District, Maharashtra 431708
             <br />
             Email:{' '}
-            <a href="mailto:support@villagemart.in" className="text-[#7C3AED] underline">support@villagemart.in</a>
+            <a href="mailto:support@zupr.in" className="text-[#7C3AED] underline">support@zupr.in</a>
           </p>
         </section>
       </div>

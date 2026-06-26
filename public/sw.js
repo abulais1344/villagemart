@@ -4,7 +4,7 @@ self.addEventListener('fetch', () => {})
 self.addEventListener('push', function(event) {
   const data = event.data ? event.data.json() : {};
 
-  const title = data.title || '🛍️ New Order!';
+  const title = data.title || 'Zupr — New Order! 🛍️';
   const options = {
     body: data.body || 'A new order has been placed',
     icon: '/icon-192.png',

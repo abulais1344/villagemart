@@ -51,7 +51,10 @@ export function Header({ location = 'Ardhapur, Maharashtra' }: HeaderProps) {
       <div className="flex items-center gap-3 px-4 pt-3 pb-2">
         {/* Logo */}
         <Link href="/" className="shrink-0">
-          <span className="text-lg font-bold text-primary-600">Village<span className="text-[#1A1A1A]">Mart</span></span>
+          <div className="flex items-center gap-0">
+            <span className="text-purple-600 font-black text-xl tracking-tight leading-none">Z</span>
+            <span className="text-gray-900 font-bold text-xl tracking-tight leading-none">upr</span>
+          </div>
         </Link>
 
         {/* Location */}

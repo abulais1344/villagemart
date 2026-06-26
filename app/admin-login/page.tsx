@@ -39,9 +39,9 @@ export default function AdminLoginPage() {
         <div className="bg-white rounded-2xl shadow-lg p-8">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#7C3AED] mb-4">
-              <span className="text-white font-bold text-2xl">V</span>
+              <span className="text-white font-bold text-2xl">Z</span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">VillageMart</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Zupr</h1>
             <p className="text-sm text-gray-500 mt-1">Admin Access</p>
           </div>
 
@@ -55,7 +55,7 @@ export default function AdminLoginPage() {
                 name="username"
                 type="email"
                 required
-                placeholder="admin@villagemart.in"
+                placeholder="admin@zupr.in"
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:border-transparent"
               />
             </div>

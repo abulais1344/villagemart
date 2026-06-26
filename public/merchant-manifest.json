@@ -1,20 +1,24 @@
 {
-  "name": "VillageMart Merchant",
-  "short_name": "VM Merchant",
+  "name": "Zupr Merchant",
+  "short_name": "Zupr Partner",
+  "description": "Manage your restaurant orders on Zupr",
   "start_url": "/merchant-login",
   "display": "standalone",
   "background_color": "#7C3AED",
   "theme_color": "#7C3AED",
+  "orientation": "portrait",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "maskable any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "maskable any"
     }
   ]
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Loader2, ShoppingBag, ChevronRight,
   Clock, CheckCircle2, XCircle,
@@ -66,6 +67,7 @@ function formatDate(iso: string) {
 
 // ── main component ─────────────────────────────────────────────────────────
 export default function OrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState<string | null>(null);
@@ -77,7 +79,13 @@ export default function OrdersPage() {
     const customer = JSON.parse(raw);
     setPhone(customer.phone ?? null);
     if (customer.phone) fetchOrders(customer.phone);
-  }, []);
+    else setLoading(false);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function goToLogin() {
+    localStorage.setItem('login_redirect', '/orders');
+    router.push('/auth/login');
+  }
 
   async function fetchOrders(customerPhone: string) {
     const res = await fetch(`/api/customer/orders?phone=${customerPhone}`);
@@ -102,16 +110,30 @@ export default function OrdersPage() {
   // ── not logged in ────────────────────────────────────────────────────────
   if (!phone) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 text-center gap-4">
-        <ShoppingBag className="w-16 h-16 text-gray-200" />
-        <h2 className="text-lg font-bold text-[#1A1A1A]">No orders yet</h2>
-        <p className="text-sm text-[#6B7280]">Login to see your order history</p>
-        <Link
-          href="/auth/login"
-          className="px-6 py-3 bg-[#7C3AED] text-white rounded-xl font-semibold text-sm"
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center">
+        <div className="flex items-center gap-0 mb-8">
+          <span className="text-purple-600 font-black text-2xl tracking-tight leading-none">Z</span>
+          <span className="text-gray-900 font-bold text-2xl tracking-tight leading-none">upr</span>
+        </div>
+        <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mb-6">
+          <ShoppingBag className="w-10 h-10 text-purple-400" />
+        </div>
+        <h2 className="text-xl font-bold text-[#1A1A1A] mb-2">Track your orders</h2>
+        <p className="text-sm text-[#6B7280] mb-8 max-w-xs">
+          Login to see your order history and track deliveries in real time.
+        </p>
+        <button
+          onClick={goToLogin}
+          className="w-full max-w-xs py-3.5 bg-[#7C3AED] text-white rounded-xl font-semibold text-sm mb-3"
         >
-          Login
-        </Link>
+          Login / Sign up
+        </button>
+        <button
+          onClick={() => router.push('/')}
+          className="w-full max-w-xs py-3.5 border border-[#E5E7EB] text-[#6B7280] rounded-xl font-semibold text-sm"
+        >
+          Browse Menu →
+        </button>
       </div>
     );
   }
@@ -163,7 +185,7 @@ export default function OrdersPage() {
                 {/* Merchant name + short order ID */}
                 <div className="flex items-center justify-between gap-2 mb-0.5">
                   <p className="text-sm font-semibold text-[#7C3AED] truncate flex-1">
-                    {order.merchant_name ?? 'VillageMart'}
+                    {order.merchant_name ?? 'Zupr'}
                   </p>
                   <span className="text-[10px] text-gray-400 font-mono shrink-0">
                     #{order.id.slice(-6).toUpperCase()}

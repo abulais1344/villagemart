@@ -7,6 +7,10 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   manifest: '/merchant-manifest.json',
+  title: {
+    default: 'Dashboard | Zupr Partner',
+    template: '%s | Zupr Partner',
+  },
 };
 
 export default async function MerchantPortalLayout({ children }: { children: React.ReactNode }) {

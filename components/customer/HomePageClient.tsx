@@ -181,7 +181,15 @@ export function HomePageClient({
     <div className="min-h-screen bg-white">
       {/* 1. Location Header */}
       <div className="sticky top-0 z-30 bg-white border-b border-[#E5E7EB] px-4 py-3">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {/* Logo */}
+          <Link href="/" className="shrink-0">
+            <div className="flex items-center gap-0">
+              <span className="text-purple-600 font-black text-xl tracking-tight leading-none">Z</span>
+              <span className="text-gray-900 font-bold text-xl tracking-tight leading-none">upr</span>
+            </div>
+          </Link>
+
           {/* Left: address */}
           <button onClick={() => setShowAddressSheet(true)} className="min-w-0 flex-1 text-left">
             <p className="text-[10px] text-gray-400">Delivering to</p>
@@ -331,11 +339,11 @@ export function HomePageClient({
           </div>
         </section>
 
-        {/* 5. VillageMart Express */}
+        {/* 5. Zupr Express */}
         <section>
           <div className="flex items-start justify-between mb-2">
             <div>
-              <h2 className="text-base font-bold text-[#1A1A1A]">VillageMart Express</h2>
+              <h2 className="text-base font-bold text-[#1A1A1A]">Zupr Express</h2>
               <p className="text-xs text-[#6B7280]">Fast delivery from our warehouse</p>
             </div>
             <Link href="/category/all" className="text-xs text-primary-600 font-medium mt-1">See all →</Link>

@@ -79,7 +79,7 @@ export default function CheckoutPage() {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount,
         currency,
-        name: 'VillageMart',
+        name: 'Zupr',
         description: 'Order Payment',
         order_id: orderId,
         prefill: {
