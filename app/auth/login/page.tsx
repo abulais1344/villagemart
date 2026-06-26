@@ -35,10 +35,11 @@ export default function LoginPage() {
 
     setCheckLoading(true);
     const supabase = createClient();
+    // Match all common storage formats: 10-digit, 91-prefix, +91-prefix
     const { data, error } = await supabase
       .from('vm_users')
-      .select('name, phone, address, landmark, area')
-      .eq('phone', phone)
+      .select('name, phone, address, landmark, area, addresses, active_address_index')
+      .or(`phone.eq.${phone},phone.eq.91${phone},phone.eq.+91${phone}`)
       .maybeSingle();
     setCheckLoading(false);
     if (error) console.error('vm_users lookup error:', error.message);
@@ -51,6 +52,8 @@ export default function LoginPage() {
         address: data.address || '',
         landmark: data.landmark || '',
         area: data.area || '',
+        addresses: data.addresses || [],
+        active_address_index: data.active_address_index || 0,
       }));
       toast.success(`Welcome back, ${data.name}! 👋`);
       setTimeout(() => {
