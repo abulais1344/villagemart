@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from '@/lib/auth-helpers';
 import { sendWhatsAppNotification, statusMessages } from '@/lib/whatsapp';
 
 const supabase = createClient(
@@ -9,10 +9,8 @@ const supabase = createClient(
 );
 
 export async function GET(request: NextRequest) {
-  const cookieStore = await cookies();
-  if (cookieStore.get('admin_dev')?.value !== 'true') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
 
   const status = request.nextUrl.searchParams.get('status');
   const limit = parseInt(request.nextUrl.searchParams.get('limit') ?? '500');
@@ -65,10 +63,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const cookieStore = await cookies();
-  if (cookieStore.get('admin_dev')?.value !== 'true') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth.response;
 
   const { orderId, status } = await request.json();
   if (!orderId || !status) {

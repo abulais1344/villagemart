@@ -6,12 +6,14 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const INDIAN_PHONE_RE = /^[6-9]\d{9}$/;
+
 export async function GET(request: NextRequest) {
   try {
     const phone = request.nextUrl.searchParams.get('phone');
 
-    if (!phone) {
-      return NextResponse.json({ error: 'Missing phone param' }, { status: 400 });
+    if (!phone || !INDIAN_PHONE_RE.test(phone)) {
+      return NextResponse.json({ error: 'Invalid phone' }, { status: 400 });
     }
 
     const { data: orders, error: ordersError } = await supabase

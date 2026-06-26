@@ -15,11 +15,11 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.json({ success: true });
-  response.cookies.set('admin_dev', 'true', {
+  response.cookies.set('admin_dev', validPassword, {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
-    // No maxAge — session cookie that expires when browser closes
+    maxAge: 60 * 60 * 8, // 8 hours
   });
 
   return response;

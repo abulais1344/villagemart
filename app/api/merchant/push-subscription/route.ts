@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireMerchant } from '@/lib/auth-helpers';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,10 +8,9 @@ const supabase = createClient(
 );
 
 export async function POST(request: NextRequest) {
-  const merchantId = request.cookies.get('merchant_session')?.value;
-  if (!merchantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireMerchant();
+  if (!auth.ok) return auth.response;
+  const { merchantId } = auth;
 
   const { subscription } = await request.json();
   if (!subscription) {

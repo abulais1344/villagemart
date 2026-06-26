@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { requireMerchant } from '@/lib/auth-helpers';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function getMerchantId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  return cookieStore.get('merchant_session')?.value ?? null;
-}
-
 export async function GET() {
-  const merchantId = await getMerchantId();
-  if (!merchantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireMerchant();
+  if (!auth.ok) return auth.response;
+  const { merchantId } = auth;
 
   const { data, error } = await supabase
     .from('vm_products')
@@ -32,10 +26,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const merchantId = await getMerchantId();
-  if (!merchantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireMerchant();
+  if (!auth.ok) return auth.response;
+  const { merchantId } = auth;
 
   const body = await request.json();
   const { name, description, selling_price, mrp, unit, is_veg, is_bestseller, is_active, images } = body;
@@ -52,7 +45,7 @@ export async function POST(request: NextRequest) {
       is_bestseller,
       is_active,
       images: images ?? [],
-      merchant_id: merchantId,
+      merchant_id: merchantId, // always from session, never from body
     })
     .select()
     .single();
@@ -65,10 +58,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const merchantId = await getMerchantId();
-  if (!merchantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireMerchant();
+  if (!auth.ok) return auth.response;
+  const { merchantId } = auth;
 
   const body = await request.json();
   const { id, is_bestseller } = body;
@@ -81,7 +73,7 @@ export async function PATCH(request: NextRequest) {
     .from('vm_products')
     .update({ is_bestseller })
     .eq('id', id)
-    .eq('merchant_id', merchantId);
+    .eq('merchant_id', merchantId); // ownership enforced
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

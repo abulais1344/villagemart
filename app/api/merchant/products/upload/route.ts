@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { requireMerchant } from '@/lib/auth-helpers';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,12 +8,9 @@ const supabase = createClient(
 );
 
 export async function POST(request: NextRequest) {
-  const cookieStore = await cookies();
-  const merchantId = cookieStore.get('merchant_session')?.value;
-
-  if (!merchantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireMerchant();
+  if (!auth.ok) return auth.response;
+  const { merchantId } = auth;
 
   const formData = await request.formData();
   const file = formData.get('file') as File;

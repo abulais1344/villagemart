@@ -1,23 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { requireMerchant } from '@/lib/auth-helpers';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function getMerchantId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  return cookieStore.get('merchant_session')?.value ?? null;
-}
-
 // GET /api/merchant/orders?status=pending
 export async function GET(request: NextRequest) {
-  const merchantId = await getMerchantId();
-  if (!merchantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireMerchant();
+  if (!auth.ok) return auth.response;
+  const { merchantId } = auth;
 
   const status = request.nextUrl.searchParams.get('status');
 
@@ -33,22 +27,18 @@ export async function GET(request: NextRequest) {
 
   const { data: orders, error } = await query;
 
-  console.log('[merchant-orders] merchant:', merchantId, 'count:', orders?.length, 'error:', error?.message);
-
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   const orderList = orders ?? [];
 
-  // Fetch order_items separately (no FK in schema cache)
   let orderItems: any[] = [];
   if (orderList.length > 0) {
-    const { data: items, error: itemsError } = await supabase
+    const { data: items } = await supabase
       .from('order_items')
       .select('*')
       .in('order_id', orderList.map((o: any) => o.id));
-    console.log('[merchant-orders] items:', items?.length, 'error:', itemsError?.message);
     orderItems = items ?? [];
   }
 
@@ -62,10 +52,9 @@ export async function GET(request: NextRequest) {
 
 // PATCH /api/merchant/orders  body: { orderId, status }
 export async function PATCH(request: NextRequest) {
-  const merchantId = await getMerchantId();
-  if (!merchantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireMerchant();
+  if (!auth.ok) return auth.response;
+  const { merchantId } = auth;
 
   const { orderId, status } = await request.json();
   if (!orderId || !status) {
@@ -76,7 +65,7 @@ export async function PATCH(request: NextRequest) {
     .from('orders')
     .update({ status })
     .eq('id', orderId)
-    .eq('merchant_id', merchantId); // ensure merchant can only update their own orders
+    .eq('merchant_id', merchantId); // merchant can only update their own orders
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

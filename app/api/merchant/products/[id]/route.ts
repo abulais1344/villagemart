@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { requireMerchant } from '@/lib/auth-helpers';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function getMerchantId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  return cookieStore.get('merchant_session')?.value ?? null;
-}
-
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const merchantId = await getMerchantId();
-  if (!merchantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireMerchant();
+  if (!auth.ok) return auth.response;
+  const { merchantId } = auth;
 
   const { id } = await params;
   const body = await request.json();
@@ -57,10 +51,9 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const merchantId = await getMerchantId();
-  if (!merchantId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const auth = await requireMerchant();
+  if (!auth.ok) return auth.response;
+  const { merchantId } = auth;
 
   const { id } = await params;
 

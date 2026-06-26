@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server';
 import Razorpay from 'razorpay';
 
+const MAX_ORDER_AMOUNT = 50_000; // ₹50,000 sanity cap
+
 export async function POST(request: NextRequest) {
   try {
     const { amount } = await request.json();
 
-    if (!amount || amount < 1) {
+    if (!amount || typeof amount !== 'number' || amount < 1 || amount > MAX_ORDER_AMOUNT) {
       return Response.json({ error: 'Invalid amount' }, { status: 400 });
     }
 
