@@ -8,29 +8,28 @@ import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils/format';
 import type { Product } from '@/types';
+import toast from 'react-hot-toast';
 
 function isNonVeg(product: Product): boolean {
   return product.is_veg === false;
 }
 
-const CUISINE_RULES: [RegExp, string][] = [
-  [/chicken|non.?veg|arabian|tandoori|kebab|mutton/i, '🍗 Non Veg'],
-  [/\bveg\b|north.?indian|\bindian\b|dal|thali|paneer/i, '🥬 Veg'],
-  [/chinese|noodles|fried.?rice|manchurian/i, '🥡 Chinese'],
-  [/pizza|burger|sandwich|fast.?food/i, '🍕 Fast Food'],
-  [/biryani/i, '🍚 Biryani'],
-  [/dosa|idli|south.?indian/i, '🫓 South Indian'],
-  [/sweet|dessert|bakery/i, '🍮 Sweets'],
-];
-
 function getCuisineTags(cuisineType: string | null): string[] {
   if (!cuisineType) return ['🍽️ Meals'];
-  const tags: string[] = [];
-  for (const [pattern, tag] of CUISINE_RULES) {
-    if (pattern.test(cuisineType) && !tags.includes(tag)) tags.push(tag);
-    if (tags.length === 3) break;
-  }
-  return tags.length > 0 ? tags : ['🍽️ Meals'];
+  const tags = cuisineType.split(',').map(t => t.trim()).filter(Boolean);
+  return tags.length > 0 ? tags.slice(0, 3) : ['🍽️ Meals'];
+}
+
+function isRestaurantOpen(openingTime: string | null, closingTime: string | null): boolean {
+  if (!openingTime || !closingTime) return true;
+  const now = new Date();
+  const [openH, openM] = openingTime.split(':').map(Number);
+  const [closeH, closeM] = closingTime.split(':').map(Number);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const openMins = openH * 60 + openM;
+  const closeMins = closeH * 60 + closeM;
+  if (closeMins > openMins) return nowMins >= openMins && nowMins < closeMins;
+  return nowMins >= openMins || nowMins < closeMins;
 }
 
 function isBestseller(product: Product): boolean {
@@ -207,6 +206,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     : '30-40 min';
 
   const cuisineTags = getCuisineTags(merchant.cuisine_type ?? null);
+  const isOpen = isRestaurantOpen(merchant.opening_time ?? null, merchant.closing_time ?? null);
   const isGrouped = !searchQuery.trim() && categories.length > 0;
   const popularItems = products.filter(p => isBestseller(p)).slice(0, 8);
 
@@ -274,8 +274,14 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
               </div>
             ) : (
               <button
-                onClick={() => handleAddItem(product)}
-                className="border border-purple-600 text-purple-600 text-sm font-bold px-6 py-1 rounded-lg hover:bg-purple-50 transition-colors"
+                onClick={() => {
+                  if (!isOpen) {
+                    toast.error(`${merchant.store_name} is closed. Opens at ${merchant.opening_time}`);
+                    return;
+                  }
+                  handleAddItem(product);
+                }}
+                className={`border border-purple-600 text-purple-600 text-sm font-bold px-6 py-1 rounded-lg transition-colors ${!isOpen ? 'opacity-40 cursor-not-allowed' : 'hover:bg-purple-50'}`}
               >
                 ADD
               </button>
@@ -367,6 +373,17 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
           )}
         </div>
       </div>
+
+      {/* ── Closed banner ── */}
+      {!isOpen && (
+        <div className="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2">
+          <span className="text-red-500 text-lg">🔴</span>
+          <div>
+            <p className="text-sm font-semibold text-red-600">Restaurant is currently closed</p>
+            <p className="text-xs text-red-400">Opens at {merchant.opening_time} · You can browse the menu</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Search bar ── */}
       <div className="bg-white px-4 pt-3 pb-2 border-b border-gray-100">
@@ -681,8 +698,14 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
                 </div>
               ) : (
                 <button
-                  onClick={() => handleAddItem(selectedImage)}
-                  className="w-full py-4 rounded-xl text-white font-bold text-sm mt-2 shadow-lg shadow-purple-200 bg-gradient-to-r from-purple-600 to-purple-700"
+                  onClick={() => {
+                    if (!isOpen) {
+                      toast.error(`${merchant.store_name} is closed. Opens at ${merchant.opening_time}`);
+                      return;
+                    }
+                    handleAddItem(selectedImage);
+                  }}
+                  className={`w-full py-4 rounded-xl text-white font-bold text-sm mt-2 shadow-lg shadow-purple-200 bg-gradient-to-r from-purple-600 to-purple-700 ${!isOpen ? 'opacity-40 cursor-not-allowed' : ''}`}
                 >
                   Add to Cart
                 </button>

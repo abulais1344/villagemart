@@ -25,6 +25,18 @@ function loadRazorpayScript(): Promise<void> {
   });
 }
 
+function isRestaurantOpen(openingTime: string | null, closingTime: string | null): boolean {
+  if (!openingTime || !closingTime) return true;
+  const now = new Date();
+  const [openH, openM] = openingTime.split(':').map(Number);
+  const [closeH, closeM] = closingTime.split(':').map(Number);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const openMins = openH * 60 + openM;
+  const closeMins = closeH * 60 + closeM;
+  if (closeMins > openMins) return nowMins >= openMins && nowMins < closeMins;
+  return nowMins >= openMins || nowMins < closeMins;
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, getSubtotal, clearCart } = useCartStore();
@@ -33,6 +45,7 @@ export default function CheckoutPage() {
   const [mounted, setMounted] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [zoneOk, setZoneOk] = useState<boolean | null>(null);
+  const [restaurantClosed, setRestaurantClosed] = useState(false);
   const paymentSucceeded = useRef(false);
 
   // Step 1: mark Zustand as hydrated from localStorage
@@ -51,6 +64,17 @@ export default function CheckoutPage() {
       setZoneOk(isWithinDeliveryZone(c.lat, c.lng));
     }
     setMounted(true);
+    const merchantId = items[0]?.product.merchant_id;
+    if (merchantId) {
+      fetch(`/api/customer/merchant-status?id=${merchantId}`)
+        .then(r => r.json())
+        .then((data: { opening_time?: string; closing_time?: string }) => {
+          if (data.opening_time && data.closing_time) {
+            setRestaurantClosed(!isRestaurantOpen(data.opening_time, data.closing_time));
+          }
+        })
+        .catch(() => {});
+    }
   }, [hydrated, items]);
 
   const subtotal = getSubtotal();
@@ -231,6 +255,14 @@ export default function CheckoutPage() {
           </div>
         )}
 
+        {/* Restaurant closed banner */}
+        {restaurantClosed && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+            <p className="text-sm font-semibold text-red-600">🔴 Restaurant is currently closed</p>
+            <p className="text-xs text-red-500 mt-0.5">You cannot place an order right now. Please try again when the restaurant opens.</p>
+          </div>
+        )}
+
         {/* Security note */}
         <div className="flex items-center gap-2 text-xs text-[#9CA3AF]">
           <ShieldCheck className="w-4 h-4 text-green-500 shrink-0" />
@@ -250,7 +282,7 @@ export default function CheckoutPage() {
       <div className="fixed bottom-16 left-0 right-0 p-4 bg-white border-t border-gray-100">
         <button
           onClick={handlePayment}
-          disabled={loading || zoneOk === false}
+          disabled={loading || zoneOk === false || restaurantClosed}
           className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-60 text-white rounded-2xl py-4 font-semibold text-base transition-colors"
         >
           {loading ? 'Processing…' : `Pay ${formatCurrency(total)} via UPI / Card`}
