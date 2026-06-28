@@ -30,24 +30,22 @@ const CATEGORY_COLORS = [
   '#D1FAE5','#FFF7ED','#E0F2FE','#F0FDF4',
 ];
 
-const CUISINE_RULES: [RegExp, string][] = [
-  [/chicken|non.?veg|arabian|tandoori|kebab|mutton/i, '🍗 Non Veg'],
-  [/\bveg\b|north.?indian|\bindian\b|dal|thali|paneer/i, '🥬 Veg'],
-  [/chinese|noodles|fried.?rice|manchurian/i, '🥡 Chinese'],
-  [/pizza|burger|sandwich|fast.?food/i, '🍕 Fast Food'],
-  [/biryani/i, '🍚 Biryani'],
-  [/dosa|idli|south.?indian/i, '🫓 South Indian'],
-  [/sweet|dessert|bakery/i, '🍮 Sweets'],
-];
-
 function getCuisineTags(cuisineType: string | null): string[] {
   if (!cuisineType) return ['🍽️ Meals'];
-  const tags: string[] = [];
-  for (const [pattern, tag] of CUISINE_RULES) {
-    if (pattern.test(cuisineType) && !tags.includes(tag)) tags.push(tag);
-    if (tags.length === 3) break;
-  }
-  return tags.length > 0 ? tags : ['🍽️ Meals'];
+  const tags = cuisineType.split(',').map(t => t.trim()).filter(Boolean);
+  return tags.length > 0 ? tags.slice(0, 3) : ['🍽️ Meals'];
+}
+
+function isRestaurantOpen(openingTime: string | null, closingTime: string | null): boolean {
+  if (!openingTime || !closingTime) return true;
+  const now = new Date();
+  const [openH, openM] = openingTime.split(':').map(Number);
+  const [closeH, closeM] = closingTime.split(':').map(Number);
+  const nowMins  = now.getHours() * 60 + now.getMinutes();
+  const openMins = openH * 60 + openM;
+  const closeMins = closeH * 60 + closeM;
+  if (closeMins > openMins) return nowMins >= openMins && nowMins < closeMins;
+  return nowMins >= openMins || nowMins < closeMins; // overnight
 }
 
 function deliveryRange(avg: number): string {
@@ -235,53 +233,80 @@ export function HomePageClient({
               {foodMerchants.length} restaurant{foodMerchants.length !== 1 ? 's' : ''} open
             </p>
             <div className="flex flex-col gap-3 mt-2">
-              {foodMerchants.map((merchant, index) => (
-                <Link key={merchant.id} href={`/stores/${merchant.id}`}
-                  className="w-full bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-                  {/* Cover image */}
-                  {(merchant as any).cover_image_url ? (
-                    <div className="relative w-full h-44 bg-gray-100">
-                      <Image
-                        src={(merchant as any).cover_image_url}
-                        alt={merchant.store_name}
-                        fill
-                        className="object-cover"
-                        sizes="100vw"
-                        priority={index === 0}
-                      />
+              {foodMerchants.map((merchant, index) => {
+                const open = isRestaurantOpen(
+                  (merchant as any).opening_time,
+                  (merchant as any).closing_time
+                );
+                return (
+                  <Link key={merchant.id} href={`/stores/${merchant.id}`}
+                    className="w-full bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                    {/* Cover image */}
+                    {(merchant as any).cover_image_url ? (
+                      <div className="relative w-full h-44 bg-gray-100">
+                        <Image
+                          src={(merchant as any).cover_image_url}
+                          alt={merchant.store_name}
+                          fill
+                          className="object-cover"
+                          sizes="100vw"
+                          priority={index === 0}
+                        />
+                        {!open && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm bg-black/60 px-3 py-1 rounded-full">
+                              Closed
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="relative w-full h-44 bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] flex items-center justify-center">
+                        <span className="text-6xl font-bold text-white/30">{merchant.store_name.charAt(0).toUpperCase()}</span>
+                        {!open && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm bg-black/60 px-3 py-1 rounded-full">
+                              Closed
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* Card body */}
+                    <div className="p-3">
+                      {/* Row 1: name + rating badge */}
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <p className="font-semibold text-base text-gray-900 truncate">{merchant.store_name}</p>
+                        {(merchant as any).rating && (
+                          <span className="shrink-0 bg-green-600 text-white text-xs px-2 py-0.5 rounded-lg font-medium">
+                            ⭐ {(merchant as any).rating}
+                          </span>
+                        )}
+                      </div>
+                      {/* Row 2: cuisine tags */}
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {getCuisineTags((merchant as any).cuisine_type).map((tag) => (
+                          <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      {/* Row 3: open/closed pill + delivery time + free delivery */}
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex items-center gap-2">
+                          {open ? (
+                            <span className="text-[10px] font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">● Open</span>
+                          ) : (
+                            <span className="text-[10px] font-medium text-red-500 bg-red-50 px-2 py-0.5 rounded-full">● Closed</span>
+                          )}
+                          <span>🕐 {deliveryRange(merchant.avg_delivery_time)}</span>
+                        </div>
+                        <span>Free delivery above ₹199</span>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="w-full h-44 bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] flex items-center justify-center">
-                      <span className="text-6xl font-bold text-white/30">{merchant.store_name.charAt(0).toUpperCase()}</span>
-                    </div>
-                  )}
-                  {/* Card body */}
-                  <div className="p-3">
-                    {/* Row 1: name + rating badge */}
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <p className="font-semibold text-base text-gray-900 truncate">{merchant.store_name}</p>
-                      {(merchant as any).rating && (
-                        <span className="shrink-0 bg-green-600 text-white text-xs px-2 py-0.5 rounded-lg font-medium">
-                          ⭐ {(merchant as any).rating}
-                        </span>
-                      )}
-                    </div>
-                    {/* Row 2: cuisine tags */}
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {getCuisineTags((merchant as any).cuisine_type).map((tag) => (
-                        <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    {/* Row 3: delivery time + free delivery note */}
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>🕐 {deliveryRange(merchant.avg_delivery_time)}</span>
-                      <span>Free delivery above ₹199</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}

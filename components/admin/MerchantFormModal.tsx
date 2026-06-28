@@ -13,6 +13,13 @@ interface MerchantFormModalProps {
 
 const FOOD_TYPES = new Set(['restaurant', 'home_cook', 'bakery']);
 
+const CUISINE_TAGS = [
+  '🥬 Veg', '🍗 Non Veg', '🐟 Sea Food', '🥡 Chinese',
+  '🍛 North Indian', '🫓 South Indian', '🍚 Biryani', '🫕 Arabian',
+  '🍕 Fast Food', '🍮 Sweets & Desserts', '☕ Beverages',
+  '🏠 Home Food', '🥘 Thali', '🍳 Breakfast',
+];
+
 export function MerchantFormModal({ merchant, onClose, onSaved }: MerchantFormModalProps) {
   const isEdit = !!merchant;
   const supabase = createClient();
@@ -22,7 +29,11 @@ export function MerchantFormModal({ merchant, onClose, onSaved }: MerchantFormMo
   const [phone, setPhone]                      = useState(merchant?.phone ?? '');
   const [email, setEmail]                      = useState(merchant?.email ?? '');
   const [merchant_type, setMerchantType]       = useState(merchant?.merchant_type ?? 'restaurant');
-  const [cuisine_type, setCuisineType]         = useState(merchant?.cuisine_type ?? '');
+  const [selectedTags, setSelectedTags]        = useState<string[]>(
+    merchant?.cuisine_type
+      ? merchant.cuisine_type.split(',').map((t: string) => t.trim()).filter(Boolean)
+      : []
+  );
   const [is_food, setIsFood]                   = useState<boolean>(merchant?.is_food ?? true);
   const [address, setAddress]                  = useState(merchant?.address ?? '');
   const [area, setArea]                        = useState(merchant?.area ?? '');
@@ -55,7 +66,7 @@ export function MerchantFormModal({ merchant, onClose, onSaved }: MerchantFormMo
       phone:             phone.trim() || null,
       email:             email.trim() || null,
       merchant_type,
-      cuisine_type:      FOOD_TYPES.has(merchant_type) ? cuisine_type.trim() || null : null,
+      cuisine_type:      FOOD_TYPES.has(merchant_type) ? selectedTags.join(', ') || null : null,
       is_food,
       address:           address.trim() || null,
       area:              area.trim() || null,
@@ -162,16 +173,35 @@ export function MerchantFormModal({ merchant, onClose, onSaved }: MerchantFormMo
             </select>
           </div>
 
-          {(merchant_type === 'restaurant' || merchant_type === 'home_cook') && (
+          {(merchant_type === 'restaurant' || merchant_type === 'home_cook' || merchant_type === 'bakery') && (
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Cuisine Type</label>
-              <input
-                type="text"
-                value={cuisine_type}
-                onChange={e => setCuisineType(e.target.value)}
-                className={inputCls}
-                placeholder="e.g. North Indian, Home Food"
-              />
+              <label className="block text-xs text-gray-500 mb-2">Cuisine / Food Type Tags</label>
+              <div className="flex flex-wrap gap-2">
+                {CUISINE_TAGS.map(tag => {
+                  const isSelected = selectedTags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() =>
+                        setSelectedTags(prev =>
+                          isSelected ? prev.filter(t => t !== tag) : [...prev, tag]
+                        )
+                      }
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        isSelected
+                          ? 'bg-purple-600 text-white border-purple-600'
+                          : 'bg-white text-gray-600 border-gray-200'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedTags.length > 0 && (
+                <p className="text-xs text-gray-400 mt-2">Selected: {selectedTags.join(', ')}</p>
+              )}
             </div>
           )}
 
