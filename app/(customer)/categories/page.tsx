@@ -5,34 +5,19 @@ import { Header } from '@/components/customer/Header';
 
 export const revalidate = 60;
 
-const EMOJI: Record<string, string> = {
-  dairy: '🥛', 'bread-bakery': '🍞', eggs: '🥚',
-  'fruits-vegetables': '🥬', groceries: '🛒', snacks: '🍪',
-  household: '🏠', 'personal-care': '🧴', 'baby-care': '👶',
-  medicine: '💊', medicines: '💊', restaurants: '🍛',
-  beverages: '🧃', 'frozen-foods': '🧊', meat: '🍗',
-};
-
-const COLOR: Record<string, string> = {
-  dairy: '#FEF9C3', 'bread-bakery': '#FEE2E2', eggs: '#DCFCE7',
-  'fruits-vegetables': '#DCFCE7', groceries: '#EDE9FE', snacks: '#FEF3C7',
-  household: '#F3F4F6', 'personal-care': '#FCE7F3', 'baby-care': '#DBEAFE',
-  medicine: '#D1FAE5', medicines: '#D1FAE5', restaurants: '#FEF3C7',
-};
-
-const MARATHI: Record<string, string> = {
-  dairy: 'दूध', 'bread-bakery': 'ब्रेड', eggs: 'अंडी',
-  'fruits-vegetables': 'भाज्या', groceries: 'किराणा', snacks: 'नाश्ता',
-  household: 'घरगुती', 'personal-care': 'सौंदर्य', 'baby-care': 'बाळ',
-  medicine: 'औषध', medicines: 'औषध', restaurants: 'हॉटेल',
-};
+// Pastel colour palette — cycles by index
+const COLORS = [
+  '#FEF9C3','#FEE2E2','#DCFCE7','#EDE9FE',
+  '#FEF3C7','#F3F4F6','#FCE7F3','#DBEAFE',
+  '#D1FAE5','#FFF7ED','#E0F2FE','#F0FDF4',
+];
 
 export default async function CategoriesPage() {
   const supabase = await createClient();
 
   const { data } = await supabase
     .from('categories')
-    .select('id, name, slug, image_url, sort_order')
+    .select('id, name, slug, emoji, image_url, sort_order')
     .eq('is_active', true)
     .order('sort_order', { ascending: true })
     .order('name', { ascending: true });
@@ -45,9 +30,8 @@ export default async function CategoriesPage() {
 
       <h2 className="text-base font-bold text-gray-900 px-4 pt-3 pb-1">All Categories</h2>
 
-      {/* Grid */}
       <div className="grid grid-cols-2 gap-3 px-4 py-3">
-        {categories.map(cat => (
+        {categories.map((cat, index) => (
           <Link
             key={cat.id}
             href={`/category/${cat.slug}`}
@@ -66,15 +50,12 @@ export default async function CategoriesPage() {
             ) : (
               <div
                 className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
-                style={{ backgroundColor: COLOR[cat.slug] ?? '#F3F4F6' }}
+                style={{ backgroundColor: COLORS[index % COLORS.length] }}
               >
-                {EMOJI[cat.slug] ?? '📦'}
+                {cat.emoji ?? '📦'}
               </div>
             )}
             <p className="text-sm font-medium text-center text-gray-800 leading-tight">{cat.name}</p>
-            {MARATHI[cat.slug] && (
-              <p className="text-[10px] text-gray-400 -mt-1">{MARATHI[cat.slug]}</p>
-            )}
           </Link>
         ))}
       </div>

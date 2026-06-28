@@ -23,53 +23,12 @@ interface HomePageClientProps {
   foodMerchants: Merchant[];
 }
 
-function getCategoryIcon(slug: string): string {
-  const icons: Record<string, string> = {
-    'dairy': '🥛',
-    'bread-bakery': '🍞',
-    'eggs': '🥚',
-    'fruits-vegetables': '🥬',
-    'groceries': '🛒',
-    'snacks': '🍪',
-    'household': '🏠',
-    'personal-care': '🧴',
-    'baby-care': '👶',
-    'medicine': '💊',
-  };
-  return icons[slug] ?? '📦';
-}
-
-function getCategoryColor(slug: string): string {
-  const colors: Record<string, string> = {
-    'dairy': '#FEF9C3',
-    'bread-bakery': '#FEE2E2',
-    'eggs': '#DCFCE7',
-    'fruits-vegetables': '#DCFCE7',
-    'groceries': '#EDE9FE',
-    'snacks': '#FEF3C7',
-    'household': '#F3F4F6',
-    'personal-care': '#FCE7F3',
-    'baby-care': '#DBEAFE',
-    'medicine': '#D1FAE5',
-  };
-  return colors[slug] ?? '#F3F4F6';
-}
-
-function getCategoryMarathi(slug: string): string {
-  const marathi: Record<string, string> = {
-    'dairy': 'दूध',
-    'bread-bakery': 'ब्रेड',
-    'eggs': 'अंडी',
-    'fruits-vegetables': 'भाज्या',
-    'groceries': 'किराणा',
-    'snacks': 'नाश्ता',
-    'household': 'घरगुती',
-    'personal-care': 'सौंदर्य',
-    'baby-care': 'बाळ',
-    'medicine': 'औषध',
-  };
-  return marathi[slug] ?? '';
-}
+// Pastel colour palette — cycles by index so any new category gets a colour
+const CATEGORY_COLORS = [
+  '#FEF9C3','#FEE2E2','#DCFCE7','#EDE9FE',
+  '#FEF3C7','#F3F4F6','#FCE7F3','#DBEAFE',
+  '#D1FAE5','#FFF7ED','#E0F2FE','#F0FDF4',
+];
 
 const CUISINE_RULES: [RegExp, string][] = [
   [/chicken|non.?veg|arabian|tandoori|kebab|mutton/i, '🍗 Non Veg'],
@@ -314,30 +273,21 @@ export function HomePageClient({
           </div>
         )}
 
-        {/* 4. Everyday Essentials */}
-        <section>
-          <p className="text-base font-semibold text-gray-900 mb-2">Everyday Essentials</p>
-          <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
-            {[
-              { label: 'Milk', emoji: '🥛', slug: 'dairy' },
-              { label: 'Bread', emoji: '🍞', slug: 'bread-bakery' },
-              { label: 'Eggs', emoji: '🥚', slug: 'dairy' },
-              { label: 'Onions', emoji: '🧅', slug: 'fruits-vegetables' },
-              { label: 'Tomatoes', emoji: '🍅', slug: 'fruits-vegetables' },
-              { label: 'Potatoes', emoji: '🥔', slug: 'fruits-vegetables' },
-              { label: 'Rice', emoji: '🌾', slug: 'groceries' },
-              { label: 'Oil', emoji: '🫙', slug: 'groceries' },
-              { label: 'Medicine', emoji: '💊', slug: 'medicines' },
-              { label: 'Snacks', emoji: '🍪', slug: 'snacks' },
-            ].map(item => (
-              <Link key={item.label} href={`/category/${item.slug}`}
-                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-purple-300 rounded-full text-sm font-medium text-purple-700">
-                <span>{item.emoji}</span>
-                <span className="whitespace-nowrap">{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
+        {/* 4. Everyday Essentials — dynamic from DB */}
+        {categories.length > 0 && (
+          <section>
+            <p className="text-base font-semibold text-gray-900 mb-2">Everyday Essentials</p>
+            <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
+              {categories.map(cat => (
+                <Link key={cat.id} href={`/category/${cat.slug}`}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-white border border-purple-300 rounded-full text-sm font-medium text-purple-700">
+                  <span>{cat.emoji ?? '📦'}</span>
+                  <span className="whitespace-nowrap">{cat.name}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* 5. Zupr Express */}
         <section>
@@ -364,24 +314,21 @@ export function HomePageClient({
           )}
         </section>
 
-        {/* 6. Categories */}
+        {/* 6. Categories — dynamic from DB */}
         {categories.length > 0 && (
           <section>
             <h2 className="text-base font-bold text-[#1A1A1A] mb-2">Categories</h2>
             <div className="grid grid-cols-4 gap-2">
-              {categories.map(cat => (
+              {categories.map((cat, index) => (
                 <Link key={cat.id} href={`/category/${cat.slug}`}>
                   <div className="flex flex-col items-center gap-1.5 p-1.5">
                     <div
                       className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
-                      style={{ backgroundColor: getCategoryColor(cat.slug) }}
+                      style={{ backgroundColor: CATEGORY_COLORS[index % CATEGORY_COLORS.length] }}
                     >
-                      <span>{getCategoryIcon(cat.slug)}</span>
+                      <span>{cat.emoji ?? '📦'}</span>
                     </div>
-                    <div className="text-center w-full">
-                      <p className="text-[11px] font-medium text-[#1A1A1A] leading-tight">{cat.name}</p>
-                      <p className="text-[10px] text-[#6B7280] leading-tight">{getCategoryMarathi(cat.slug)}</p>
-                    </div>
+                    <p className="text-[11px] font-medium text-[#1A1A1A] leading-tight text-center w-full">{cat.name}</p>
                   </div>
                 </Link>
               ))}

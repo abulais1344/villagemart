@@ -35,35 +35,37 @@ export default function LoginPage() {
 
     setCheckLoading(true);
     const supabase = createClient();
-    // Match all common storage formats: 10-digit, 91-prefix, +91-prefix
-    const { data, error } = await supabase
+    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+
+    const { data: existingUser, error } = await supabase
       .from('vm_users')
-      .select('name, phone, address, landmark, area, addresses, active_address_index')
-      .or(`phone.eq.${phone},phone.eq.91${phone},phone.eq.+91${phone}`)
+      .select('*')
+      .eq('phone', cleanPhone)
       .maybeSingle();
     setCheckLoading(false);
-    if (error) console.error('vm_users lookup error:', error.message);
 
-    if (data?.name) {
+    console.log('Phone lookup:', cleanPhone, existingUser, error);
+
+    if (existingUser) {
       // Returning customer — skip step 2
       localStorage.setItem('vm_customer', JSON.stringify({
-        name: data.name,
-        phone: data.phone,
-        address: data.address || '',
-        landmark: data.landmark || '',
-        area: data.area || '',
-        addresses: data.addresses || [],
-        active_address_index: data.active_address_index || 0,
+        name: existingUser.name,
+        phone: existingUser.phone,
+        address: existingUser.address || '',
+        landmark: existingUser.landmark || '',
+        area: existingUser.area || 'Ardhapur',
+        addresses: existingUser.addresses || [],
+        active_address_index: existingUser.active_address_index || 0,
       }));
-      toast.success(`Welcome back, ${data.name}! 👋`);
-      setTimeout(() => {
-        window.location.href = getRedirectTarget();
-      }, 500);
-    } else {
-      // New customer — go to step 2, pre-fill name if partial record exists
-      if (data?.name) setName(data.name);
-      setStep(2);
+      toast.success(`Welcome back, ${existingUser.name}! 👋`);
+      const redirect = localStorage.getItem('login_redirect');
+      localStorage.removeItem('login_redirect');
+      window.location.href = redirect || '/';
+      return;
     }
+
+    // New customer — go to step 2
+    setStep(2);
   }
 
   async function handleProfileSubmit(e: React.FormEvent) {

@@ -35,6 +35,7 @@ export interface Category {
   id: string;
   name: string;
   slug: string;
+  emoji: string | null;
   icon_url: string | null;
   image_url: string | null;
   description: string | null;

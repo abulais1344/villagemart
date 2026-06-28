@@ -17,7 +17,7 @@ export default async function HomePage() {
   const [catResult, featuredResult, ownResult, merchantsResult, foodResult] = await Promise.all([
     supabase
       .from('categories')
-      .select('id, name, slug')
+      .select('id, name, slug, emoji')
       .eq('is_active', true)
       .neq('slug', 'restaurants')
       .order('sort_order', { ascending: true }),
