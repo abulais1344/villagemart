@@ -231,41 +231,54 @@ export function HomePageClient({
               </div>
               <Link href="/stores" className="text-xs font-medium text-purple-600">See all →</Link>
             </div>
-            <div className="flex gap-3 overflow-x-auto -mx-4 px-4 pb-1" style={{ scrollbarWidth: 'none' }}>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {foodMerchants.length} restaurant{foodMerchants.length !== 1 ? 's' : ''} open
+            </p>
+            <div className="flex flex-col gap-3 mt-2">
               {foodMerchants.map((merchant, index) => (
                 <Link key={merchant.id} href={`/stores/${merchant.id}`}
-                  className="flex-shrink-0 bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden"
-                  style={{ minWidth: 160 }}>
+                  className="w-full bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                  {/* Cover image */}
                   {(merchant as any).cover_image_url ? (
-                    <div className="relative w-full h-28 bg-gray-100">
+                    <div className="relative w-full h-44 bg-gray-100">
                       <Image
                         src={(merchant as any).cover_image_url}
                         alt={merchant.store_name}
                         fill
                         className="object-cover"
-                        sizes="160px"
+                        sizes="100vw"
                         priority={index === 0}
                       />
                     </div>
                   ) : (
-                    <div className="w-full h-28 bg-[#7C3AED] flex items-center justify-center">
-                      <span className="text-3xl font-bold text-white/40">{merchant.store_name.charAt(0).toUpperCase()}</span>
+                    <div className="w-full h-44 bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] flex items-center justify-center">
+                      <span className="text-6xl font-bold text-white/30">{merchant.store_name.charAt(0).toUpperCase()}</span>
                     </div>
                   )}
-                  <div className="p-2.5">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{merchant.store_name}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
+                  {/* Card body */}
+                  <div className="p-3">
+                    {/* Row 1: name + rating badge */}
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <p className="font-semibold text-base text-gray-900 truncate">{merchant.store_name}</p>
+                      {(merchant as any).rating && (
+                        <span className="shrink-0 bg-green-600 text-white text-xs px-2 py-0.5 rounded-lg font-medium">
+                          ⭐ {(merchant as any).rating}
+                        </span>
+                      )}
+                    </div>
+                    {/* Row 2: cuisine tags */}
+                    <div className="flex flex-wrap gap-1 mb-2">
                       {getCuisineTags((merchant as any).cuisine_type).map((tag) => (
                         <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
                           {tag}
                         </span>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {(merchant as any).rating
-                        ? `⭐ ${(merchant as any).rating} • ${deliveryRange(merchant.avg_delivery_time)}`
-                        : deliveryRange(merchant.avg_delivery_time)}
-                    </p>
+                    {/* Row 3: delivery time + free delivery note */}
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>🕐 {deliveryRange(merchant.avg_delivery_time)}</span>
+                      <span>Free delivery above ₹199</span>
+                    </div>
                   </div>
                 </Link>
               ))}
