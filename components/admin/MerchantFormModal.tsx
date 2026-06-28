@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { ImageUpload } from '@/components/shared/ImageUpload';
 
 interface MerchantFormModalProps {
@@ -22,7 +21,6 @@ const CUISINE_TAGS = [
 
 export function MerchantFormModal({ merchant, onClose, onSaved }: MerchantFormModalProps) {
   const isEdit = !!merchant;
-  const supabase = createClient();
 
   const [store_name, setStoreName]             = useState(merchant?.store_name ?? '');
   const [owner_name, setOwnerName]             = useState(merchant?.owner_name ?? '');
@@ -80,12 +78,24 @@ export function MerchantFormModal({ merchant, onClose, onSaved }: MerchantFormMo
       cover_image_url:   cover_image_url || null,
     };
 
-    const { error: dbError } = isEdit
-      ? await supabase.from('merchants').update(payload).eq('id', merchant.id)
-      : await supabase.from('merchants').insert(payload);
+    const res = isEdit
+      ? await fetch(`/api/admin/merchants/${merchant.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      : await fetch('/api/admin/merchants', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
 
     setSaving(false);
-    if (dbError) { setError(dbError.message); return; }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setError(err.error ?? 'Save failed. Please try again.');
+      return;
+    }
     onSaved();
   }
 
