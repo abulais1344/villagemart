@@ -340,8 +340,8 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         </button>
 
         <div className="absolute top-4 right-4 z-10">
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${merchant.is_open ? 'bg-green-500 text-white' : 'bg-gray-600 text-white'}`}>
-            {merchant.is_open ? '● Open' : '● Closed'}
+          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isOpen ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+            {isOpen ? '● Open' : '● Closed'}
           </span>
         </div>
 
