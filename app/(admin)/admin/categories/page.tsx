@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -34,11 +33,12 @@ export default function AdminCategoriesPage() {
   const [editing, setEditing]       = useState<Category | null>(null);
   const [saving, setSaving]         = useState(false);
   const [form, setForm]             = useState<FormState>(EMPTY_FORM);
-  const supabase = createClient();
 
   const load = async () => {
-    const { data } = await supabase.from('categories').select('*').order('sort_order');
-    setCategories(data ?? []);
+    const res = await fetch('/api/admin/categories');
+    if (!res.ok) { toast.error('Failed to load categories'); return; }
+    const json = await res.json();
+    setCategories(json.categories ?? []);
     setLoading(false);
   };
 
@@ -66,6 +66,7 @@ export default function AdminCategoriesPage() {
   const handleSave = async () => {
     if (!form.name || !form.slug) { toast.error('Name and slug are required'); return; }
     setSaving(true);
+
     const payload = {
       name: form.name,
       slug: form.slug,
@@ -75,26 +76,46 @@ export default function AdminCategoriesPage() {
       sort_order: form.sort_order,
       is_active: form.is_active,
     };
+
+    let res: Response;
     if (editing) {
-      const { error } = await supabase.from('categories').update(payload).eq('id', editing.id);
-      if (error) { toast.error('Update failed'); } else { toast.success('Category updated'); }
+      res = await fetch(`/api/admin/categories/${editing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
     } else {
-      const { error } = await supabase.from('categories').insert(payload);
-      if (error) { toast.error('Add failed'); } else { toast.success('Category added'); }
+      res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
     }
+
     setSaving(false);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error ?? 'Save failed');
+      return;
+    }
+    toast.success(editing ? 'Category updated' : 'Category added');
     setShowForm(false);
     load();
   };
 
   const toggleActive = async (cat: Category) => {
     const next = !cat.is_active;
+    // Optimistic update
     setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, is_active: next } : c));
-    const { error } = await supabase
-      .from('categories')
-      .update({ is_active: next })
-      .eq('id', cat.id);
-    if (error) {
+
+    const res = await fetch(`/api/admin/categories/${cat.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: next }),
+    });
+
+    if (!res.ok) {
+      // Roll back
       setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, is_active: cat.is_active } : c));
       toast.error('Toggle failed');
     } else {
@@ -104,8 +125,9 @@ export default function AdminCategoriesPage() {
 
   const deleteCategory = async (id: string) => {
     if (!confirm('Delete this category? This cannot be undone.')) return;
-    const { error } = await supabase.from('categories').delete().eq('id', id);
-    if (error) { toast.error('Delete failed'); return; }
+
+    const res = await fetch(`/api/admin/categories/${id}`, { method: 'DELETE' });
+    if (!res.ok) { toast.error('Delete failed'); return; }
     setCategories(prev => prev.filter(c => c.id !== id));
     toast.success('Category deleted');
   };
@@ -148,9 +170,7 @@ export default function AdminCategoriesPage() {
                   className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${cat.is_active ? 'bg-[#7C3AED]' : 'bg-gray-200'}`}
                   title={cat.is_active ? 'Visible — click to hide' : 'Hidden — click to show'}
                 >
-                  <span
-                    className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${cat.is_active ? 'translate-x-5' : 'translate-x-0'}`}
-                  />
+                  <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200 ${cat.is_active ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
 
                 {/* Edit / Delete */}
