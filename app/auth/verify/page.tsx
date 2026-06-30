@@ -3,11 +3,16 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { OTPInput } from '@/components/shared/OTPInput';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import toast from 'react-hot-toast';
+
+function getRedirectTarget() {
+  const saved = localStorage.getItem('login_redirect') || '/';
+  localStorage.removeItem('login_redirect');
+  return saved;
+}
 
 function VerifyForm() {
   const [otp, setOtp] = useState('');
@@ -17,7 +22,6 @@ function VerifyForm() {
   const router = useRouter();
   const params = useSearchParams();
   const phone = params.get('phone') ?? '';
-  const supabase = createClient();
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -25,62 +29,77 @@ function VerifyForm() {
     return () => clearTimeout(timer);
   }, [countdown]);
 
-  // Auto-verify when 6 digits entered
+  // Auto-verify when all 6 digits are entered
   useEffect(() => {
     if (otp.length === 6) handleVerify(otp);
-  }, [otp]);
+  }, [otp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleVerify = async (code: string) => {
     if (verifying) return;
     setVerifying(true);
 
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone,
-      token: code,
-      type: 'sms',
-    });
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp: code }),
+      });
+      const data = await res.json();
 
-    if (error) {
-      toast.error('Invalid OTP. Please try again.');
+      if (!data.success) {
+        toast.error(data.error ?? 'Invalid OTP. Please try again.');
+        setOtp('');
+        setVerifying(false);
+        return;
+      }
+
+      if (data.isNewUser) {
+        // New user — collect profile details
+        router.push(`/auth/login?step=2&phone=${encodeURIComponent(phone)}`);
+        return;
+      }
+
+      // Existing user — save to localStorage and redirect
+      const u = data.user;
+      localStorage.setItem('vm_customer', JSON.stringify({
+        name: u.name,
+        phone: u.phone,
+        address: u.address || '',
+        landmark: u.landmark || '',
+        area: u.area || 'Ardhapur',
+        addresses: u.addresses || [],
+        active_address_index: u.active_address_index || 0,
+      }));
+      toast.success(`Welcome back, ${u.name}! 👋`);
+      window.location.href = getRedirectTarget();
+    } catch {
+      toast.error('Something went wrong. Please try again.');
       setOtp('');
       setVerifying(false);
-      return;
-    }
-
-    // Upsert user record
-    if (data.user) {
-      await supabase.from('vm_users').upsert({
-        id: data.user.id,
-        phone: phone.replace('+91', ''),
-        role: 'customer',
-      }, { onConflict: 'id' });
-
-      // Fetch role and redirect
-      const { data: userRecord } = await supabase
-        .from('vm_users')
-        .select('role')
-        .eq('id', data.user.id)
-        .single();
-
-      const role = userRecord?.role ?? 'customer';
-      if (role === 'admin') router.push('/admin/dashboard');
-      else if (role === 'merchant') router.push('/merchant/dashboard');
-      else if (role === 'rider') router.push('/rider/dashboard');
-      else router.push('/');
     }
   };
 
   const handleResend = async () => {
     setResending(true);
-    const { error } = await supabase.auth.signInWithOtp({ phone });
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success('OTP resent!');
-      setCountdown(30);
-      setOtp('');
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        toast.error(data.error ?? 'Failed to resend OTP.');
+      } else {
+        toast.success('OTP resent!');
+        setCountdown(30);
+        setOtp('');
+      }
+    } catch {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setResending(false);
     }
-    setResending(false);
   };
 
   return (
@@ -100,7 +119,7 @@ function VerifyForm() {
         <h1 className="text-2xl font-bold text-[#1A1A1A] mb-2">Verify OTP</h1>
         <p className="text-sm text-[#6B7280] mb-8">
           Enter the 6-digit code sent to{' '}
-          <span className="font-semibold text-[#1A1A1A]">{phone}</span>
+          <span className="font-semibold text-[#1A1A1A]">+91 {phone}</span>
         </p>
 
         <OTPInput value={otp} onChange={setOtp} disabled={verifying} />
@@ -134,7 +153,11 @@ function VerifyForm() {
 
 export default function VerifyPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Spinner size="lg" /></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    }>
       <VerifyForm />
     </Suspense>
   );

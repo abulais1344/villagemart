@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { Spinner } from '@/components/ui/Spinner';
 import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 
@@ -14,10 +15,16 @@ function getRedirectTarget() {
   return saved;
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2>(1);
-  const [phone, setPhone] = useState('');
+  const searchParams = useSearchParams();
+
+  // Support returning here at step=2 after OTP verification for new users
+  const initialStep = searchParams.get('step') === '2' ? 2 : 1;
+  const initialPhone = searchParams.get('phone') ?? '';
+
+  const [step, setStep] = useState<1 | 2>(initialStep as 1 | 2);
+  const [phone, setPhone] = useState(initialPhone);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [landmark, setLandmark] = useState('');
@@ -34,38 +41,23 @@ export default function LoginPage() {
     }
 
     setCheckLoading(true);
-    const supabase = createClient();
-    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
-
-    const { data: existingUser, error } = await supabase
-      .from('vm_users')
-      .select('*')
-      .eq('phone', cleanPhone)
-      .maybeSingle();
-    setCheckLoading(false);
-
-    console.log('Phone lookup:', cleanPhone, existingUser, error);
-
-    if (existingUser) {
-      // Returning customer — skip step 2
-      localStorage.setItem('vm_customer', JSON.stringify({
-        name: existingUser.name,
-        phone: existingUser.phone,
-        address: existingUser.address || '',
-        landmark: existingUser.landmark || '',
-        area: existingUser.area || 'Ardhapur',
-        addresses: existingUser.addresses || [],
-        active_address_index: existingUser.active_address_index || 0,
-      }));
-      toast.success(`Welcome back, ${existingUser.name}! 👋`);
-      const redirect = localStorage.getItem('login_redirect');
-      localStorage.removeItem('login_redirect');
-      window.location.href = redirect || '/';
-      return;
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setPhoneError(data.error ?? 'Failed to send OTP. Please try again.');
+        return;
+      }
+      router.push(`/auth/verify?phone=${encodeURIComponent(phone)}`);
+    } catch {
+      setPhoneError('Network error. Please try again.');
+    } finally {
+      setCheckLoading(false);
     }
-
-    // New customer — go to step 2
-    setStep(2);
   }
 
   async function handleProfileSubmit(e: React.FormEvent) {
@@ -114,7 +106,7 @@ export default function LoginPage() {
         {step === 1 ? (
           <>
             <h2 className="text-xl font-bold text-[#1A1A1A] mb-1">Login / Sign up</h2>
-            <p className="text-sm text-[#6B7280] mb-8">Enter your mobile number to continue</p>
+            <p className="text-sm text-[#6B7280] mb-8">We'll send a 6-digit OTP to verify your number</p>
 
             <form onSubmit={handlePhoneSubmit} className="space-y-5">
               <div className="relative">
@@ -134,7 +126,7 @@ export default function LoginPage() {
               {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
 
               <Button type="submit" fullWidth size="lg" loading={checkLoading}>
-                Continue
+                Send OTP
               </Button>
             </form>
 
@@ -237,5 +229,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
