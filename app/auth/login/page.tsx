@@ -9,7 +9,6 @@ import { firebaseAuth } from '@/lib/firebase/client';
 import { OTPInput } from '@/components/shared/OTPInput';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
-import { createClient } from '@/lib/supabase/client';
 import toast from 'react-hot-toast';
 
 function getRedirectTarget() {
@@ -178,7 +177,6 @@ export default function LoginPage() {
   // ── Step 2: profile completion ──────────────────────────────────────────────
   async function handleProfileSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const supabase = createClient();
 
     const firstAddress = {
       label:   'Home' as const,
@@ -194,7 +192,17 @@ export default function LoginPage() {
       active_address_index: 0,
     };
 
-    await supabase.from('vm_users').upsert(payload, { onConflict: 'phone' });
+    const res = await fetch('/api/customer/upsert-profile', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    const result = await res.json();
+
+    if (!result.success) {
+      toast.error(result.error ?? 'Failed to save profile. Please try again.');
+      return;
+    }
 
     localStorage.setItem('vm_customer', JSON.stringify(payload));
     window.location.href = getRedirectTarget();
