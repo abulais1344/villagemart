@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import FirebaseAuthStateListener from "@/components/FirebaseAuthStateListener";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -122,6 +123,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         <ServiceWorkerRegistration />
+        <FirebaseAuthStateListener />
         {children}
         <Toaster
           position="top-center"

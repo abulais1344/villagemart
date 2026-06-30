@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
+import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
+import { firebaseAuth } from '@/lib/firebase/client';
+import { OTPInput } from '@/components/shared/OTPInput';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { createClient } from '@/lib/supabase/client';
@@ -15,23 +18,57 @@ function getRedirectTarget() {
   return saved;
 }
 
-function LoginForm() {
+// Step 0 = phone entry, Step 1 = OTP entry, Step 2 = profile completion
+type Step = 0 | 1 | 2;
+
+export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  // Support returning here at step=2 after OTP verification for new users
-  const initialStep = searchParams.get('step') === '2' ? 2 : 1;
-  const initialPhone = searchParams.get('phone') ?? '';
+  const [step, setStep]               = useState<Step>(0);
+  const [phone, setPhone]             = useState('');
+  const [otp, setOtp]                 = useState('');
+  const [name, setName]               = useState('');
+  const [address, setAddress]         = useState('');
+  const [landmark, setLandmark]       = useState('');
+  const [area, setArea]               = useState('');
 
-  const [step, setStep] = useState<1 | 2>(initialStep as 1 | 2);
-  const [phone, setPhone] = useState(initialPhone);
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [landmark, setLandmark] = useState('');
-  const [area, setArea] = useState('');
-  const [phoneError, setPhoneError] = useState('');
-  const [checkLoading, setCheckLoading] = useState(false);
+  const [phoneError, setPhoneError]   = useState('');
+  const [otpError, setOtpError]       = useState('');
+  const [sendLoading, setSendLoading] = useState(false);
+  const [verifying, setVerifying]     = useState(false);
+  const [resending, setResending]     = useState(false);
+  const [countdown, setCountdown]     = useState(30);
 
+  const confirmationResultRef  = useRef<ConfirmationResult | null>(null);
+  const recaptchaVerifierRef   = useRef<RecaptchaVerifier | null>(null);
+
+  // Countdown timer for resend button (active only on OTP step)
+  useEffect(() => {
+    if (step !== 1 || countdown <= 0) return;
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [step, countdown]);
+
+  // Auto-submit when all 6 OTP digits are entered
+  useEffect(() => {
+    if (step === 1 && otp.length === 6) handleOtpSubmit(otp);
+  }, [otp, step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Initialise (or re-initialise) the invisible reCAPTCHA ──────────────────
+  function initRecaptcha(): RecaptchaVerifier {
+    if (recaptchaVerifierRef.current) {
+      try { recaptchaVerifierRef.current.clear(); } catch {}
+      recaptchaVerifierRef.current = null;
+    }
+    const verifier = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
+      size: 'invisible',
+      callback: () => {},
+    });
+    recaptchaVerifierRef.current = verifier;
+    return verifier;
+  }
+
+  // ── Step 0: send OTP ────────────────────────────────────────────────────────
   async function handlePhoneSubmit(e: React.FormEvent) {
     e.preventDefault();
     setPhoneError('');
@@ -40,41 +77,120 @@ function LoginForm() {
       return;
     }
 
-    setCheckLoading(true);
+    setSendLoading(true);
     try {
-      const res = await fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        setPhoneError(data.error ?? 'Failed to send OTP. Please try again.');
-        return;
+      const verifier = initRecaptcha();
+      const result = await signInWithPhoneNumber(firebaseAuth, `+91${phone}`, verifier);
+      confirmationResultRef.current = result;
+      setCountdown(30);
+      setOtp('');
+      setStep(1);
+    } catch (err: unknown) {
+      console.error('signInWithPhoneNumber error:', err);
+      // Clean up broken verifier so next attempt starts fresh
+      if (recaptchaVerifierRef.current) {
+        try { recaptchaVerifierRef.current.clear(); } catch {}
+        recaptchaVerifierRef.current = null;
       }
-      router.push(`/auth/verify?phone=${encodeURIComponent(phone)}`);
-    } catch {
-      setPhoneError('Network error. Please try again.');
+      const msg = (err as { message?: string })?.message;
+      setPhoneError(msg?.includes('TOO_SHORT') || msg?.includes('INVALID')
+        ? 'Invalid phone number. Please check and try again.'
+        : 'Failed to send OTP. Please try again.');
     } finally {
-      setCheckLoading(false);
+      setSendLoading(false);
     }
   }
 
+  // ── Step 1: verify OTP ──────────────────────────────────────────────────────
+  const handleOtpSubmit = async (code: string) => {
+    if (verifying || !confirmationResultRef.current) return;
+    setVerifying(true);
+    setOtpError('');
+
+    try {
+      const credential = await confirmationResultRef.current.confirm(code);
+      const idToken = await credential.user.getIdToken();
+
+      const res = await fetch('/api/auth/verify-firebase-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        setOtpError(data.error ?? 'Verification failed. Please try again.');
+        setOtp('');
+        return;
+      }
+
+      if (data.isNewUser) {
+        // Server returns the verified phone; use it for profile step
+        setPhone(data.phone);
+        setStep(2);
+        return;
+      }
+
+      // Existing user — save to localStorage and go home
+      const u = data.user;
+      localStorage.setItem('vm_customer', JSON.stringify({
+        name:                 u.name,
+        phone:                u.phone,
+        address:              u.address || '',
+        landmark:             u.landmark || '',
+        area:                 u.area || 'Ardhapur',
+        addresses:            u.addresses || [],
+        active_address_index: u.active_address_index || 0,
+      }));
+      toast.success(`Welcome back, ${u.name}! 👋`);
+      window.location.href = getRedirectTarget();
+    } catch (err: unknown) {
+      console.error('OTP confirm error:', err);
+      const msg = (err as { message?: string })?.message ?? '';
+      setOtpError(msg.includes('invalid') || msg.includes('INVALID')
+        ? 'Incorrect OTP. Please try again.'
+        : 'Something went wrong. Please try again.');
+      setOtp('');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  // ── Step 1: resend OTP ──────────────────────────────────────────────────────
+  const handleResend = async () => {
+    setResending(true);
+    setOtpError('');
+    try {
+      const verifier = initRecaptcha();
+      const result = await signInWithPhoneNumber(firebaseAuth, `+91${phone}`, verifier);
+      confirmationResultRef.current = result;
+      setCountdown(30);
+      setOtp('');
+      toast.success('OTP resent!');
+    } catch (err) {
+      console.error('Resend error:', err);
+      toast.error('Failed to resend OTP. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  // ── Step 2: profile completion ──────────────────────────────────────────────
   async function handleProfileSubmit(e: React.FormEvent) {
     e.preventDefault();
     const supabase = createClient();
 
     const firstAddress = {
-      label: 'Home' as const,
+      label:   'Home' as const,
       address,
       area,
-      lat: null,
-      lng: null,
+      lat:     null,
+      lng:     null,
       pincode: null,
     };
     const payload = {
       phone, name, address, landmark, area,
-      addresses: [firstAddress],
+      addresses:            [firstAddress],
       active_address_index: 0,
     };
 
@@ -84,15 +200,27 @@ function LoginForm() {
     window.location.href = getRedirectTarget();
   }
 
+  // ── Shared styles ───────────────────────────────────────────────────────────
   const fieldClass = 'w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:border-transparent';
   const labelClass = 'block text-sm font-medium text-[#1A1A1A] mb-1.5';
 
+  const heroTitle = step === 0 ? 'Welcome!' : step === 1 ? 'Verify OTP' : 'Complete your profile';
+  const heroSub   = step === 0
+    ? 'Enter your mobile number to continue'
+    : step === 1
+    ? `Code sent to +91 ${phone}`
+    : 'Tell us where to deliver';
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
+
+      {/* Invisible reCAPTCHA mount point — always in DOM */}
+      <div id="recaptcha-container" />
+
       {/* Hero */}
       <div className="bg-gradient-to-b from-[#7C3AED] to-[#6D28D9] px-6 pt-12 pb-12 text-white">
         <button
-          onClick={() => router.back()}
+          onClick={() => step === 0 ? router.back() : setStep(s => (s - 1) as Step)}
           className="flex items-center gap-1 text-purple-200 hover:text-white mb-6"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -104,17 +232,15 @@ function LoginForm() {
           </div>
           <span className="text-2xl font-bold">Zupr</span>
         </div>
-        <h1 className="text-2xl font-bold mb-1">
-          {step === 1 ? 'Welcome!' : 'Complete your profile'}
-        </h1>
-        <p className="text-purple-200 text-sm">
-          {step === 1 ? 'Enter your mobile number to continue' : 'Tell us where to deliver'}
-        </p>
+        <h1 className="text-2xl font-bold mb-1">{heroTitle}</h1>
+        <p className="text-purple-200 text-sm">{heroSub}</p>
       </div>
 
-      {/* Form */}
+      {/* Form area */}
       <div className="flex-1 px-6 pt-8 pb-8">
-        {step === 1 ? (
+
+        {/* ── Step 0: phone entry ── */}
+        {step === 0 && (
           <>
             <h2 className="text-xl font-bold text-[#1A1A1A] mb-1">Login / Sign up</h2>
             <p className="text-sm text-[#6B7280] mb-8">We'll send a 6-digit OTP to verify your number</p>
@@ -136,7 +262,7 @@ function LoginForm() {
               </div>
               {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
 
-              <Button type="submit" fullWidth size="lg" loading={checkLoading}>
+              <Button type="submit" fullWidth size="lg" loading={sendLoading}>
                 Send OTP
               </Button>
             </form>
@@ -155,7 +281,51 @@ function LoginForm() {
               Continue as Guest
             </button>
           </>
-        ) : (
+        )}
+
+        {/* ── Step 1: OTP entry ── */}
+        {step === 1 && (
+          <>
+            <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mb-6">
+              <span className="text-3xl">📱</span>
+            </div>
+
+            <p className="text-sm text-[#6B7280] mb-8">
+              Enter the 6-digit code sent to{' '}
+              <span className="font-semibold text-[#1A1A1A]">+91 {phone}</span>
+            </p>
+
+            <OTPInput value={otp} onChange={setOtp} disabled={verifying} />
+
+            {otpError && <p className="text-xs text-red-500 mt-3 text-center">{otpError}</p>}
+
+            {verifying && (
+              <div className="flex justify-center mt-6">
+                <Spinner />
+              </div>
+            )}
+
+            <div className="flex justify-center mt-8">
+              {countdown > 0 ? (
+                <p className="text-sm text-[#6B7280]">
+                  Resend OTP in <span className="font-semibold text-[#7C3AED]">{countdown}s</span>
+                </p>
+              ) : (
+                <button
+                  onClick={handleResend}
+                  disabled={resending}
+                  className="flex items-center gap-1.5 text-sm text-[#7C3AED] font-semibold"
+                >
+                  {resending ? <Spinner size="sm" /> : <RefreshCw className="w-4 h-4" />}
+                  Resend OTP
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── Step 2: profile completion ── */}
+        {step === 2 && (
           <>
             <h2 className="text-xl font-bold text-[#1A1A1A] mb-1">Almost there!</h2>
             <p className="text-sm text-[#6B7280] mb-6">Tell us where to deliver your order</p>
@@ -240,17 +410,5 @@ function LoginForm() {
         </p>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    }>
-      <LoginForm />
-    </Suspense>
   );
 }
