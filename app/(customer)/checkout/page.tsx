@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { ArrowLeft, ShieldCheck, MapPin } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
-import { getCustomer, type Customer } from '@/lib/customer';
+import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
 import { formatCurrency } from '@/lib/utils/format';
 import { isWithinDeliveryZone } from '@/lib/delivery-zone';
+import { AddressManager } from '@/components/customer/AddressManager';
 
 declare global {
   interface Window {
@@ -46,7 +46,19 @@ export default function CheckoutPage() {
   const [hydrated, setHydrated] = useState(false);
   const [zoneOk, setZoneOk] = useState<boolean | null>(null);
   const [restaurantClosed, setRestaurantClosed] = useState(false);
+  const [showAddressManager, setShowAddressManager] = useState(false);
   const paymentSucceeded = useRef(false);
+
+  function handleAddressChange(addr: AddressData) {
+    // AddressManager.persist() already updated localStorage; just refresh state
+    const updated = getCustomer();
+    if (updated) setCustomer(updated);
+    if (typeof addr.lat === 'number' && typeof addr.lng === 'number') {
+      setZoneOk(isWithinDeliveryZone(addr.lat, addr.lng));
+    } else {
+      setZoneOk(null);
+    }
+  }
 
   // Step 1: mark Zustand as hydrated from localStorage
   useEffect(() => {
@@ -198,9 +210,17 @@ export default function CheckoutPage() {
 
         {/* Delivery address */}
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
-          <h2 className="text-sm font-semibold text-[#1A1A1A] mb-3 flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-[#7C3AED]" /> Delivering to
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-[#1A1A1A] flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-[#7C3AED]" /> Delivering to
+            </h2>
+            <button
+              onClick={() => setShowAddressManager(true)}
+              className="text-xs text-[#7C3AED] font-semibold"
+            >
+              Change
+            </button>
+          </div>
           <p className="font-medium text-[#1A1A1A]">{customer.name}</p>
           <p className="text-sm text-gray-500">📞 {customer.phone}</p>
           <p className="text-sm text-[#6B7280] mt-0.5">{customer.address}</p>
@@ -238,9 +258,12 @@ export default function CheckoutPage() {
             <p className="text-xs text-red-500 mt-0.5 leading-snug">
               We currently deliver only within 10 km of Ardhapur. Please update your delivery location.
             </p>
-            <Link href="/" className="text-xs text-purple-600 font-semibold mt-1.5 inline-block">
+            <button
+              onClick={() => setShowAddressManager(true)}
+              className="text-xs text-purple-600 font-semibold mt-1.5 inline-block"
+            >
               Change location →
-            </Link>
+            </button>
           </div>
         )}
         {zoneOk === null && (
@@ -249,9 +272,12 @@ export default function CheckoutPage() {
             <p className="text-xs text-amber-600 mt-0.5 leading-snug">
               Set your exact delivery location to ensure we can reach you.
             </p>
-            <Link href="/" className="text-xs text-purple-600 font-semibold mt-1.5 inline-block">
+            <button
+              onClick={() => setShowAddressManager(true)}
+              className="text-xs text-purple-600 font-semibold mt-1.5 inline-block"
+            >
               Set location →
-            </Link>
+            </button>
           </div>
         )}
 
@@ -277,6 +303,12 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      <AddressManager
+        isOpen={showAddressManager}
+        onClose={() => setShowAddressManager(false)}
+        onAddressChange={handleAddressChange}
+      />
 
       {/* Fixed pay button */}
       <div className="fixed bottom-16 left-0 right-0 p-4 bg-white border-t border-gray-100">

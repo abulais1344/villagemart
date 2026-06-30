@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { X, Plus, Check, Trash2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import type { AddressData, Customer } from '@/lib/customer';
 
 const LocationPickerModal = dynamic(() => import('./LocationPickerModal'), { ssr: false });
@@ -35,11 +34,11 @@ async function syncToSupabase(
   activeIndex: number,
 ) {
   try {
-    const supabase = createClient();
-    await supabase
-      .from('vm_users')
-      .update({ addresses, active_address_index: activeIndex })
-      .eq('phone', phone);
+    await fetch('/api/customer/addresses', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, addresses, active_address_index: activeIndex }),
+    });
   } catch {
     // best-effort — don't block UI
   }
@@ -87,20 +86,17 @@ export function AddressManager({ isOpen, onClose, onAddressChange }: Props) {
     }
 
     if (!c?.phone) return;
-    const supabase = createClient();
-    supabase
-      .from('vm_users')
-      .select('addresses, active_address_index')
-      .eq('phone', c.phone)
-      .single()
-      .then(({ data }) => {
+    fetch(`/api/customer/addresses?phone=${encodeURIComponent(c.phone)}`)
+      .then(r => r.json())
+      .then((data: { addresses?: AddressData[]; active_address_index?: number }) => {
         if (!data?.addresses?.length) return;
         const remoteAddresses: AddressData[] = data.addresses;
         const remoteActive: number = data.active_address_index ?? 0;
         setAddresses(remoteAddresses);
         setActiveIndex(remoteActive);
         persist(remoteAddresses, remoteActive);
-      });
+      })
+      .catch(() => {});
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -220,8 +216,8 @@ export function AddressManager({ isOpen, onClose, onAddressChange }: Props) {
         isOpen={showPicker}
         onClose={() => setShowPicker(false)}
         onSave={addAddress}
-        defaultLat={addresses[activeIndex]?.lat}
-        defaultLng={addresses[activeIndex]?.lng}
+        defaultLat={addresses[activeIndex]?.lat ?? undefined}
+        defaultLng={addresses[activeIndex]?.lng ?? undefined}
       />
     </>
   );

@@ -64,12 +64,23 @@ function LoginForm() {
     e.preventDefault();
     const supabase = createClient();
 
-    await supabase.from('vm_users').upsert(
-      { phone, name, address, landmark, area },
-      { onConflict: 'phone' }
-    );
+    const firstAddress = {
+      label: 'Home' as const,
+      address,
+      area,
+      lat: null,
+      lng: null,
+      pincode: null,
+    };
+    const payload = {
+      phone, name, address, landmark, area,
+      addresses: [firstAddress],
+      active_address_index: 0,
+    };
 
-    localStorage.setItem('vm_customer', JSON.stringify({ name, phone, address, landmark, area }));
+    await supabase.from('vm_users').upsert(payload, { onConflict: 'phone' });
+
+    localStorage.setItem('vm_customer', JSON.stringify(payload));
     window.location.href = getRedirectTarget();
   }
 

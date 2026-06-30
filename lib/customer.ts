@@ -2,9 +2,9 @@ export interface AddressData {
   label: 'Home' | 'Work' | 'Other';
   address: string;
   area: string;
-  lat: number;
-  lng: number;
-  pincode: string;
+  lat: number | null;
+  lng: number | null;
+  pincode: string | null;
 }
 
 export interface Customer {
