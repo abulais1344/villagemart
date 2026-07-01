@@ -76,6 +76,15 @@ export function HomePageClient({
   const itemCount = items.length;
   const [showAddHint, markAddSeen] = useFirstVisit('add_product');
   const [showCartHint, markCartSeen] = useFirstVisit('cart_icon');
+  const [activeOffers, setActiveOffers] = useState<Array<{
+    id: string;
+    title: string;
+    discount_type: string;
+    discount_value: number;
+    min_order_amount: number;
+    max_discount: number | null;
+    first_order_only: boolean;
+  }>>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -89,6 +98,11 @@ export function HomePageClient({
         if (phone) fetchUnread(phone);
       }
     } catch {}
+
+    fetch('/api/customer/offers')
+      .then(r => r.json())
+      .then(data => { if (data.offers?.length) setActiveOffers(data.offers); })
+      .catch(() => {});
 
     const interval = setInterval(() => { if (phone) fetchUnread(phone); }, 30000);
     function handleRead() { setUnreadCount(0); }
@@ -208,7 +222,35 @@ export function HomePageClient({
           />
         </div>
 
-        {/* 3. Delivery Strip */}
+        {/* 3. Offers Strip */}
+        {activeOffers.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4">
+            {activeOffers.map(offer => {
+              const value = offer.discount_type === 'flat'
+                ? `₹${offer.discount_value} OFF`
+                : `${offer.discount_value}% OFF`;
+              const sub = [
+                offer.min_order_amount > 0 && `Min ₹${offer.min_order_amount}`,
+                offer.first_order_only && 'First order only',
+              ].filter(Boolean).join(' · ');
+              return (
+                <div
+                  key={offer.id}
+                  className="shrink-0 flex items-center gap-2.5 bg-gradient-to-r from-[#7C3AED] to-[#6D28D9] text-white rounded-2xl px-4 py-2.5"
+                  style={{ minWidth: 200 }}
+                >
+                  <span className="text-xl leading-none">🎁</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold leading-tight truncate">{value} · {offer.title}</p>
+                    {sub && <p className="text-[11px] text-purple-200 mt-0.5 truncate">{sub}</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 4. Delivery Strip */}
         <div className="bg-[#F5F0FF] rounded-xl px-4 py-2.5">
           <div className="flex items-center justify-between text-xs">
             <div>
