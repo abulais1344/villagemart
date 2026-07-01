@@ -83,7 +83,6 @@ export function HomePageClient({
     discount_value: number;
     min_order_amount: number;
     max_discount: number | null;
-    first_order_only: boolean;
   }>>([]);
 
   useEffect(() => {
@@ -229,10 +228,7 @@ export function HomePageClient({
               const value = offer.discount_type === 'flat'
                 ? `₹${offer.discount_value} OFF`
                 : `${offer.discount_value}% OFF`;
-              const sub = [
-                offer.min_order_amount > 0 && `Min ₹${offer.min_order_amount}`,
-                offer.first_order_only && 'First order only',
-              ].filter(Boolean).join(' · ');
+              const sub = offer.min_order_amount > 0 ? `Min order ₹${offer.min_order_amount}` : '';
               return (
                 <div
                   key={offer.id}

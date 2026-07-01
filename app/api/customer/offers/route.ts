@@ -11,17 +11,18 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('offers')
-    .select('id, title, description, discount_type, discount_value, min_order_amount, max_discount, first_order_only')
+    .select('id, title, description, discount_type, discount_value, min_order_amount, max_discount')
     .eq('is_active', true)
     .eq('type', 'platform')
-    .lte('starts_at', now)
-    .gte('ends_at', now)
+    .lte('starts_at', now)   // offer has already started
+    .gte('ends_at', now)     // offer hasn't expired
     .order('discount_value', { ascending: false });
 
   if (error) {
-    console.error('[customer/offers] Supabase error:', error);
-    return NextResponse.json({ offers: [] });
+    console.error('[customer/offers] Supabase error:', error.message, '| now:', now);
+    return NextResponse.json({ offers: [], error: error.message });
   }
 
+  console.log('[customer/offers] now:', now, '| found:', data?.length ?? 0);
   return NextResponse.json({ offers: data ?? [] });
 }
