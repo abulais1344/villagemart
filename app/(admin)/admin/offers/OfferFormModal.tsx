@@ -35,17 +35,23 @@ type FormState = {
   is_active: boolean;
 };
 
-const EMPTY: FormState = {
-  title: '', description: '',
-  type: 'platform', discount_type: 'flat',
-  discount_value: '', min_order_amount: '',
-  max_discount: '', first_order_only: false,
-  starts_at: '', ends_at: '', is_active: true,
-};
+function emptyForm(): FormState {
+  return {
+    title: '', description: '',
+    type: 'platform', discount_type: 'flat',
+    discount_value: '', min_order_amount: '',
+    max_discount: '', first_order_only: false,
+    starts_at: today(), ends_at: '', is_active: true,
+  };
+}
 
-function toInputDt(iso?: string | null) {
+function toInputDate(iso?: string | null) {
   if (!iso) return '';
-  return iso.slice(0, 16);
+  return iso.slice(0, 10); // "YYYY-MM-DD"
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 interface Props {
@@ -56,7 +62,7 @@ interface Props {
 }
 
 export function OfferFormModal({ open, editing, onClose, onSaved }: Props) {
-  const [form, setForm] = useState<FormState>(EMPTY);
+  const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -70,12 +76,12 @@ export function OfferFormModal({ open, editing, onClose, onSaved }: Props) {
         min_order_amount:  String(editing.min_order_amount),
         max_discount:      editing.max_discount != null ? String(editing.max_discount) : '',
         first_order_only:  editing.first_order_only ?? false,
-        starts_at:         toInputDt(editing.starts_at),
-        ends_at:           toInputDt(editing.ends_at),
+        starts_at:         toInputDate(editing.starts_at),
+        ends_at:           toInputDate(editing.ends_at),
         is_active:         editing.is_active,
       });
     } else {
-      setForm(EMPTY);
+      setForm(emptyForm());
     }
   }, [editing, open]);
 
@@ -100,8 +106,8 @@ export function OfferFormModal({ open, editing, onClose, onSaved }: Props) {
       min_order_amount: Number(form.min_order_amount) || 0,
       max_discount:     form.max_discount ? Number(form.max_discount) : null,
       first_order_only: form.first_order_only,
-      starts_at:        form.starts_at || null,
-      ends_at:          form.ends_at || null,
+      starts_at:        form.starts_at ? `${form.starts_at}T00:00:00` : null,
+      ends_at:          form.ends_at   ? `${form.ends_at}T23:59:59`   : null,
       is_active:        form.is_active,
     };
 
@@ -197,7 +203,7 @@ export function OfferFormModal({ open, editing, onClose, onSaved }: Props) {
           <div>
             <label className={labelClass}>Starts At</label>
             <input
-              type="datetime-local"
+              type="date"
               value={form.starts_at}
               onChange={f('starts_at')}
               className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
@@ -206,7 +212,7 @@ export function OfferFormModal({ open, editing, onClose, onSaved }: Props) {
           <div>
             <label className={labelClass}>Ends At</label>
             <input
-              type="datetime-local"
+              type="date"
               value={form.ends_at}
               onChange={f('ends_at')}
               className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
