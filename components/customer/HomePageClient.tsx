@@ -53,9 +53,9 @@ function deliveryRange(avg: number): string {
 }
 
 const SEARCH_PLACEHOLDERS = [
-  'दूध, ब्रेड, अंडी शोधा...',
-  'Search groceries, dairy, snacks...',
-  'Search milk, bread, eggs...',
+  'रेस्टॉरंट, जेवण शोधा...',
+  'Search restaurants, dishes...',
+  'Search biryani, thali, snacks...',
 ];
 
 export function HomePageClient({
