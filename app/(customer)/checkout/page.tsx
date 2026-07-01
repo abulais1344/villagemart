@@ -47,6 +47,8 @@ export default function CheckoutPage() {
   const [zoneOk, setZoneOk] = useState<boolean | null>(null);
   const [restaurantClosed, setRestaurantClosed] = useState(false);
   const [showAddressManager, setShowAddressManager] = useState(false);
+  const [appliedOffer, setAppliedOffer] = useState<{ id: string; title: string; discount_type: string; discount_value: number; max_discount: number | null } | null>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
   const paymentSucceeded = useRef(false);
 
   function handleAddressChange(addr: AddressData) {
@@ -76,6 +78,23 @@ export default function CheckoutPage() {
       setZoneOk(isWithinDeliveryZone(c.lat, c.lng));
     }
     setMounted(true);
+
+    // Apply best available offer
+    const subtotal = items.reduce((s, { product, quantity }) => s + product.selling_price * quantity, 0);
+    fetch('/api/customer/apply-offer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customer_id: c.phone, cart_subtotal: subtotal }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.offer && data.discount_amount > 0) {
+          setAppliedOffer(data.offer);
+          setDiscountAmount(data.discount_amount);
+        }
+      })
+      .catch(() => {});
+
     const merchantId = items[0]?.product.merchant_id;
     if (merchantId) {
       fetch(`/api/customer/merchant-status?id=${merchantId}`)
@@ -91,7 +110,7 @@ export default function CheckoutPage() {
 
   const subtotal = getSubtotal();
   const deliveryCharge = subtotal >= 199 ? 0 : 20;
-  const total = subtotal + deliveryCharge;
+  const total = subtotal + deliveryCharge - discountAmount;
 
   async function handlePayment() {
     if (!customer) return;
@@ -150,6 +169,8 @@ export default function CheckoutPage() {
                 customer,
                 subtotal,
                 deliveryCharge,
+                discountAmount,
+                offerId: appliedOffer?.id ?? null,
                 total,
                 merchantId: items[0]?.product.merchant_id ?? null,
               },
@@ -231,6 +252,17 @@ export default function CheckoutPage() {
           )}
         </div>
 
+        {/* Offer banner */}
+        {appliedOffer && discountAmount > 0 && (
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center gap-2">
+            <span className="text-lg">🎉</span>
+            <div>
+              <p className="text-sm font-semibold text-green-700">₹{discountAmount} OFF applied!</p>
+              <p className="text-xs text-green-600">{appliedOffer.title}</p>
+            </div>
+          </div>
+        )}
+
         {/* Bill details */}
         <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
           <h2 className="text-sm font-semibold text-[#1A1A1A] mb-3">Bill Details</h2>
@@ -245,6 +277,12 @@ export default function CheckoutPage() {
               : <span>{formatCurrency(deliveryCharge)}</span>
             }
           </div>
+          {discountAmount > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-green-600">Discount</span>
+              <span className="text-green-600 font-medium">− {formatCurrency(discountAmount)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-base border-t border-gray-100 pt-2">
             <span>Total</span>
             <span className="text-[#7C3AED]">{formatCurrency(total)}</span>

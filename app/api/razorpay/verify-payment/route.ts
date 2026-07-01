@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         delivery_charge: orderData.deliveryCharge ?? 0,
         total_amount: orderData.total,
         tax_amount: 0,
-        discount_amount: 0,
+        discount_amount: orderData.discountAmount ?? 0,
         commission_amount: orderData.total * 0.10,
         payment_status: 'paid',
         razorpay_order_id,
