@@ -106,8 +106,8 @@ export function OfferFormModal({ open, editing, onClose, onSaved }: Props) {
       min_order_amount: Number(form.min_order_amount) || 0,
       max_discount:     form.max_discount ? Number(form.max_discount) : null,
       first_order_only: form.first_order_only,
-      starts_at:        form.starts_at ? `${form.starts_at}T00:00:00` : null,
-      ends_at:          form.ends_at   ? `${form.ends_at}T23:59:59`   : null,
+      starts_at:        form.starts_at ? `${form.starts_at}T18:30:00Z` : null,
+      ends_at:          form.ends_at   ? `${form.ends_at}T18:29:59Z`  : null,
       is_active:        form.is_active,
     };
 
