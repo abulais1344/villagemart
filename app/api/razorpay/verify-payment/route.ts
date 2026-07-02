@@ -39,40 +39,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 });
     }
 
+    console.log('[verify-payment] orderData:', JSON.stringify(orderData));
+
+    const insertPayload = {
+      order_number: `VM${Date.now()}`,
+      customer_id: orderData.customerId || null,
+      customer_name: orderData.customer.name,
+      customer_phone: orderData.customer.phone,
+      merchant_id: orderData.merchantId || null,
+      delivery_address: {
+        name: orderData.customer.name,
+        phone: orderData.customer.phone,
+        address: orderData.customer.address,
+        landmark: orderData.customer.landmark || '',
+        area: orderData.customer.area,
+      },
+      subtotal: orderData.subtotal,
+      delivery_charge: orderData.deliveryCharge ?? 0,
+      total_amount: orderData.total,
+      tax_amount: 0,
+      discount_amount: orderData.discountAmount ?? 0,
+      commission_amount: orderData.total * 0.10,
+      payment_status: 'paid',
+      razorpay_order_id,
+      razorpay_payment_id,
+      status: 'pending',
+      delivery_type: 'delivery',
+      notes: orderData.customer.landmark || '',
+    };
+
+    console.log('[verify-payment] inserting order:', JSON.stringify(insertPayload));
+
     // Save order
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert({
-        order_number: `VM${Date.now()}`,
-        customer_id: orderData.customerId || null,
-        customer_name: orderData.customer.name,
-        customer_phone: orderData.customer.phone,
-        merchant_id: orderData.merchantId || null,
-        delivery_address: {
-          name: orderData.customer.name,
-          phone: orderData.customer.phone,
-          address: orderData.customer.address,
-          landmark: orderData.customer.landmark || '',
-          area: orderData.customer.area,
-        },
-        subtotal: orderData.subtotal,
-        delivery_charge: orderData.deliveryCharge ?? 0,
-        total_amount: orderData.total,
-        tax_amount: 0,
-        discount_amount: orderData.discountAmount ?? 0,
-        commission_amount: orderData.total * 0.10,
-        payment_status: 'paid',
-        razorpay_order_id,
-        razorpay_payment_id,
-        status: 'pending',
-        delivery_type: 'delivery',
-        notes: orderData.customer.landmark || '',
-      })
+      .insert(insertPayload)
       .select()
       .single();
 
-    if (orderError || !order) {
-      console.error('Order insert error:', orderError);
+    if (orderError) {
+      console.error('[verify-payment] order insert error:', orderError);
+      return NextResponse.json({ error: orderError.message, details: orderError }, { status: 500 });
+    }
+    if (!order) {
+      console.error('[verify-payment] order insert returned no data');
       return NextResponse.json({ error: 'Failed to save order' }, { status: 500 });
     }
 

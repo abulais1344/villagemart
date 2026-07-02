@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ShieldCheck, MapPin } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, MapPin, Lock } from 'lucide-react';
+import Image from 'next/image';
 import { useCartStore } from '@/store/cartStore';
 import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
 import { formatCurrency } from '@/lib/utils/format';
@@ -47,7 +48,7 @@ export default function CheckoutPage() {
   const [zoneOk, setZoneOk] = useState<boolean | null>(null);
   const [restaurantClosed, setRestaurantClosed] = useState(false);
   const [showAddressManager, setShowAddressManager] = useState(false);
-  const [appliedOffer, setAppliedOffer] = useState<{ id: string; title: string; discount_type: string; discount_value: number; max_discount: number | null } | null>(null);
+  const [appliedOffer, setAppliedOffer] = useState<{ id: string; title: string; discount_type: string; discount_value: number; max_discount: number | null; ends_at?: string | null } | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
   const paymentSucceeded = useRef(false);
 
@@ -212,11 +213,39 @@ export default function CheckoutPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {/* Delivery badge */}
+        <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-2">
+          <span className="text-base">🛵</span>
+          <p className="text-sm font-semibold text-green-700">Estimated delivery: 30–45 min</p>
+        </div>
+
         {/* Order items */}
         <div className="bg-white rounded-2xl border border-gray-100 p-4">
-          <h2 className="text-sm font-semibold text-[#1A1A1A] mb-3">
-            Order Summary ({items.length} {items.length === 1 ? 'item' : 'items'})
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-[#1A1A1A]">
+              Order Summary ({items.length} {items.length === 1 ? 'item' : 'items'})
+            </h2>
+            {/* Item thumbnails */}
+            <div className="flex items-center">
+              {items.slice(0, 3).map(({ product }, i) => (
+                <div
+                  key={product.id}
+                  className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white overflow-hidden shrink-0"
+                  style={{ marginLeft: i === 0 ? 0 : -8 }}
+                >
+                  {product.images?.[0]
+                    ? <Image src={product.images[0]} alt={product.name} width={28} height={28} className="object-cover w-full h-full" />
+                    : <div className="w-full h-full flex items-center justify-center text-[10px]">🛒</div>
+                  }
+                </div>
+              ))}
+              {items.length > 3 && (
+                <div className="w-7 h-7 rounded-full bg-purple-100 border-2 border-white flex items-center justify-center shrink-0" style={{ marginLeft: -8 }}>
+                  <span className="text-[9px] font-bold text-purple-600">+{items.length - 3}</span>
+                </div>
+              )}
+            </div>
+          </div>
           <div className="space-y-2">
             {items.map(({ product, quantity }) => (
               <div key={product.id} className="flex justify-between py-2 border-b border-gray-50 last:border-0">
@@ -256,12 +285,22 @@ export default function CheckoutPage() {
 
         {/* Offer banner */}
         {appliedOffer && discountAmount > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center gap-2">
-            <span className="text-lg">🎉</span>
-            <div>
-              <p className="text-sm font-semibold text-green-700">₹{discountAmount} OFF applied!</p>
-              <p className="text-xs text-green-600">{appliedOffer.title}</p>
+          <div className="bg-green-50 border-2 border-green-200 rounded-2xl px-4 py-3.5 flex items-start gap-3">
+            <span className="text-2xl mt-0.5">🎁</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-green-700">
+                {appliedOffer.title}
+              </p>
+              <p className="text-base font-bold text-green-600 mt-0.5">
+                You save {formatCurrency(discountAmount)} on this order!
+              </p>
+              {appliedOffer.ends_at && (
+                <p className="text-xs text-green-500 mt-0.5">
+                  Valid till {new Date(appliedOffer.ends_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+              )}
             </div>
+            <span className="text-green-500 font-bold text-sm shrink-0 mt-0.5">✓</span>
           </div>
         )}
 
@@ -291,36 +330,6 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        {/* Delivery zone status */}
-        {zoneOk === false && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-            <p className="text-sm font-semibold text-red-600">⚠️ Delivery not available</p>
-            <p className="text-xs text-red-500 mt-0.5 leading-snug">
-              We currently deliver only within 10 km of Ardhapur. Please update your delivery location.
-            </p>
-            <button
-              onClick={() => setShowAddressManager(true)}
-              className="text-xs text-purple-600 font-semibold mt-1.5 inline-block"
-            >
-              Change location →
-            </button>
-          </div>
-        )}
-        {zoneOk === null && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-            <p className="text-sm font-semibold text-amber-700">📍 Location not pinned</p>
-            <p className="text-xs text-amber-600 mt-0.5 leading-snug">
-              Set your exact delivery location to ensure we can reach you.
-            </p>
-            <button
-              onClick={() => setShowAddressManager(true)}
-              className="text-xs text-purple-600 font-semibold mt-1.5 inline-block"
-            >
-              Set location →
-            </button>
-          </div>
-        )}
-
         {/* Restaurant closed banner */}
         {restaurantClosed && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-3">
@@ -329,19 +338,6 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        {/* Security note */}
-        <div className="flex items-center gap-2 text-xs text-[#9CA3AF]">
-          <ShieldCheck className="w-4 h-4 text-green-500 shrink-0" />
-          100% secure payment via Razorpay
-        </div>
-
-        <div className="flex items-center gap-2 mt-3 bg-green-50 border border-green-100 rounded-xl px-4 py-3">
-          <span className="text-lg">🛵</span>
-          <div>
-            <p className="text-sm font-semibold text-green-700">Estimated delivery: 30-45 min</p>
-            <p className="text-xs text-green-600">Order will be delivered to your address</p>
-          </div>
-        </div>
       </div>
 
       <AddressManager
@@ -351,14 +347,43 @@ export default function CheckoutPage() {
       />
 
       {/* Fixed pay button */}
-      <div className="fixed bottom-16 left-0 right-0 p-4 bg-white border-t border-gray-100">
-        <button
-          onClick={handlePayment}
-          disabled={loading || zoneOk === false || restaurantClosed}
-          className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-60 text-white rounded-2xl py-4 font-semibold text-base transition-colors"
-        >
-          {loading ? 'Processing…' : `Pay ${formatCurrency(total)} via UPI / Card`}
-        </button>
+      <div className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-100">
+        {zoneOk === false && (
+          <div className="px-4 pt-3 flex items-start gap-2 bg-red-50 border-b border-red-100">
+            <span className="text-sm">⚠️</span>
+            <div className="pb-2">
+              <p className="text-xs font-semibold text-red-600">Delivery not available at your location</p>
+              <button onClick={() => setShowAddressManager(true)} className="text-xs text-purple-600 font-semibold">
+                Change location →
+              </button>
+            </div>
+          </div>
+        )}
+        {zoneOk === null && (
+          <div className="px-4 pt-3 flex items-start gap-2 bg-amber-50 border-b border-amber-200">
+            <span className="text-sm">📍</span>
+            <div className="pb-2">
+              <p className="text-xs font-semibold text-amber-700">Location not pinned — we might miss you!</p>
+              <button onClick={() => setShowAddressManager(true)} className="text-xs text-purple-600 font-semibold">
+                Set exact location →
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="p-4">
+          <button
+            onClick={handlePayment}
+            disabled={loading || zoneOk === false || restaurantClosed}
+            className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-60 text-white rounded-2xl py-4 font-semibold text-base transition-colors flex items-center justify-center gap-2"
+          >
+            <Lock className="w-4 h-4 shrink-0" />
+            {loading ? 'Processing…' : `Pay ${formatCurrency(total)} via UPI / Card`}
+          </button>
+          <div className="flex items-center justify-center gap-1 mt-2">
+            <ShieldCheck className="w-3.5 h-3.5 text-green-500 shrink-0" />
+            <span className="text-xs text-[#9CA3AF]">Secured by Razorpay</span>
+          </div>
+        </div>
       </div>
     </div>
   );
