@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { IndianRupee, ShoppingBag, TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
+import { IndianRupee, ShoppingBag, TrendingUp, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { StatsGrid } from '@/components/admin/StatsGrid';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -43,10 +43,23 @@ interface MerchantRow {
   netPayable: number;
 }
 
+interface DailyOrderDetail {
+  id: string;
+  order_number: string | null;
+  created_at: string;
+  customer_name: string;
+  customer_phone: string;
+  merchant_name: string | null;
+  item_count: number;
+  subtotal: number;
+  discount_amount: number;
+  commission_amount: number;
+  total_amount: number;
+}
+
 // ── helpers ────────────────────────────────────────────────────────────────
 function toIST(iso: string) {
   const d = new Date(iso);
-  // Offset by +5:30
   const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
   return ist.toISOString().slice(0, 10);
 }
@@ -57,20 +70,11 @@ function fmtDate(ymd: string) {
   return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 }
 
-// ── section toggle ─────────────────────────────────────────────────────────
-function SectionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
-  return (
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center justify-between py-2"
-    >
-      <h2 className="text-sm font-semibold text-[#6B7280] uppercase tracking-wide">{title}</h2>
-      {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
-    </button>
-  );
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
-// ── table wrapper ──────────────────────────────────────────────────────────
+// ── shared table primitives ────────────────────────────────────────────────
 function ScrollTable({ children }: { children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-100 bg-white">
@@ -99,6 +103,100 @@ function Td({ children, right, green, red, purple }: {
   );
 }
 
+// ── section toggle ─────────────────────────────────────────────────────────
+function SectionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
+  return (
+    <button onClick={onToggle} className="w-full flex items-center justify-between py-2">
+      <h2 className="text-sm font-semibold text-[#6B7280] uppercase tracking-wide">{title}</h2>
+      {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+    </button>
+  );
+}
+
+// ── day drill-down table ───────────────────────────────────────────────────
+function DayOrdersTable({ orders }: { orders: DailyOrderDetail[] }) {
+  const totals = orders.reduce(
+    (acc, o) => ({
+      subtotal: acc.subtotal + o.subtotal,
+      discount: acc.discount + o.discount_amount,
+      commission: acc.commission + o.commission_amount,
+      paid: acc.paid + o.total_amount,
+      merchantGets: acc.merchantGets + (o.subtotal - o.commission_amount),
+      zuprEarns: acc.zuprEarns + (o.commission_amount - o.discount_amount),
+    }),
+    { subtotal: 0, discount: 0, commission: 0, paid: 0, merchantGets: 0, zuprEarns: 0 }
+  );
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-[11px]">
+        <thead>
+          <tr className="bg-purple-50">
+            <th className="px-3 py-2 text-left font-semibold text-purple-700 whitespace-nowrap">Order #</th>
+            <th className="px-3 py-2 text-left font-semibold text-purple-700 whitespace-nowrap">Merchant</th>
+            <th className="px-3 py-2 text-left font-semibold text-purple-700 whitespace-nowrap">Customer</th>
+            <th className="px-3 py-2 text-center font-semibold text-purple-700 whitespace-nowrap">Items</th>
+            <th className="px-3 py-2 text-right font-semibold text-purple-700 whitespace-nowrap">Subtotal</th>
+            <th className="px-3 py-2 text-right font-semibold text-purple-700 whitespace-nowrap">Discount</th>
+            <th className="px-3 py-2 text-right font-semibold text-purple-700 whitespace-nowrap">Commission</th>
+            <th className="px-3 py-2 text-right font-semibold text-purple-700 whitespace-nowrap">Customer Paid</th>
+            <th className="px-3 py-2 text-right font-semibold text-purple-700 whitespace-nowrap">Merchant Gets</th>
+            <th className="px-3 py-2 text-right font-semibold text-purple-700 whitespace-nowrap">Zupr Earns</th>
+            <th className="px-3 py-2 text-left font-semibold text-purple-700 whitespace-nowrap">Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map(o => {
+            const disc = o.discount_amount;
+            const comm = o.commission_amount;
+            const merchantGets = o.subtotal - comm;
+            const zuprEarns = comm - disc;
+            return (
+              <tr key={o.id} className="border-t border-purple-50 hover:bg-purple-50/40">
+                <td className="px-3 py-2 font-mono text-[10px] text-gray-400">
+                  #{(o.order_number ?? o.id).slice(-6).toUpperCase()}
+                </td>
+                <td className="px-3 py-2 text-[#1A1A1A] max-w-[100px] truncate">{o.merchant_name ?? '—'}</td>
+                <td className="px-3 py-2">
+                  <p className="text-[#1A1A1A]">{o.customer_name}</p>
+                  <p className="text-gray-400">{o.customer_phone}</p>
+                </td>
+                <td className="px-3 py-2 text-center text-[#6B7280]">{o.item_count || '—'}</td>
+                <td className="px-3 py-2 text-right text-[#1A1A1A]">{formatCurrency(o.subtotal)}</td>
+                <td className={`px-3 py-2 text-right ${disc > 0 ? 'text-red-500' : 'text-gray-300'}`}>
+                  {disc > 0 ? `−${formatCurrency(disc)}` : '—'}
+                </td>
+                <td className="px-3 py-2 text-right text-green-600">{formatCurrency(comm)}</td>
+                <td className="px-3 py-2 text-right text-[#1A1A1A]">{formatCurrency(o.total_amount)}</td>
+                <td className="px-3 py-2 text-right text-purple-600 font-semibold">{formatCurrency(merchantGets)}</td>
+                <td className={`px-3 py-2 text-right font-semibold ${zuprEarns >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                  {zuprEarns >= 0 ? formatCurrency(zuprEarns) : `−${formatCurrency(Math.abs(zuprEarns))}`}
+                </td>
+                <td className="px-3 py-2 text-gray-400">{fmtTime(o.created_at)}</td>
+              </tr>
+            );
+          })}
+          {/* Day total row */}
+          <tr className="border-t-2 border-purple-200 bg-purple-100/60 font-bold text-[11px]">
+            <td className="px-3 py-2 text-purple-700" colSpan={4}>Day Total</td>
+            <td className="px-3 py-2 text-right text-purple-700">{formatCurrency(totals.subtotal)}</td>
+            <td className={`px-3 py-2 text-right ${totals.discount > 0 ? 'text-red-500' : 'text-gray-300'}`}>
+              {totals.discount > 0 ? `−${formatCurrency(totals.discount)}` : '—'}
+            </td>
+            <td className="px-3 py-2 text-right text-green-600">{formatCurrency(totals.commission)}</td>
+            <td className="px-3 py-2 text-right text-purple-700">{formatCurrency(totals.paid)}</td>
+            <td className="px-3 py-2 text-right text-purple-700">{formatCurrency(totals.merchantGets)}</td>
+            <td className={`px-3 py-2 text-right ${totals.zuprEarns >= 0 ? 'text-green-700' : 'text-red-500'}`}>
+              {totals.zuprEarns >= 0 ? formatCurrency(totals.zuprEarns) : `−${formatCurrency(Math.abs(totals.zuprEarns))}`}
+            </td>
+            <td className="px-3 py-2" />
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── main page ──────────────────────────────────────────────────────────────
 export default function AdminAnalyticsPage() {
   const [allOrders, setAllOrders] = useState<AdminOrder[]>([]);
@@ -107,6 +205,11 @@ export default function AdminAnalyticsPage() {
   const [showMerchant, setShowMerchant] = useState(true);
   const [showOrderList, setShowOrderList] = useState(false);
   const [discountedOnly, setDiscountedOnly] = useState(false);
+
+  // Daily row expansion
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [expandedOrders, setExpandedOrders] = useState<DailyOrderDetail[]>([]);
+  const [loadingDate, setLoadingDate] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/orders')
@@ -117,6 +220,26 @@ export default function AdminAnalyticsPage() {
       })
       .catch(() => setLoading(false));
   }, []);
+
+  async function handleDayClick(date: string) {
+    if (expandedDate === date) {
+      setExpandedDate(null);
+      setExpandedOrders([]);
+      return;
+    }
+    setExpandedDate(date);
+    setExpandedOrders([]);
+    setLoadingDate(date);
+    try {
+      const res = await fetch(`/api/admin/analytics/daily-orders?date=${date}`);
+      const json = await res.json();
+      setExpandedOrders(json.orders ?? []);
+    } catch {
+      setExpandedOrders([]);
+    } finally {
+      setLoadingDate(null);
+    }
+  }
 
   // ── top-level stats ────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -138,7 +261,7 @@ export default function AdminAnalyticsPage() {
     };
   }, [allOrders]);
 
-  // ── daily rows — last 30 days ──────────────────────────────────────────
+  // ── daily rows ─────────────────────────────────────────────────────────
   const dailyRows = useMemo<DailyRow[]>(() => {
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
     const valid = allOrders.filter(o => o.status !== 'cancelled' && new Date(o.created_at) >= cutoff);
@@ -186,7 +309,7 @@ export default function AdminAnalyticsPage() {
     return Object.values(byMerchant).sort((a, b) => b.netPayable - a.netPayable);
   }, [allOrders]);
 
-  // ── orders list (all or discounted) ───────────────────────────────────
+  // ── orders list ────────────────────────────────────────────────────────
   const orderListRows = useMemo(() => {
     const valid = allOrders.filter(o => o.status !== 'cancelled');
     const filtered = discountedOnly ? valid.filter(o => (o.discount_amount ?? 0) > 0) : valid;
@@ -208,7 +331,7 @@ export default function AdminAnalyticsPage() {
       <AdminHeader title="Analytics" />
       <main className="px-4 py-4 space-y-6 pb-16">
 
-        {/* ── Top stats (existing) ────────────────────────────────────── */}
+        {/* ── Top stats ───────────────────────────────────────────────── */}
         <section>
           <h2 className="text-sm font-semibold text-[#6B7280] mb-3 uppercase tracking-wide">This Week</h2>
           <StatsGrid stats={[
@@ -232,7 +355,7 @@ export default function AdminAnalyticsPage() {
           ]} />
         </section>
 
-        {/* ── Daily breakdown ─────────────────────────────────────────── */}
+        {/* ── Daily breakdown with expandable rows ─────────────────────── */}
         <section>
           <SectionHeader title="Daily Orders — Last 30 Days" open={showDaily} onToggle={() => setShowDaily(v => !v)} />
           {showDaily && (
@@ -246,25 +369,71 @@ export default function AdminAnalyticsPage() {
                     <Th right>Orders</Th>
                     <Th right>Customer Paid</Th>
                     <Th right>Discount</Th>
-                    <Th right>Commission</Th>
+                    <Th right>
+                      <span>Commission</span>
+                      <span className="block text-[9px] font-normal text-gray-400 normal-case">▼ click row to expand</span>
+                    </Th>
                     <Th right>Zupr P&L</Th>
                     <Th right>Merchant Payout</Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {dailyRows.map(row => (
-                    <tr key={row.date} className="hover:bg-gray-50">
-                      <Td>{fmtDate(row.date)}</Td>
-                      <Td right>{row.orders}</Td>
-                      <Td right>{formatCurrency(row.customerPaid)}</Td>
-                      <Td right red={row.discount > 0}>{row.discount > 0 ? `−${formatCurrency(row.discount)}` : '—'}</Td>
-                      <Td right green>{formatCurrency(row.commission)}</Td>
-                      <Td right green={row.zuprPnl >= 0} red={row.zuprPnl < 0}>
-                        {row.zuprPnl >= 0 ? formatCurrency(row.zuprPnl) : `−${formatCurrency(Math.abs(row.zuprPnl))}`}
-                      </Td>
-                      <Td right>{formatCurrency(row.merchantPayout)}</Td>
-                    </tr>
-                  ))}
+                  {dailyRows.map(row => {
+                    const isExpanded = expandedDate === row.date;
+                    const isLoading = loadingDate === row.date;
+                    return (
+                      <>
+                        <tr
+                          key={row.date}
+                          onClick={() => handleDayClick(row.date)}
+                          className={`cursor-pointer transition-colors ${isExpanded ? 'bg-purple-50' : 'hover:bg-gray-50'}`}
+                        >
+                          <Td>
+                            <span className={`font-medium ${isExpanded ? 'text-purple-700' : ''}`}>
+                              {fmtDate(row.date)}
+                            </span>
+                          </Td>
+                          <Td right>{row.orders}</Td>
+                          <Td right>{formatCurrency(row.customerPaid)}</Td>
+                          <Td right red={row.discount > 0}>{row.discount > 0 ? `−${formatCurrency(row.discount)}` : '—'}</Td>
+                          <Td right green>
+                            <span className="flex items-center justify-end gap-1">
+                              {isLoading
+                                ? <Loader2 className="w-3 h-3 animate-spin text-purple-500" />
+                                : <span className="text-[9px] text-purple-400">{isExpanded ? '▲' : '▼'}</span>
+                              }
+                              {formatCurrency(row.commission)}
+                            </span>
+                          </Td>
+                          <Td right green={row.zuprPnl >= 0} red={row.zuprPnl < 0}>
+                            {row.zuprPnl >= 0 ? formatCurrency(row.zuprPnl) : `−${formatCurrency(Math.abs(row.zuprPnl))}`}
+                          </Td>
+                          <Td right>{formatCurrency(row.merchantPayout)}</Td>
+                        </tr>
+
+                        {/* Expansion row */}
+                        {isExpanded && (
+                          <tr key={`${row.date}-detail`}>
+                            <td colSpan={7} className="p-0 border-t border-purple-200">
+                              <div className="bg-purple-50/30 border-b border-purple-100">
+                                {isLoading ? (
+                                  <div className="flex items-center justify-center py-6 gap-2 text-purple-500">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span className="text-xs">Loading orders for {fmtDate(row.date)}…</span>
+                                  </div>
+                                ) : expandedOrders.length === 0 ? (
+                                  <p className="text-xs text-gray-400 text-center py-4">No paid orders found for this date</p>
+                                ) : (
+                                  <DayOrdersTable orders={expandedOrders} />
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })}
+
                   {/* Totals row */}
                   <tr className="bg-purple-50 font-semibold">
                     <Td><span className="font-bold text-purple-700">Total</span></Td>
@@ -288,6 +457,7 @@ export default function AdminAnalyticsPage() {
             <p className="text-[11px] text-gray-400 mt-2 leading-snug">
               <span className="font-semibold">Zupr P&L</span> = Commission − Discount absorbed.
               {' '}<span className="font-semibold">Merchant Payout</span> = Subtotal − Commission.
+              {' '}Click any row to see individual orders for that day.
             </p>
           )}
         </section>
@@ -338,7 +508,6 @@ export default function AdminAnalyticsPage() {
           <SectionHeader title="Orders Detail" open={showOrderList} onToggle={() => setShowOrderList(v => !v)} />
           {showOrderList && (
             <>
-              {/* Toggle filter */}
               <div className="flex items-center gap-2 mb-3">
                 <button
                   onClick={() => setDiscountedOnly(false)}
