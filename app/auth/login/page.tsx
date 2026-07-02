@@ -134,6 +134,7 @@ export default function LoginPage() {
       // Existing user — save to localStorage and go home
       const u = data.user;
       localStorage.setItem('vm_customer', JSON.stringify({
+        id:                   u.id,
         name:                 u.name,
         phone:                u.phone,
         address:              u.address || '',
@@ -189,7 +190,8 @@ export default function LoginPage() {
     };
     const uid = firebaseUidRef.current;
     const payload = {
-      uid,
+      uid,  // sent to API as the DB id
+      id: uid, // stored in localStorage so Customer.id is populated
       phone, name, address, landmark, area,
       addresses:            [firstAddress],
       active_address_index: 0,

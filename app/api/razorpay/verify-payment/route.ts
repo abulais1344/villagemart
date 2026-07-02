@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
       .from('orders')
       .insert({
         order_number: `VM${Date.now()}`,
+        customer_id: orderData.customerId || null,
         customer_name: orderData.customer.name,
         customer_phone: orderData.customer.phone,
         merchant_id: orderData.merchantId || null,

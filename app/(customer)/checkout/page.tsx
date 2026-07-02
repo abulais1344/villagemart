@@ -167,10 +167,12 @@ export default function CheckoutPage() {
                   quantity,
                 })),
                 customer,
+                customerId: customer.id ?? null,
                 subtotal,
                 deliveryCharge,
                 discountAmount,
                 offerId: appliedOffer?.id ?? null,
+                offerTitle: appliedOffer?.title ?? null,
                 total,
                 merchantId: items[0]?.product.merchant_id ?? null,
               },
@@ -277,10 +279,10 @@ export default function CheckoutPage() {
               : <span>{formatCurrency(deliveryCharge)}</span>
             }
           </div>
-          {discountAmount > 0 && (
+          {discountAmount > 0 && appliedOffer && (
             <div className="flex justify-between text-sm">
-              <span className="text-green-600">Discount</span>
-              <span className="text-green-600 font-medium">− {formatCurrency(discountAmount)}</span>
+              <span className="text-green-600 truncate mr-2">Discount ({appliedOffer.title})</span>
+              <span className="text-green-600 font-medium shrink-0">− {formatCurrency(discountAmount)}</span>
             </div>
           )}
           <div className="flex justify-between font-bold text-base border-t border-gray-100 pt-2">
