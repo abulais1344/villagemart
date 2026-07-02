@@ -24,7 +24,10 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabase
     .from('vm_users')
-    .insert({ id: uid, phone, name, address, landmark, area, addresses, active_address_index });
+    .upsert(
+      { id: uid, phone, name, address, landmark, area, addresses, active_address_index },
+      { onConflict: 'id' }
+    );
 
   if (error) {
     console.error('[upsert-profile] Supabase error:', error.message, '| code:', error.code);

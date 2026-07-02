@@ -25,7 +25,7 @@ export default function LoginPage() {
 
   const [step, setStep]               = useState<Step>(0);
   const [phone, setPhone]             = useState('');
-  const [firebaseUid, setFirebaseUid] = useState('');
+  const firebaseUidRef                = useRef<string | null>(null);
   const [otp, setOtp]                 = useState('');
   const [name, setName]               = useState('');
   const [address, setAddress]         = useState('');
@@ -126,7 +126,7 @@ export default function LoginPage() {
 
       if (data.isNewUser) {
         setPhone(data.phone);
-        setFirebaseUid(credential.user.uid);
+        firebaseUidRef.current = credential.user.uid;
         setStep(2);
         return;
       }
@@ -187,8 +187,9 @@ export default function LoginPage() {
       lng:     null,
       pincode: null,
     };
+    const uid = firebaseUidRef.current;
     const payload = {
-      uid: firebaseUid,
+      uid,
       phone, name, address, landmark, area,
       addresses:            [firstAddress],
       active_address_index: 0,
