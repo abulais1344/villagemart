@@ -8,7 +8,9 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { phone, name, address, landmark, area, addresses, active_address_index } = body;
+  console.log('[upsert-profile] body:', JSON.stringify(body));
+
+  const { uid, phone, name, address, landmark, area, addresses, active_address_index } = body;
 
   if (!phone || !/^\d{10}$/.test(phone)) {
     return NextResponse.json({ success: false, error: 'Invalid phone number' }, { status: 400 });
@@ -16,15 +18,16 @@ export async function POST(req: NextRequest) {
   if (!name) {
     return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 });
   }
-
-  const payload = { phone, name, address, landmark, area, addresses, active_address_index };
+  if (!uid) {
+    return NextResponse.json({ success: false, error: 'Missing user ID' }, { status: 400 });
+  }
 
   const { error } = await supabase
     .from('vm_users')
-    .upsert(payload, { onConflict: 'phone' });
+    .insert({ id: uid, phone, name, address, landmark, area, addresses, active_address_index });
 
   if (error) {
-    console.error('[upsert-profile] Supabase error:', error);
+    console.error('[upsert-profile] Supabase error:', error.message, '| code:', error.code);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
