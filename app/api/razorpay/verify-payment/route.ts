@@ -41,6 +41,63 @@ export async function POST(request: NextRequest) {
 
     console.log('[verify-payment] orderData:', JSON.stringify(orderData));
 
+    // ── Resolve commission rate (priority: merchant rule → global rule → merchant record → 10%) ──
+    let commissionRatePct = 10;
+    const merchantId = orderData.merchantId || null;
+
+    if (merchantId) {
+      const { data: merchantRule } = await supabase
+        .from('commissions')
+        .select('rate')
+        .eq('type', 'merchant')
+        .eq('reference_id', merchantId)
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+
+      if (merchantRule) {
+        commissionRatePct = merchantRule.rate;
+      } else {
+        const { data: globalRule } = await supabase
+          .from('commissions')
+          .select('rate')
+          .eq('type', 'global')
+          .eq('is_active', true)
+          .limit(1)
+          .single();
+
+        if (globalRule) {
+          commissionRatePct = globalRule.rate;
+        } else {
+          const { data: merchantRecord } = await supabase
+            .from('merchants')
+            .select('commission_rate')
+            .eq('id', merchantId)
+            .single();
+
+          if (merchantRecord?.commission_rate != null) {
+            commissionRatePct = merchantRecord.commission_rate;
+          }
+        }
+      }
+    } else {
+      // No merchant — check global rule only
+      const { data: globalRule } = await supabase
+        .from('commissions')
+        .select('rate')
+        .eq('type', 'global')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+
+      if (globalRule) commissionRatePct = globalRule.rate;
+    }
+
+    const subtotalForCommission = orderData.subtotal ?? orderData.total;
+    const commission_amount = subtotalForCommission * (commissionRatePct / 100);
+
+    console.log('[verify-payment] commission rate:', commissionRatePct, 'on subtotal:', subtotalForCommission, '= commission:', commission_amount);
+
     const insertPayload = {
       order_number: `VM${Date.now()}`,
       customer_id: orderData.customerId || null,
@@ -59,7 +116,7 @@ export async function POST(request: NextRequest) {
       total_amount: orderData.total,
       tax_amount: 0,
       discount_amount: orderData.discountAmount ?? 0,
-      commission_amount: orderData.total * 0.10,
+      commission_amount,
       payment_status: 'paid',
       razorpay_order_id,
       razorpay_payment_id,
