@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Loader2, ShoppingBag, ChevronRight,
-  Clock, CheckCircle2, XCircle,
+  Clock, CheckCircle2, XCircle, Truck,
 } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils/format';
 
 // ── types ──────────────────────────────────────────────────────────────────
 interface Snapshot {
   name?: string;
+  image?: string;
   image_url?: string;
   unit?: string;
 }
@@ -27,6 +29,8 @@ interface OrderItem {
 interface Order {
   id: string;
   created_at: string;
+  subtotal: number;
+  discount_amount: number;
   total_amount: number;
   payment_status: string;
   status: string;
@@ -37,32 +41,104 @@ interface Order {
   items: OrderItem[];
 }
 
-// ── status badge config ────────────────────────────────────────────────────
-const STATUS: Record<string, { label: string; cls: string; Icon: typeof Clock }> = {
-  pending:   { label: 'Pending',    cls: 'text-amber-700 bg-amber-100',   Icon: Clock        },
-  confirmed: { label: 'Confirmed',  cls: 'text-blue-600 bg-blue-50',      Icon: CheckCircle2 },
-  preparing: { label: 'Preparing',  cls: 'text-orange-600 bg-orange-50',  Icon: Clock        },
-  ready:     { label: 'Ready',      cls: 'text-green-700 bg-green-100',   Icon: CheckCircle2 },
-  delivered: { label: 'Delivered',  cls: 'text-gray-500 bg-gray-100',     Icon: CheckCircle2 },
-  cancelled: { label: 'Cancelled',  cls: 'text-red-600 bg-red-100',       Icon: XCircle      },
+// ── status config ──────────────────────────────────────────────────────────
+const STATUS_CFG: Record<string, { label: string; bg: string; text: string; Icon: typeof Clock }> = {
+  pending:          { label: 'Pending',          bg: 'bg-orange-100',  text: 'text-orange-700', Icon: Clock        },
+  confirmed:        { label: 'Confirmed',         bg: 'bg-blue-50',     text: 'text-blue-600',   Icon: CheckCircle2 },
+  preparing:        { label: 'Preparing',         bg: 'bg-blue-100',    text: 'text-blue-700',   Icon: Clock        },
+  ready:            { label: 'Ready',             bg: 'bg-purple-100',  text: 'text-purple-700', Icon: CheckCircle2 },
+  out_for_delivery: { label: 'Out for Delivery',  bg: 'bg-indigo-100',  text: 'text-indigo-700', Icon: Truck        },
+  delivered:        { label: 'Delivered',         bg: 'bg-green-100',   text: 'text-green-700',  Icon: CheckCircle2 },
+  cancelled:        { label: 'Cancelled',         bg: 'bg-red-100',     text: 'text-red-600',    Icon: XCircle      },
 };
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS[status] ?? STATUS['pending'];
-  const { label, cls, Icon } = cfg;
+  const cfg = STATUS_CFG[status] ?? STATUS_CFG['pending'];
+  const { label, bg, text, Icon } = cfg;
   return (
-    <span className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${cls}`}>
-      <Icon size={14} />
+    <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${bg} ${text}`}>
+      <Icon size={12} />
       {label}
     </span>
   );
 }
 
+// ── order timeline ─────────────────────────────────────────────────────────
+const TIMELINE_STEPS = [
+  { key: 'pending',          label: 'Placed'         },
+  { key: 'confirmed',        label: 'Confirmed'      },
+  { key: 'preparing',        label: 'Preparing'      },
+  { key: 'out_for_delivery', label: 'On the Way'     },
+  { key: 'delivered',        label: 'Delivered'      },
+];
+
+const STEP_ORDER = TIMELINE_STEPS.map(s => s.key);
+
+function OrderTimeline({ status }: { status: string }) {
+  if (status === 'cancelled') {
+    return (
+      <div className="flex items-center gap-2 py-2">
+        <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+        <span className="text-sm font-medium text-red-500">Order Cancelled</span>
+      </div>
+    );
+  }
+
+  const currentIdx = STEP_ORDER.indexOf(status);
+
+  return (
+    <div className="overflow-x-auto -mx-1 px-1">
+      <div className="flex items-start min-w-max gap-0">
+        {TIMELINE_STEPS.map((step, i) => {
+          const done = currentIdx >= i;
+          const active = currentIdx === i;
+          const isLast = i === TIMELINE_STEPS.length - 1;
+
+          return (
+            <div key={step.key} className="flex items-start">
+              <div className="flex flex-col items-center" style={{ minWidth: 60 }}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors
+                  ${done
+                    ? active
+                      ? 'bg-purple-600 border-purple-600'
+                      : 'bg-green-500 border-green-500'
+                    : 'bg-white border-gray-200'
+                  }`}
+                >
+                  {done && !active
+                    ? <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                    : active
+                    ? <div className="w-2 h-2 rounded-full bg-white" />
+                    : <div className="w-2 h-2 rounded-full bg-gray-200" />
+                  }
+                </div>
+                <p className={`text-[10px] mt-1 text-center leading-tight font-medium w-14
+                  ${done ? active ? 'text-purple-600' : 'text-green-600' : 'text-gray-300'}`}
+                >
+                  {step.label}
+                </p>
+              </div>
+              {!isLast && (
+                <div className={`h-0.5 w-8 mt-3 mx-0.5 rounded-full ${currentIdx > i ? 'bg-green-400' : 'bg-gray-100'}`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── helpers ────────────────────────────────────────────────────────────────
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: true,
   });
+}
+
+function snapImage(snap: Snapshot | null) {
+  return snap?.image || snap?.image_url || null;
 }
 
 // ── main component ─────────────────────────────────────────────────────────
@@ -98,7 +174,6 @@ export default function OrdersPage() {
     setExpandedId(prev => (prev === id ? null : id));
   }
 
-  // ── loading ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -107,7 +182,6 @@ export default function OrdersPage() {
     );
   }
 
-  // ── not logged in ────────────────────────────────────────────────────────
   if (!phone) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6 text-center">
@@ -138,7 +212,6 @@ export default function OrdersPage() {
     );
   }
 
-  // ── empty ────────────────────────────────────────────────────────────────
   if (orders.length === 0) {
     return (
       <>
@@ -147,10 +220,7 @@ export default function OrdersPage() {
           <ShoppingBag className="w-16 h-16 text-gray-200" />
           <h2 className="text-lg font-bold text-[#1A1A1A]">No orders yet</h2>
           <p className="text-sm text-[#6B7280]">Your orders will appear here</p>
-          <Link
-            href="/"
-            className="px-6 py-3 bg-[#7C3AED] text-white rounded-xl font-semibold text-sm"
-          >
+          <Link href="/" className="px-6 py-3 bg-[#7C3AED] text-white rounded-xl font-semibold text-sm">
             Start Shopping
           </Link>
         </div>
@@ -158,7 +228,6 @@ export default function OrdersPage() {
     );
   }
 
-  // ── order list ───────────────────────────────────────────────────────────
   return (
     <>
       <StickyHeader />
@@ -166,25 +235,19 @@ export default function OrdersPage() {
         {orders.map(order => {
           const expanded = expandedId === order.id;
           const addr = order.delivery_address;
-          const names = order.items
-            .map(i => i.product_snapshot?.name)
-            .filter(Boolean) as string[];
-          const itemSummary = names.slice(0, 2).join(', ') +
-            (names.length > 2 ? ` +${names.length - 2} more` : '');
+          const discount = order.discount_amount ?? 0;
+          const subtotal = order.subtotal ?? order.total_amount;
 
           return (
             <div
               key={order.id}
               className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
             >
-              {/* Card summary — always visible */}
-              <button
-                className="w-full text-left px-4 py-4"
-                onClick={() => toggleExpand(order.id)}
-              >
-                {/* Merchant name + short order ID */}
-                <div className="flex items-center justify-between gap-2 mb-0.5">
-                  <p className="text-sm font-semibold text-[#7C3AED] truncate flex-1">
+              {/* Collapsed summary */}
+              <button className="w-full text-left px-4 py-4" onClick={() => toggleExpand(order.id)}>
+                {/* Merchant + order number */}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <p className="text-sm font-bold text-[#7C3AED] truncate flex-1">
                     {order.merchant_name ?? 'Zupr'}
                   </p>
                   <span className="text-[10px] text-gray-400 font-mono shrink-0">
@@ -192,21 +255,43 @@ export default function OrdersPage() {
                   </span>
                 </div>
 
-                {/* Item count + summary */}
-                <p className="text-xs text-[#6B7280] mb-1">
-                  {order.items.length} item{order.items.length !== 1 ? 's' : ''}
-                  {itemSummary ? ` · ${itemSummary}` : ''}
-                </p>
+                {/* Item thumbnails row */}
+                <div className="flex items-center gap-1.5 mb-2">
+                  {order.items.slice(0, 4).map((item, i) => {
+                    const img = snapImage(item.product_snapshot);
+                    return (
+                      <div key={item.id ?? i} className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-100 overflow-hidden shrink-0">
+                        {img
+                          ? <img src={img} alt={item.product_snapshot?.name ?? ''} className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center text-xs">🛒</div>
+                        }
+                      </div>
+                    );
+                  })}
+                  {order.items.length > 4 && (
+                    <div className="w-8 h-8 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-bold text-purple-600">+{order.items.length - 4}</span>
+                    </div>
+                  )}
+                  <span className="text-xs text-[#9CA3AF] ml-1">
+                    {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
 
                 <p className="text-xs text-[#9CA3AF] mb-2">{formatDate(order.created_at)}</p>
 
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold text-[#1A1A1A]">₹{order.total_amount}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-[#1A1A1A]">{formatCurrency(order.total_amount)}</p>
+                    {discount > 0 && (
+                      <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                        🎁 ₹{discount} saved!
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={order.status} />
-                    <span className="text-xs font-medium text-[#7C3AED]">
-                      {expanded ? '▲' : '▼'}
-                    </span>
+                    <span className="text-xs text-gray-300">{expanded ? '▲' : '▼'}</span>
                   </div>
                 </div>
               </button>
@@ -214,57 +299,76 @@ export default function OrdersPage() {
               {/* Expanded details */}
               {expanded && (
                 <div className="border-t border-gray-100 px-4 py-4 space-y-4">
+                  {/* Track order timeline */}
+                  <div>
+                    <p className="text-xs font-semibold text-[#6B7280] mb-2.5 uppercase tracking-wide">Track Order</p>
+                    <OrderTimeline status={order.status} />
+                  </div>
+
                   {/* Items */}
-                  <div className="space-y-3">
-                    {order.items.map((item, i) => {
-                      const snap = item.product_snapshot;
-                      return (
-                        <div key={item.id ?? i} className="flex items-center gap-3">
-                          {snap?.image_url ? (
-                            <img
-                              src={snap.image_url}
-                              alt={snap.name ?? ''}
-                              className="w-9 h-9 rounded-lg object-cover shrink-0 border border-gray-100"
-                            />
-                          ) : (
-                            <div className="w-9 h-9 rounded-lg bg-gray-100 shrink-0 flex items-center justify-center text-base">
-                              🛒
+                  <div>
+                    <p className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wide">Items Ordered</p>
+                    <div className="space-y-2.5">
+                      {order.items.map((item, i) => {
+                        const snap = item.product_snapshot;
+                        const img = snapImage(snap);
+                        return (
+                          <div key={item.id ?? i} className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gray-100 border border-gray-100 overflow-hidden shrink-0">
+                              {img
+                                ? <img src={img} alt={snap?.name ?? ''} className="w-full h-full object-cover" />
+                                : <div className="w-full h-full flex items-center justify-center text-base">🛒</div>
+                              }
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-[#1A1A1A] truncate">
-                              {snap?.name ?? 'Item'}
-                            </p>
-                            {snap?.unit && (
-                              <p className="text-xs text-[#9CA3AF]">{snap.unit}</p>
-                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-[#1A1A1A] truncate">{snap?.name ?? 'Item'}</p>
+                              {snap?.unit && <p className="text-xs text-[#9CA3AF]">{snap.unit}</p>}
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-xs text-[#6B7280]">×{item.quantity}</p>
+                              <p className="text-sm font-semibold text-[#1A1A1A]">{formatCurrency(item.total_price)}</p>
+                            </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-xs text-[#6B7280]">×{item.quantity}</p>
-                            <p className="text-sm font-semibold text-[#1A1A1A]">₹{item.total_price}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Bill summary */}
+                  <div className="bg-gray-50 rounded-xl px-3 py-3 space-y-1.5">
+                    <p className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wide">Bill Summary</p>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#6B7280]">Subtotal</span>
+                      <span className="text-[#1A1A1A]">{formatCurrency(subtotal)}</span>
+                    </div>
+                    {discount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-green-600">🎁 Discount</span>
+                        <span className="text-green-600 font-medium">−{formatCurrency(discount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm font-bold border-t border-gray-200 pt-1.5 mt-1.5">
+                      <span className="text-[#1A1A1A]">Total Paid</span>
+                      <span className="text-[#7C3AED]">{formatCurrency(order.total_amount)}</span>
+                    </div>
                   </div>
 
                   {/* Delivery address */}
                   {addr && (
                     <div className="bg-gray-50 rounded-xl px-3 py-2.5">
-                      <p className="text-xs font-semibold text-[#6B7280] mb-1">Delivered to</p>
+                      <p className="text-xs font-semibold text-[#6B7280] mb-1 uppercase tracking-wide">Delivered to</p>
                       <p className="text-sm font-medium text-[#1A1A1A]">
                         {addr.name}{addr.phone ? ` · ${addr.phone}` : ''}
                       </p>
                       {addr.address && (
-                        <p className="text-xs text-[#6B7280] mt-0.5">{addr.address}</p>
+                        <p className="text-xs text-[#6B7280] mt-0.5">
+                          {[addr.address, addr.landmark, addr.area].filter(Boolean).join(', ')}
+                        </p>
                       )}
                     </div>
                   )}
 
-                  {/* Order ID */}
-                  <p className="text-xs text-gray-300 font-mono">
-                    Order #{order.id.slice(0, 8).toUpperCase()}
-                  </p>
+                  <p className="text-[10px] text-gray-300 font-mono">Order #{order.id.slice(0, 8).toUpperCase()}</p>
                 </div>
               )}
             </div>
