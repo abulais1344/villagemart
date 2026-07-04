@@ -30,6 +30,7 @@ interface Order {
   id: string;
   created_at: string;
   subtotal: number;
+  delivery_charge: number;
   discount_amount: number;
   total_amount: number;
   payment_status: string;
@@ -237,6 +238,7 @@ export default function OrdersPage() {
           const addr = order.delivery_address;
           const discount = order.discount_amount ?? 0;
           const subtotal = order.subtotal ?? order.total_amount;
+          const deliveryCharge = order.delivery_charge ?? 0;
 
           return (
             <div
@@ -340,6 +342,13 @@ export default function OrdersPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-[#6B7280]">Subtotal</span>
                       <span className="text-[#1A1A1A]">{formatCurrency(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#6B7280]">Delivery charge</span>
+                      {deliveryCharge === 0
+                        ? <span className="text-green-600 font-medium">FREE</span>
+                        : <span className="text-[#1A1A1A]">{formatCurrency(deliveryCharge)}</span>
+                      }
                     </div>
                     {discount > 0 && (
                       <div className="flex justify-between text-sm">
