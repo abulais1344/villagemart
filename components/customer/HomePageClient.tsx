@@ -84,6 +84,7 @@ export function HomePageClient({
     min_order_amount: number;
     max_discount: number | null;
   }>>([]);
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -101,6 +102,11 @@ export function HomePageClient({
     fetch('/api/customer/offers')
       .then(r => r.json())
       .then(data => { if (data.offers?.length) setActiveOffers(data.offers); })
+      .catch(() => {});
+
+    fetch('/api/customer/delivery-info')
+      .then(r => r.json())
+      .then(data => { if (data.free_delivery_threshold != null) setFreeDeliveryThreshold(data.free_delivery_threshold); })
       .catch(() => {});
 
     const interval = setInterval(() => { if (phone) fetchUnread(phone); }, 30000);
@@ -253,7 +259,9 @@ export function HomePageClient({
               <span className="font-bold text-primary-600">⚡ 30 min delivery</span>
               <span className="text-[#6B7280] ml-2">Order before 10 PM</span>
             </div>
-            <span className="text-primary-600 font-semibold">Free above ₹199</span>
+            {freeDeliveryThreshold != null && (
+              <span className="text-primary-600 font-semibold">Free above ₹{freeDeliveryThreshold}</span>
+            )}
           </div>
         </div>
 
@@ -339,7 +347,9 @@ export function HomePageClient({
                           )}
                           <span>🕐 {deliveryRange(merchant.avg_delivery_time)}</span>
                         </div>
-                        <span>Free delivery above ₹199</span>
+                        {freeDeliveryThreshold != null && (
+                          <span>Free delivery above ₹{freeDeliveryThreshold}</span>
+                        )}
                       </div>
                     </div>
                   </Link>
