@@ -104,10 +104,32 @@ export default async function OrderConfirmationPage({
             )) : (
               <p className="text-sm text-[#9CA3AF]">Items will appear shortly</p>
             )}
-            <div className="flex justify-between font-bold text-sm border-t border-gray-100 pt-2">
-              <span>Total paid</span>
-              <span className="text-[#7C3AED]">{formatCurrency(order.total_amount)}</span>
+          </div>
+        </div>
+
+        {/* Bill details */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-2">
+          <h2 className="text-sm font-semibold text-[#1A1A1A] mb-3">Bill Details</h2>
+          <div className="flex justify-between text-sm">
+            <span className="text-[#6B7280]">Subtotal</span>
+            <span className="text-[#1A1A1A]">{formatCurrency(order.subtotal ?? order.total_amount)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-[#6B7280]">Delivery charge</span>
+            {(order.delivery_charge ?? 0) === 0
+              ? <span className="text-green-600 font-medium">FREE</span>
+              : <span className="text-[#1A1A1A]">{formatCurrency(order.delivery_charge)}</span>
+            }
+          </div>
+          {(order.discount_amount ?? 0) > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-green-600">🎁 Discount applied</span>
+              <span className="text-green-600 font-medium">−{formatCurrency(order.discount_amount)}</span>
             </div>
+          )}
+          <div className="flex justify-between font-bold text-sm border-t border-gray-100 pt-2 mt-1">
+            <span className="text-[#1A1A1A]">Total Paid</span>
+            <span className="text-[#7C3AED]">{formatCurrency(order.total_amount)}</span>
           </div>
         </div>
 
