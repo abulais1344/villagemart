@@ -6,21 +6,24 @@ import { MerchantHeader } from '@/components/merchant/MerchantHeader';
 import { createClient } from '@/lib/supabase/client';
 
 const STATUS_TABS = [
-  { key: 'all',       label: 'All'       },
-  { key: 'pending',   label: 'New'       },
-  { key: 'preparing', label: 'Preparing' },
-  { key: 'ready',     label: 'Ready'     },
-  { key: 'delivered', label: 'Delivered' },
+  { key: 'all',              label: 'All'         },
+  { key: 'pending',          label: 'New'         },
+  { key: 'preparing',        label: 'Preparing'   },
+  { key: 'ready',            label: 'Ready'       },
+  { key: 'out_for_delivery', label: 'On the Way'  },
+  { key: 'delivered',        label: 'Delivered'   },
 ];
 
 const STATUS_COLOR: Record<string, string> = {
-  pending:   'bg-yellow-100 text-yellow-700',
-  preparing: 'bg-blue-100 text-blue-700',
-  accepted:  'bg-blue-100 text-blue-700',
-  packed:    'bg-purple-100 text-purple-700',
-  ready:     'bg-green-100 text-green-700',
-  delivered: 'bg-gray-100 text-gray-600',
-  cancelled: 'bg-red-100 text-red-700',
+  pending:          'bg-orange-100 text-orange-700',
+  confirmed:        'bg-blue-50 text-blue-600',
+  preparing:        'bg-blue-100 text-blue-700',
+  accepted:         'bg-blue-100 text-blue-700',
+  packed:           'bg-purple-100 text-purple-700',
+  ready:            'bg-purple-100 text-purple-700',
+  out_for_delivery: 'bg-indigo-100 text-indigo-700',
+  delivered:        'bg-gray-100 text-gray-600',
+  cancelled:        'bg-red-100 text-red-700',
 };
 
 function timeAgo(dateStr: string): string {
@@ -334,6 +337,23 @@ export default function MerchantOrdersPage() {
         </div>
       )}
 
+      {/* 🔔 New order banner */}
+      {newOrderAlert && !alarmPlaying && (
+        <button
+          onClick={() => {
+            setTab('pending');
+            setNewOrderAlert(null);
+          }}
+          className="w-full flex items-center justify-between px-4 py-3 animate-pulse"
+          style={{ background: '#f97316' }}
+        >
+          <span className="text-white font-bold text-sm">
+            🔔 New Order! #{(newOrderAlert.id as string).slice(-6).toUpperCase()} — ₹{newOrderAlert.total_amount}
+          </span>
+          <span className="text-orange-100 text-xs font-medium">Tap to view →</span>
+        </button>
+      )}
+
       {/* Filter tabs */}
       <div
         className="flex overflow-x-auto bg-white border-b border-gray-100 sticky top-[61px] z-30"
@@ -389,10 +409,13 @@ export default function MerchantOrdersPage() {
               </div>
 
               {order.customer_name && (
-                <p className="text-xs text-gray-500 mb-3">
+                <p className="text-xs text-gray-500 mb-1">
                   👤 {order.customer_name}
                   {order.customer_phone ? ` · ${order.customer_phone}` : ''}
                 </p>
+              )}
+              {order.delivery_address?.area && (
+                <p className="text-xs text-gray-400 mb-3">📍 {order.delivery_address.area}</p>
               )}
 
               <p className="font-semibold text-gray-900 mb-3">Total: ₹{order.total_amount}</p>
@@ -400,29 +423,42 @@ export default function MerchantOrdersPage() {
               {order.status === 'pending' && (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => updateStatus(order, 'preparing')}
-                    className="flex-1 bg-[#7C3AED] text-white rounded-xl py-2 text-sm font-medium"
+                    onClick={() => { stopAlarm(); updateStatus(order, 'preparing'); }}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl py-2.5 text-sm font-semibold"
                   >
-                    ✅ Accept
+                    ✅ Accept Order
                   </button>
                   <button
-                    onClick={() => updateStatus(order, 'cancelled')}
-                    className="flex-1 bg-red-50 text-red-600 border border-red-200 rounded-xl py-2 text-sm"
+                    onClick={() => { stopAlarm(); updateStatus(order, 'cancelled'); }}
+                    className="flex-1 bg-red-50 text-red-600 border border-red-200 rounded-xl py-2.5 text-sm font-semibold"
                   >
                     ❌ Reject
                   </button>
                 </div>
               )}
+              {order.status === 'confirmed' && (
+                <button
+                  onClick={() => updateStatus(order, 'preparing')}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 text-sm font-semibold"
+                >
+                  👨‍🍳 Mark Preparing
+                </button>
+              )}
               {order.status === 'preparing' && (
                 <button
                   onClick={() => updateStatus(order, 'ready')}
-                  className="w-full bg-green-600 text-white rounded-xl py-2 text-sm font-medium"
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-2.5 text-sm font-semibold"
                 >
-                  🍱 Mark Ready for Pickup
+                  📦 Mark Ready
                 </button>
               )}
               {order.status === 'ready' && (
-                <p className="text-green-600 text-sm font-medium">✅ Ready — Waiting for rider</p>
+                <button
+                  onClick={() => updateStatus(order, 'out_for_delivery')}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 text-sm font-semibold"
+                >
+                  🛵 Out for Delivery
+                </button>
               )}
             </div>
           ))
