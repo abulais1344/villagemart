@@ -219,6 +219,61 @@ export async function POST(request: NextRequest) {
       }
     })();
 
+    // Fire-and-forget merchant WhatsApp notification
+    ;(async () => {
+      try {
+        if (!orderData.merchantId) return;
+
+        const { data: merchantRecord } = await supabase
+          .from('merchants')
+          .select('phone, store_name')
+          .eq('id', orderData.merchantId)
+          .single();
+
+        if (!merchantRecord?.phone) return;
+
+        // Normalise to whatsapp:+91XXXXXXXXXX
+        const rawPhone = String(merchantRecord.phone).replace(/\D/g, '');
+        const e164 = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
+
+        const shortId = order.id.slice(-6).toUpperCase();
+        const itemCount = (orderData.items as any[]).reduce((sum: number, item: any) => sum + item.quantity, 0);
+        const landmark = orderData.customer.landmark;
+        const merchantBody = [
+          '🛒 *नवीन Order आली!*',
+          '',
+          `Order #${shortId}`,
+          `👤 Customer: ${orderData.customer.name} — ${orderData.customer.phone}`,
+          `📦 Items: ${itemCount} item${itemCount !== 1 ? 's' : ''} — ₹${orderData.subtotal ?? orderData.total}`,
+          `🏠 Address: ${orderData.customer.address}, ${orderData.customer.area}`,
+          ...(landmark ? [`📍 Landmark: ${landmark}`] : []),
+          '',
+          `💰 Total: ₹${orderData.total}`,
+          '',
+          'Order accept करण्यासाठी portal उघडा:',
+          '🌐 zupr.in/merchant-login',
+        ].join('\n');
+
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken  = process.env.TWILIO_AUTH_TOKEN;
+        const from       = process.env.TWILIO_WHATSAPP_FROM;
+
+        await fetch(
+          `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: 'Basic ' + btoa(`${accountSid}:${authToken}`),
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ From: from!, To: `whatsapp:+${e164}`, Body: merchantBody }),
+          }
+        );
+      } catch (err) {
+        console.error('[verify-payment] merchant WhatsApp failed:', err);
+      }
+    })();
+
     // Fire-and-forget merchant push notification
     ;(async () => {
       try {
