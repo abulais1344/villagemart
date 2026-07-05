@@ -50,6 +50,13 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ orders: ordersWithItems });
 }
 
+const STATUS_NOTIFICATIONS: Record<string, { title: string; body: string }> = {
+  preparing:        { title: 'Order Accepted! 🎉',  body: 'Your order has been accepted and is being prepared.' },
+  ready:            { title: 'Order Ready 📦',       body: 'Your order is packed and ready for delivery.' },
+  out_for_delivery: { title: 'Out for Delivery 🛵',  body: 'Your order is on the way!' },
+  cancelled:        { title: 'Order Cancelled ❌',   body: 'Your order has been cancelled. Refund will be processed in 5-7 days.' },
+};
+
 // PATCH /api/merchant/orders  body: { orderId, status }
 export async function PATCH(request: NextRequest) {
   const auth = await requireMerchant();
@@ -65,10 +72,32 @@ export async function PATCH(request: NextRequest) {
     .from('orders')
     .update({ status })
     .eq('id', orderId)
-    .eq('merchant_id', merchantId); // merchant can only update their own orders
+    .eq('merchant_id', merchantId);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Insert in-app notification using service role (avoids RLS)
+  const notif = STATUS_NOTIFICATIONS[status];
+  if (notif) {
+    const { data: order } = await supabase
+      .from('orders')
+      .select('customer_phone')
+      .eq('id', orderId)
+      .single();
+
+    if (order?.customer_phone) {
+      const shortId = orderId.slice(-6).toUpperCase();
+      await supabase.from('notifications').insert({
+        user_phone: order.customer_phone,
+        type: 'order_update',
+        title: notif.title,
+        body: `Your order #${shortId} — ${notif.body}`,
+        order_id: orderId,
+        is_read: false,
+      });
+    }
   }
 
   return NextResponse.json({ success: true });

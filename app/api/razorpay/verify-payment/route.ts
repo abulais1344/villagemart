@@ -237,20 +237,23 @@ export async function POST(request: NextRequest) {
         const e164 = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
 
         const shortId = order.id.slice(-6).toUpperCase();
-        const itemCount = (orderData.items as any[]).reduce((sum: number, item: any) => sum + item.quantity, 0);
+        const itemsList = (orderData.items as any[])
+          .map((item: any) => `  • ${item.name} x${item.quantity} — ₹${item.selling_price * item.quantity}`)
+          .join('\n');
         const landmark = orderData.customer.landmark;
+        const merchantPayout = Math.round(subtotalForCommission * (1 - commissionRatePct / 100));
         const merchantBody = [
-          '🛒 *नवीन Order आली!*',
+          '🛒 *New Order Received!*',
           '',
           `Order #${shortId}`,
           `👤 Customer: ${orderData.customer.name} — ${orderData.customer.phone}`,
-          `📦 Items: ${itemCount} item${itemCount !== 1 ? 's' : ''} — ₹${orderData.subtotal ?? orderData.total}`,
+          `📋 Items:\n${itemsList}`,
           `🏠 Address: ${orderData.customer.address}, ${orderData.customer.area}`,
           ...(landmark ? [`📍 Landmark: ${landmark}`] : []),
           '',
-          `💰 Total: ₹${orderData.total}`,
+          `💰 Your Payout: ₹${merchantPayout} (after ${commissionRatePct}% platform fee)`,
           '',
-          'Order accept करण्यासाठी portal उघडा:',
+          'Open your portal to accept:',
           '🌐 zupr.in/merchant-login',
         ].join('\n');
 
@@ -301,11 +304,17 @@ export async function POST(request: NextRequest) {
 
     // Fire-and-forget WhatsApp notification on order placement
     if (order.customer_phone) {
-      const shortId = order.id.slice(0, 8).toUpperCase();
-      const message = `🛍️ Order received! Your Zupr order of ₹${order.total_amount} has been placed successfully. We'll notify you once it's confirmed. Order ID: #${shortId}`;
+      const shortId = order.id.slice(-6).toUpperCase();
       (async () => {
         try {
-          await sendWhatsAppNotification(order.customer_phone, message);
+          await sendWhatsAppNotification(
+            order.customer_phone,
+            'pending',
+            orderData.customer.name,
+            shortId,
+            undefined,
+            orderData.total,
+          );
         } catch (err) {
           console.error('[whatsapp] order placement notification failed:', err);
         }

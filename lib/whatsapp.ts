@@ -1,17 +1,41 @@
-export const statusMessages: Record<string, string> = {
-  pending:          '⏳ Your Zupr order has been placed! We\'ll confirm it shortly.',
-  confirmed:        '✅ Your order has been confirmed and is being prepared!',
-  preparing:        '👨‍🍳 Your order is being prepared. Hang tight!',
-  ready:            '📦 Your order is packed and ready for pickup by our delivery partner!',
-  out_for_delivery: '🛵 Your order is on the way! Expected delivery in 20-30 mins.',
-  delivered:        '🎉 Your order has been delivered! Enjoy your meal. Thank you for ordering from Zupr!',
-  cancelled:        '❌ Your order has been cancelled. If you have any questions, contact us on WhatsApp.',
+export const statusMessages: Record<string, (name: string, orderShortId: string, storeName?: string, total?: number) => string> = {
+  pending: (name, id) =>
+    `🛒 Hi ${name}! Your order #${id} has been placed on Zupr. We'll confirm it shortly!\n\n_Zupr - Ardhapur_ 🏠`,
+
+  confirmed: (name, id, storeName) =>
+    `✅ Great news ${name}! Your order #${id} has been confirmed.\n\n🍽️ ${storeName || 'The restaurant'} is now preparing your food.\n\n_Zupr - Ardhapur_ 🏠`,
+
+  preparing: (name, id, storeName) =>
+    `👨‍🍳 ${name}, your food is being prepared!\n\n🍽️ ${storeName || 'The restaurant'} is cooking your order #${id}. Hang tight!\n\n_Zupr - Ardhapur_ 🏠`,
+
+  ready: (name, id) =>
+    `📦 ${name}, your order #${id} is packed and ready!\n\nOur delivery partner will pick it up shortly.\n\n_Zupr - Ardhapur_ 🏠`,
+
+  out_for_delivery: (name, id, _storeName, total) =>
+    `🛵 On the way, ${name}!\n\nYour order #${id} is out for delivery. Expected arrival in 20-30 mins.\n\n💰 Total: ₹${total || ''}\n\nPlease be available at your address! 😊\n\n_Zupr - Ardhapur_ 🏠`,
+
+  delivered: (name, id, storeName) =>
+    `🎉 Delivered, ${name}!\n\nYour order #${id} from ${storeName || 'Zupr'} has arrived. Enjoy your meal! 😊\n\nOrder again anytime 👉 zupr.in\n\n_Zupr - Ardhapur_ 🏠`,
+
+  cancelled: (name, id) =>
+    `❌ Hi ${name}, your order #${id} has been cancelled.\n\nSorry for the inconvenience. For any queries, reach us on WhatsApp.\n\n_Zupr - Ardhapur_ 🏠`,
 };
 
-export async function sendWhatsAppNotification(toPhone: string, message: string) {
+export async function sendWhatsAppNotification(
+  toPhone: string,
+  status: string,
+  name: string,
+  orderShortId: string,
+  storeName?: string,
+  total?: number,
+) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken  = process.env.TWILIO_AUTH_TOKEN;
   const from       = process.env.TWILIO_WHATSAPP_FROM;
+
+  const template = statusMessages[status];
+  if (!template) return;
+  const message = template(name, orderShortId, storeName, total);
 
   const response = await fetch(
     `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,

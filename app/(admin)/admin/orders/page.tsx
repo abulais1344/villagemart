@@ -98,14 +98,6 @@ export default function AdminOrdersPage() {
     loadOrders();
   };
 
-  const STATUS_NOTIFICATIONS: Record<string, { title: string; body: (id: string) => string }> = {
-    accepted:         { title: 'Order Accepted! 🎉',      body: id => `Your order #${id} has been accepted and is being prepared.` },
-    out_for_delivery: { title: 'Out for Delivery 🛵',     body: id => `Your order #${id} is on the way!` },
-    delivered:        { title: 'Order Delivered ✅',       body: id => `Your order #${id} has been delivered. Enjoy!` },
-    cancelled:        { title: 'Order Cancelled ❌',       body: id => `Your order #${id} has been cancelled. Refund will be processed in 5-7 days.` },
-    ready:            { title: 'Order Ready 📦',           body: id => `Your order #${id} is ready for pickup/delivery.` },
-  };
-
   const patchStatus = async (order: Order, status: string) => {
     setUpdating(true);
     const res = await fetch('/api/admin/orders', {
@@ -120,18 +112,6 @@ export default function AdminOrdersPage() {
       setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
       setSelected(updatedOrder);
       setSelectedStatus(toAdminStatus(status));
-      const msg = STATUS_NOTIFICATIONS[status];
-
-      if (msg && order.customer_phone) {
-        await supabase.from('notifications').insert({
-          user_phone: order.customer_phone,
-          type: 'order_update',
-          title: msg.title,
-          body: msg.body(order.id.slice(-6).toUpperCase()),
-          order_id: order.id,
-          is_read: false,
-        });
-      }
     } else {
       toast.error('Failed to update status');
     }

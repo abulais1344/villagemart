@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMerchant } from '../MerchantProvider';
 import { MerchantHeader } from '@/components/merchant/MerchantHeader';
-import { createClient } from '@/lib/supabase/client';
 
 const STATUS_TABS = [
   { key: 'all',              label: 'All'         },
@@ -182,34 +181,14 @@ export default function MerchantOrdersPage() {
     prevPendingCount.current = pendingCount;
   }
 
-  // ── Order status updates (unchanged) ────────────────────────────────────────
-
-  const MERCHANT_NOTIFICATIONS: Record<string, { title: string; body: (id: string) => string }> = {
-    preparing: { title: 'Order Accepted! 🎉',  body: id => `Your order #${id} has been accepted and is being prepared.` },
-    ready:     { title: 'Order Ready 📦',       body: id => `Your order #${id} is ready for pickup/delivery.` },
-    cancelled: { title: 'Order Cancelled ❌',   body: id => `Your order #${id} has been cancelled. Refund will be processed in 5-7 days.` },
-  };
+  // ── Order status updates ─────────────────────────────────────────────────────
 
   async function updateStatus(order: any, status: string) {
-    const res = await fetch('/api/merchant/orders', {
+    await fetch('/api/merchant/orders', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId: order.id, status }),
     });
-    if (res.ok) {
-      const msg = MERCHANT_NOTIFICATIONS[status];
-      if (msg && order.customer_phone) {
-        const supabase = createClient();
-        await supabase.from('notifications').insert({
-          user_phone: order.customer_phone,
-          type: 'order_update',
-          title: msg.title,
-          body: msg.body(order.id.slice(-6).toUpperCase()),
-          order_id: order.id,
-          is_read: false,
-        });
-      }
-    }
     loadOrders();
   }
 

@@ -88,29 +88,49 @@ export async function PATCH(request: NextRequest) {
     ready:            { title: 'Order Ready 📦',       body: 'Your order is ready for delivery.' },
   };
 
-  // Fire-and-forget: WhatsApp + in-app notification (share one customer_phone fetch)
+  // Fire-and-forget: WhatsApp + in-app notification (share one order fetch)
   (async () => {
     try {
       const { data: order } = await supabase
         .from('orders')
-        .select('customer_phone')
+        .select('customer_phone, customer_name, total_amount, merchant_id')
         .eq('id', orderId)
         .single();
 
-      if (order?.customer_phone) {
-        if (statusMessages[status]) {
-          await sendWhatsAppNotification(order.customer_phone, statusMessages[status]);
-        }
-        const msg = IN_APP_NOTIFICATIONS[status];
-        if (msg) {
-          await supabase.from('notifications').insert({
-            user_phone: order.customer_phone,
-            type: 'order_update',
-            title: msg.title,
-            body: msg.body,
-            is_read: false,
-          });
-        }
+      if (!order?.customer_phone) return;
+
+      let storeName: string | undefined;
+      if (order.merchant_id) {
+        const { data: merchant } = await supabase
+          .from('merchants')
+          .select('store_name')
+          .eq('id', order.merchant_id)
+          .single();
+        storeName = merchant?.store_name ?? undefined;
+      }
+
+      const shortId = orderId.slice(-6).toUpperCase();
+
+      if (statusMessages[status]) {
+        await sendWhatsAppNotification(
+          order.customer_phone,
+          status,
+          order.customer_name || 'Customer',
+          shortId,
+          storeName,
+          order.total_amount,
+        );
+      }
+
+      const msg = IN_APP_NOTIFICATIONS[status];
+      if (msg) {
+        await supabase.from('notifications').insert({
+          user_phone: order.customer_phone,
+          type: 'order_update',
+          title: msg.title,
+          body: msg.body,
+          is_read: false,
+        });
       }
     } catch (err) {
       console.error('[notification] failed:', err);
