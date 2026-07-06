@@ -52,3 +52,25 @@ export async function requireMerchant(): Promise<AuthError | { ok: true; merchan
 
   return { ok: true, merchantId: merchant.id };
 }
+
+export async function requireRider(): Promise<AuthError | { ok: true; riderId: string }> {
+  const cookieStore = await cookies();
+  const riderId = cookieStore.get('rider_session')?.value;
+
+  if (!riderId) {
+    return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+
+  const { data: rider } = await supabase
+    .from('riders')
+    .select('id')
+    .eq('id', riderId)
+    .eq('is_active', true)
+    .single();
+
+  if (!rider) {
+    return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+
+  return { ok: true, riderId: rider.id };
+}

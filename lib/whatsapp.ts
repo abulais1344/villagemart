@@ -54,3 +54,58 @@ export async function sendWhatsAppNotification(
   );
   return response.json();
 }
+
+export async function sendRiderPickupAlert(
+  riderPhone: string,
+  params: {
+    storeName: string;
+    orderShortId: string;
+    customerName: string;
+    customerPhone: string;
+    deliveryAddress: string;
+    items: Array<{ name: string; quantity: number }>;
+  },
+) {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken  = process.env.TWILIO_AUTH_TOKEN;
+  const from       = process.env.TWILIO_WHATSAPP_FROM;
+
+  const itemsList = params.items
+    .map(i => `  • ${i.name} x${i.quantity}`)
+    .join('\n');
+
+  const message = [
+    '🛵 *Order Ready for Pickup!*',
+    '',
+    `Order #${params.orderShortId}`,
+    `🍽️ Restaurant: ${params.storeName}`,
+    '',
+    `📋 Items:\n${itemsList}`,
+    '',
+    `👤 Customer: ${params.customerName}`,
+    `📞 Phone: ${params.customerPhone}`,
+    `🏠 Deliver to: ${params.deliveryAddress}`,
+    '',
+    '_Zupr - Ardhapur_ 🏠',
+  ].join('\n');
+
+  const rawPhone = String(riderPhone).replace(/\D/g, '');
+  const e164 = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
+
+  const response = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: 'Basic ' + btoa(`${accountSid}:${authToken}`),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        From: from!,
+        To:   `whatsapp:+${e164}`,
+        Body: message,
+      }),
+    }
+  );
+  return response.json();
+}

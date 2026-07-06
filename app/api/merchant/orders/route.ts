@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireMerchant } from '@/lib/auth-helpers';
+import { sendRiderPickupAlert } from '@/lib/whatsapp';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -98,6 +99,46 @@ export async function PATCH(request: NextRequest) {
         is_read: false,
       });
     }
+  }
+
+  // When merchant marks ready, notify the assigned rider via WhatsApp
+  if (status === 'ready') {
+    ;(async () => {
+      try {
+        const { data: fullOrder } = await supabase
+          .from('orders')
+          .select('rider_id, customer_name, customer_phone, delivery_address')
+          .eq('id', orderId)
+          .single();
+
+        if (!fullOrder?.rider_id) return;
+
+        const [riderRes, merchantRes, itemsRes] = await Promise.all([
+          supabase.from('riders').select('phone').eq('id', fullOrder.rider_id).single(),
+          supabase.from('merchants').select('store_name').eq('id', merchantId).single(),
+          supabase.from('order_items').select('product_snapshot, quantity').eq('order_id', orderId),
+        ]);
+
+        if (!riderRes.data?.phone) return;
+
+        const addr = fullOrder.delivery_address as any;
+        const addressStr = [addr?.address, addr?.landmark, addr?.area].filter(Boolean).join(', ');
+
+        await sendRiderPickupAlert(riderRes.data.phone, {
+          storeName: merchantRes.data?.store_name ?? 'Restaurant',
+          orderShortId: orderId.slice(-6).toUpperCase(),
+          customerName: fullOrder.customer_name || 'Customer',
+          customerPhone: fullOrder.customer_phone || '',
+          deliveryAddress: addressStr,
+          items: (itemsRes.data ?? []).map((i: any) => ({
+            name: i.product_snapshot?.name ?? 'Item',
+            quantity: i.quantity,
+          })),
+        });
+      } catch (err) {
+        console.error('[merchant] rider WhatsApp failed:', err);
+      }
+    })();
   }
 
   return NextResponse.json({ success: true });

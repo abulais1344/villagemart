@@ -163,6 +163,24 @@ export async function POST(request: NextRequest) {
       console.error('Order items insert error:', itemsError);
     }
 
+    // Fire-and-forget: auto-assign the first active rider
+    ;(async () => {
+      try {
+        const { data: rider } = await supabase
+          .from('riders')
+          .select('id')
+          .eq('is_active', true)
+          .limit(1)
+          .single();
+
+        if (rider) {
+          await supabase.from('orders').update({ rider_id: rider.id }).eq('id', order.id);
+        }
+      } catch (err) {
+        console.error('[verify-payment] rider auto-assign failed:', err);
+      }
+    })();
+
     // Fire-and-forget admin WhatsApp notification
     ;(async () => {
       try {
