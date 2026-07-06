@@ -43,10 +43,15 @@ export async function POST(request: NextRequest) {
 
     // ── Server-side recompute: subtotal, delivery charge, discount ──
     const itemIds = (orderData.items as any[]).map((i: any) => i.id);
-    const { data: dbProducts } = await supabase
-      .from('products')
+    const { data: dbProducts, error: dbProductsError } = await supabase
+      .from('vm_products')
       .select('id, selling_price, name')
       .in('id', itemIds);
+
+    if (dbProductsError) {
+      console.error('[verify-payment] vm_products fetch error:', dbProductsError, '| itemIds:', itemIds);
+      return NextResponse.json({ error: 'Failed to verify product prices' }, { status: 500 });
+    }
 
     const dbPriceMap: Record<string, number> = Object.fromEntries(
       (dbProducts ?? []).map((p: any) => [p.id, p.selling_price])
@@ -55,9 +60,15 @@ export async function POST(request: NextRequest) {
       (dbProducts ?? []).map((p: any) => [p.id, p.name])
     );
 
+    const missingIds = itemIds.filter(id => dbPriceMap[id] == null);
+    if (missingIds.length > 0) {
+      console.error('[verify-payment] unknown product ids:', missingIds);
+      return NextResponse.json({ error: `Unknown product ids: ${missingIds.join(', ')}` }, { status: 400 });
+    }
+
     let serverSubtotal = 0;
     for (const item of orderData.items as any[]) {
-      serverSubtotal += (dbPriceMap[item.id] ?? item.selling_price) * item.quantity;
+      serverSubtotal += dbPriceMap[item.id] * item.quantity;
     }
 
     const { data: deliverySlabs } = await supabase
@@ -209,12 +220,12 @@ export async function POST(request: NextRequest) {
 
     // Insert order items
     const orderItems = orderData.items.map((item: any) => {
-      const dbPrice = dbPriceMap[item.id] ?? item.selling_price;
+      const dbPrice = dbPriceMap[item.id];
       return {
         order_id: order.id,
         product_id: item.id,
         product_snapshot: {
-          name: dbNameMap[item.id] ?? item.name,
+          name: dbNameMap[item.id],
           price: dbPrice,
           image: item.images?.[0] ?? null,
           unit: item.unit ?? 'piece',

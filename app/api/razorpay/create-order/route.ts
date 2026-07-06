@@ -20,16 +20,15 @@ export async function POST(request: NextRequest) {
     // Fetch actual product prices from DB — never trust client prices
     const productIds = (items as Array<{ id: string; quantity: number }>).map(i => i.id);
     const { data: products, error: productError } = await supabase
-      .from('products')
+      .from('vm_products')
       .select('id, selling_price')
       .in('id', productIds);
 
-    if (productError || !products?.length) {
+    if (productError) {
       console.error(
-        '[create-order] product fetch failed — supabaseError:', productError,
+        '[create-order] vm_products fetch error:', productError,
         '| items received:', JSON.stringify(items),
         '| productIds queried:', JSON.stringify(productIds),
-        '| rows returned:', products?.length ?? 0,
       );
       return Response.json({ error: 'Failed to fetch product prices' }, { status: 500 });
     }
@@ -38,11 +37,15 @@ export async function POST(request: NextRequest) {
       (products as Array<{ id: string; selling_price: number }>).map(p => [p.id, p.selling_price])
     );
 
+    const missingIds = productIds.filter(id => priceMap[id] == null);
+    if (missingIds.length > 0) {
+      console.error('[create-order] unknown product ids:', missingIds, '| productIds queried:', productIds);
+      return Response.json({ error: `Unknown product ids: ${missingIds.join(', ')}` }, { status: 400 });
+    }
+
     let subtotal = 0;
     for (const item of items as Array<{ id: string; quantity: number }>) {
-      const price = priceMap[item.id];
-      if (price == null) return Response.json({ error: `Product not found: ${item.id}` }, { status: 400 });
-      subtotal += price * item.quantity;
+      subtotal += priceMap[item.id] * item.quantity;
     }
 
     // Delivery charge from DB
