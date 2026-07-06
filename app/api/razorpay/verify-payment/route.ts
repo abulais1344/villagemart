@@ -45,11 +45,14 @@ export async function POST(request: NextRequest) {
     const itemIds = (orderData.items as any[]).map((i: any) => i.id);
     const { data: dbProducts } = await supabase
       .from('products')
-      .select('id, selling_price')
+      .select('id, selling_price, name')
       .in('id', itemIds);
 
     const dbPriceMap: Record<string, number> = Object.fromEntries(
       (dbProducts ?? []).map((p: any) => [p.id, p.selling_price])
+    );
+    const dbNameMap: Record<string, string> = Object.fromEntries(
+      (dbProducts ?? []).map((p: any) => [p.id, p.name])
     );
 
     let serverSubtotal = 0;
@@ -211,7 +214,7 @@ export async function POST(request: NextRequest) {
         order_id: order.id,
         product_id: item.id,
         product_snapshot: {
-          name: item.name,
+          name: dbNameMap[item.id] ?? item.name,
           price: dbPrice,
           image: item.images?.[0] ?? null,
           unit: item.unit ?? 'piece',

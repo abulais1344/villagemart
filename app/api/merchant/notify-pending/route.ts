@@ -34,12 +34,13 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const now            = new Date();
-  const oneMinuteAgo   = new Date(now.getTime() - 60_000).toISOString();
+  const now              = new Date();
+  const oneMinuteAgo    = new Date(now.getTime() - 60_000).toISOString();
+  const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60_000).toISOString();
 
   const { data: pendingOrders, error } = await supabase
     .from('orders')
-    .select('id, total_amount, customer_name, created_at, merchants(store_name, push_subscription, phone)')
+    .select('id, total_amount, customer_name, created_at, notified_pending_at, merchants(store_name, push_subscription, phone)')
     .eq('status', 'pending')
     .lt('created_at', oneMinuteAgo);
 
@@ -71,9 +72,14 @@ export async function GET(req: NextRequest) {
         .catch(err => console.error('Repeat push failed:', err.message));
     }
 
-    // Admin WhatsApp alert after 3 minutes
+    // Admin WhatsApp alert after 3 minutes — deduplicated: only if never sent or last sent >30 min ago
+    const notifiedAt = (order as any).notified_pending_at;
+    const wasDue = ageMs > 180_000;
+    const cooldownPassed = !notifiedAt || notifiedAt < thirtyMinutesAgo;
+
     if (
-      ageMs > 180_000 &&
+      wasDue &&
+      cooldownPassed &&
       process.env.TWILIO_ACCOUNT_SID &&
       process.env.TWILIO_AUTH_TOKEN &&
       process.env.ADMIN_WHATSAPP_NUMBER
@@ -94,6 +100,11 @@ export async function GET(req: NextRequest) {
             `Amount: ₹${order.total_amount}\n` +
             `Please contact merchant immediately!`,
         });
+        // Mark notified so we don't spam again for 30 minutes
+        await supabase
+          .from('orders')
+          .update({ notified_pending_at: now.toISOString() })
+          .eq('id', order.id);
       } catch (err: any) {
         console.error('Admin WhatsApp failed:', err.message);
       }

@@ -25,6 +25,12 @@ export async function POST(request: NextRequest) {
       .in('id', productIds);
 
     if (productError || !products?.length) {
+      console.error(
+        '[create-order] product fetch failed — supabaseError:', productError,
+        '| items received:', JSON.stringify(items),
+        '| productIds queried:', JSON.stringify(productIds),
+        '| rows returned:', products?.length ?? 0,
+      );
       return Response.json({ error: 'Failed to fetch product prices' }, { status: 500 });
     }
 

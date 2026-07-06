@@ -6,6 +6,7 @@ import { formatCurrency } from '@/lib/utils/format';
 export const dynamic = 'force-dynamic';
 
 type OrderItem = {
+  product_id: string;
   product_snapshot: { name: string; price: number };
   quantity: number;
   unit_price: number;
@@ -93,7 +94,7 @@ export default async function OrderConfirmationPage({
           <h2 className="text-sm font-semibold text-[#1A1A1A] mb-3">Items ordered</h2>
           <div className="space-y-2">
             {orderItems.length > 0 ? orderItems.map((item, i) => (
-              <div key={i} className="flex justify-between text-sm">
+              <div key={(item as any).product_id ?? i} className="flex justify-between text-sm">
                 <span className="text-[#6B7280] flex-1 truncate pr-2">
                   {item.quantity}× {item.product_snapshot?.name ?? 'Item'}
                 </span>
