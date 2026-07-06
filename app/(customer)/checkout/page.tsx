@@ -50,6 +50,8 @@ export default function CheckoutPage() {
   const [showAddressManager, setShowAddressManager] = useState(false);
   const [appliedOffer, setAppliedOffer] = useState<{ id: string; title: string; discount_type: string; discount_value: number; max_discount: number | null; ends_at?: string | null } | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
+  const [deliveryChargeAmount, setDeliveryChargeAmount] = useState<number>(20);
   const paymentSucceeded = useRef(false);
 
   function handleAddressChange(addr: AddressData) {
@@ -109,20 +111,36 @@ export default function CheckoutPage() {
     }
   }, [hydrated, items]);
 
+  // Fetch delivery threshold from DB so we don't hardcode it
+  useEffect(() => {
+    fetch('/api/customer/delivery-info')
+      .then(r => r.json())
+      .then(d => {
+        if (typeof d.free_delivery_threshold === 'number') setFreeDeliveryThreshold(d.free_delivery_threshold);
+        if (typeof d.delivery_charge_amount === 'number') setDeliveryChargeAmount(d.delivery_charge_amount);
+      })
+      .catch(() => {});
+  }, []);
+
   const subtotal = getSubtotal();
-  const deliveryCharge = subtotal >= 199 ? 0 : 20;
-  const total = subtotal + deliveryCharge - discountAmount;
+  const deliveryCharge: number | null = freeDeliveryThreshold !== null
+    ? (subtotal >= freeDeliveryThreshold ? 0 : deliveryChargeAmount)
+    : null;
+  const total: number | null = deliveryCharge !== null ? subtotal + deliveryCharge - discountAmount : null;
 
   async function handlePayment() {
-    if (!customer) return;
+    if (!customer || total === null) return;
     setLoading(true);
 
     try {
-      // 1. Create Razorpay order
+      // 1. Create Razorpay order — server computes the authoritative amount
       const res = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: total }),
+        body: JSON.stringify({
+          items: items.map(({ product, quantity }) => ({ id: product.id, quantity })),
+          offerId: appliedOffer?.id ?? null,
+        }),
       });
       const { orderId, amount, currency } = await res.json();
       if (!orderId) throw new Error('Failed to create payment order');
@@ -313,7 +331,9 @@ export default function CheckoutPage() {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-[#6B7280]">Delivery</span>
-            {deliveryCharge === 0
+            {deliveryCharge === null
+              ? <span className="text-gray-400">…</span>
+              : deliveryCharge === 0
               ? <span className="text-green-600 font-medium">FREE</span>
               : <span>{formatCurrency(deliveryCharge)}</span>
             }
@@ -326,7 +346,7 @@ export default function CheckoutPage() {
           )}
           <div className="flex justify-between font-bold text-base border-t border-gray-100 pt-2">
             <span>Total</span>
-            <span className="text-[#7C3AED]">{formatCurrency(total)}</span>
+            <span className="text-[#7C3AED]">{total !== null ? formatCurrency(total) : '…'}</span>
           </div>
         </div>
 
@@ -373,11 +393,11 @@ export default function CheckoutPage() {
         <div className="p-4">
           <button
             onClick={handlePayment}
-            disabled={loading || zoneOk === false || restaurantClosed}
+            disabled={loading || zoneOk === false || restaurantClosed || total === null}
             className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-60 text-white rounded-2xl py-4 font-semibold text-base transition-colors flex items-center justify-center gap-2"
           >
             <Lock className="w-4 h-4 shrink-0" />
-            {loading ? 'Processing…' : `Pay ${formatCurrency(total)} via UPI / Card`}
+            {loading ? 'Processing…' : total !== null ? `Pay ${formatCurrency(total)} via UPI / Card` : 'Loading…'}
           </button>
           <div className="flex items-center justify-center gap-1 mt-2">
             <ShieldCheck className="w-3.5 h-3.5 text-green-500 shrink-0" />

@@ -41,6 +41,68 @@ export async function POST(request: NextRequest) {
 
     console.log('[verify-payment] orderData:', JSON.stringify(orderData));
 
+    // ── Server-side recompute: subtotal, delivery charge, discount ──
+    const itemIds = (orderData.items as any[]).map((i: any) => i.id);
+    const { data: dbProducts } = await supabase
+      .from('products')
+      .select('id, selling_price')
+      .in('id', itemIds);
+
+    const dbPriceMap: Record<string, number> = Object.fromEntries(
+      (dbProducts ?? []).map((p: any) => [p.id, p.selling_price])
+    );
+
+    let serverSubtotal = 0;
+    for (const item of orderData.items as any[]) {
+      serverSubtotal += (dbPriceMap[item.id] ?? item.selling_price) * item.quantity;
+    }
+
+    const { data: deliverySlabs } = await supabase
+      .from('delivery_charges')
+      .select('free_delivery_above, charge')
+      .eq('is_active', true)
+      .not('free_delivery_above', 'is', null);
+
+    let serverDeliveryCharge = 20;
+    if (deliverySlabs?.length) {
+      const threshold = Math.min(...(deliverySlabs as any[]).map((r: any) => r.free_delivery_above as number));
+      if (serverSubtotal >= threshold) {
+        serverDeliveryCharge = 0;
+      } else {
+        const row = (deliverySlabs as any[]).find((r: any) => r.free_delivery_above === threshold);
+        serverDeliveryCharge = row?.charge ?? 20;
+      }
+    }
+
+    let serverDiscountAmount = 0;
+    const offerId = orderData.offerId;
+    if (offerId) {
+      const now = new Date().toISOString();
+      const { data: offer } = await supabase
+        .from('offers')
+        .select('*')
+        .eq('id', offerId)
+        .eq('is_active', true)
+        .eq('type', 'platform')
+        .lte('starts_at', now)
+        .gte('ends_at', now)
+        .lte('min_order_amount', serverSubtotal)
+        .single();
+
+      if (offer) {
+        if (offer.discount_type === 'flat') {
+          serverDiscountAmount = Number(offer.discount_value);
+        } else {
+          const pct = (serverSubtotal * Number(offer.discount_value)) / 100;
+          serverDiscountAmount = offer.max_discount ? Math.min(pct, Number(offer.max_discount)) : pct;
+        }
+        serverDiscountAmount = Math.round(serverDiscountAmount);
+      }
+    }
+
+    const serverTotal = serverSubtotal + serverDeliveryCharge - serverDiscountAmount;
+    console.log('[verify-payment] server-computed: subtotal=%d delivery=%d discount=%d total=%d', serverSubtotal, serverDeliveryCharge, serverDiscountAmount, serverTotal);
+
     // ── Resolve commission rate (priority: merchant rule → global rule → merchant record → 10%) ──
     let commissionRatePct = 10;
     const merchantId = orderData.merchantId || null;
@@ -93,10 +155,9 @@ export async function POST(request: NextRequest) {
       if (globalRule) commissionRatePct = globalRule.rate;
     }
 
-    const subtotalForCommission = orderData.subtotal ?? orderData.total;
-    const commission_amount = subtotalForCommission * (commissionRatePct / 100);
+    const commission_amount = serverSubtotal * (commissionRatePct / 100);
 
-    console.log('[verify-payment] commission rate:', commissionRatePct, 'on subtotal:', subtotalForCommission, '= commission:', commission_amount);
+    console.log('[verify-payment] commission rate:', commissionRatePct, 'on subtotal:', serverSubtotal, '= commission:', commission_amount);
 
     const insertPayload = {
       order_number: `VM${Date.now()}`,
@@ -111,11 +172,11 @@ export async function POST(request: NextRequest) {
         landmark: orderData.customer.landmark || '',
         area: orderData.customer.area,
       },
-      subtotal: orderData.subtotal,
-      delivery_charge: orderData.deliveryCharge ?? 0,
-      total_amount: orderData.total,
+      subtotal: serverSubtotal,
+      delivery_charge: serverDeliveryCharge,
+      total_amount: serverTotal,
       tax_amount: 0,
-      discount_amount: orderData.discountAmount ?? 0,
+      discount_amount: serverDiscountAmount,
       commission_amount,
       payment_status: 'paid',
       razorpay_order_id,
@@ -144,19 +205,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert order items
-    const orderItems = orderData.items.map((item: any) => ({
-      order_id: order.id,
-      product_id: item.id,
-      product_snapshot: {
-        name: item.name,
-        price: item.selling_price,
-        image: item.images?.[0] ?? null,
-        unit: item.unit ?? 'piece',
-      },
-      quantity: item.quantity,
-      unit_price: item.selling_price,
-      total_price: item.selling_price * item.quantity,
-    }));
+    const orderItems = orderData.items.map((item: any) => {
+      const dbPrice = dbPriceMap[item.id] ?? item.selling_price;
+      return {
+        order_id: order.id,
+        product_id: item.id,
+        product_snapshot: {
+          name: item.name,
+          price: dbPrice,
+          image: item.images?.[0] ?? null,
+          unit: item.unit ?? 'piece',
+        },
+        quantity: item.quantity,
+        unit_price: dbPrice,
+        total_price: dbPrice * item.quantity,
+      };
+    });
 
     const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
     if (itemsError) {
@@ -211,7 +275,7 @@ export async function POST(request: NextRequest) {
           `Customer: ${orderData.customer.name} — ${orderData.customer.phone}`,
           `Merchant: ${storeName}`,
           `Items: ${itemCount}`,
-          `Amount: ₹${orderData.total}`,
+          `Amount: ₹${serverTotal}`,
           `Address: ${addrParts}`,
           '',
           'View: https://zupr.in/admin-login',
@@ -256,10 +320,10 @@ export async function POST(request: NextRequest) {
 
         const shortId = order.id.slice(-6).toUpperCase();
         const itemsList = (orderData.items as any[])
-          .map((item: any) => `  • ${item.name} x${item.quantity} — ₹${item.selling_price * item.quantity}`)
+          .map((item: any) => `  • ${item.name} x${item.quantity} — ₹${(dbPriceMap[item.id] ?? item.selling_price) * item.quantity}`)
           .join('\n');
         const landmark = orderData.customer.landmark;
-        const merchantPayout = Math.round(subtotalForCommission * (1 - commissionRatePct / 100));
+        const merchantPayout = Math.round(serverSubtotal * (1 - commissionRatePct / 100));
         const merchantBody = [
           '🛒 *New Order Received!*',
           '',
@@ -310,7 +374,7 @@ export async function POST(request: NextRequest) {
         const itemCount = (orderData.items as any[]).reduce((sum: number, item: any) => sum + item.quantity, 0);
         const payload = JSON.stringify({
           title: '🛍️ New Order!',
-          body: `Order #${shortId} • ₹${orderData.total} • ${itemCount} item${itemCount !== 1 ? 's' : ''}`,
+          body: `Order #${shortId} • ₹${serverTotal} • ${itemCount} item${itemCount !== 1 ? 's' : ''}`,
         });
 
         webpush.sendNotification(merchant.push_subscription as webpush.PushSubscription, payload)
@@ -331,7 +395,7 @@ export async function POST(request: NextRequest) {
             orderData.customer.name,
             shortId,
             undefined,
-            orderData.total,
+            serverTotal,
           );
         } catch (err) {
           console.error('[whatsapp] order placement notification failed:', err);
