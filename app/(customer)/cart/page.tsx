@@ -144,6 +144,16 @@ export default function CartPage() {
           ))}
         </div>
 
+        {/* Add more items */}
+        {items[0]?.product.merchant_id && (
+          <button
+            onClick={() => router.push(`/stores/${items[0].product.merchant_id}`)}
+            className="w-full py-2.5 rounded-xl border border-dashed border-[#7C3AED] text-sm font-semibold text-[#7C3AED] hover:bg-purple-50 transition-colors flex items-center justify-center gap-1.5"
+          >
+            + Add more items
+          </button>
+        )}
+
         {/* Delivery address */}
         <div>
           <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">Deliver to</h3>
@@ -216,15 +226,33 @@ export default function CartPage() {
           )}
         </div>
 
-        {/* Offer banner */}
-        {subtotal < 199 && (
-          <div className="flex items-center gap-2 p-3 bg-green-50 rounded-xl border border-green-200">
-            <Tag className="w-4 h-4 text-green-600 shrink-0" />
-            <p className="text-sm text-green-700 font-medium">
-              Add {formatCurrency(199 - subtotal)} more for free delivery!
-            </p>
-          </div>
-        )}
+        {/* Free delivery progress */}
+        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4">
+          {subtotal >= 199 ? (
+            <div className="flex items-center gap-2">
+              <span className="text-base">🎉</span>
+              <p className="text-sm font-semibold text-green-600">You've unlocked free delivery!</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-[#7C3AED] shrink-0" />
+                  <p className="text-sm font-medium text-[#1A1A1A]">
+                    Add <span className="font-bold text-[#7C3AED]">{formatCurrency(199 - subtotal)}</span> more for free delivery!
+                  </p>
+                </div>
+                <span className="text-xs text-[#6B7280]">₹199</span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#7C3AED] rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min((subtotal / 199) * 100, 100)}%` }}
+                />
+              </div>
+            </>
+          )}
+        </div>
 
         {/* Bill details */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 space-y-2">
