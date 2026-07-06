@@ -4,7 +4,6 @@ import { updateSession } from '@/lib/supabase/middleware';
 const PROTECTED_ROUTES: string[] = [];
 const ROLE_ROUTES = [
   { prefix: '/merchant/', role: 'merchant' },
-  { prefix: '/rider/', role: 'rider' },
 ];
 
 export async function proxy(request: NextRequest) {
@@ -21,6 +20,22 @@ export async function proxy(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/admin-login';
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Rider login — public; /api/rider/* already excluded by matcher config
+  if (pathname === '/rider-login') {
+    return NextResponse.next();
+  }
+
+  // Rider portal — cookie-based auth, never Firebase/Supabase session
+  if (pathname.startsWith('/rider/')) {
+    const riderSession = request.cookies.get('rider_session');
+    if (!riderSession?.value) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = '/rider-login';
+      return NextResponse.redirect(loginUrl);
+    }
+    return NextResponse.next();
   }
 
   // These pages handle their own auth via localStorage — skip Supabase middleware
