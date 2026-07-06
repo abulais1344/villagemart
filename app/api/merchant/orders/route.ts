@@ -114,7 +114,7 @@ export async function PATCH(request: NextRequest) {
         if (!fullOrder?.rider_id) return;
 
         const [riderRes, merchantRes, itemsRes] = await Promise.all([
-          supabase.from('riders').select('phone').eq('id', fullOrder.rider_id).single(),
+          supabase.from('vm_riders').select('phone').eq('id', fullOrder.rider_id).single(),
           supabase.from('merchants').select('store_name').eq('id', merchantId).single(),
           supabase.from('order_items').select('product_snapshot, quantity').eq('order_id', orderId),
         ]);

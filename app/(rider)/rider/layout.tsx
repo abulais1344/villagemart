@@ -21,7 +21,7 @@ export default async function RiderPortalLayout({ children }: { children: React.
   );
 
   const { data: rider } = await supabase
-    .from('riders')
+    .from('vm_riders')
     .select('*')
     .eq('id', riderId)
     .eq('is_active', true)

@@ -62,7 +62,7 @@ export async function requireRider(): Promise<AuthError | { ok: true; riderId: s
   }
 
   const { data: rider } = await supabase
-    .from('riders')
+    .from('vm_riders')
     .select('id')
     .eq('id', riderId)
     .eq('is_active', true)

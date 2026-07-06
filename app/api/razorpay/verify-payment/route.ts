@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
     ;(async () => {
       try {
         const { data: rider } = await supabase
-          .from('riders')
+          .from('vm_riders')
           .select('id')
           .eq('is_active', true)
           .limit(1)

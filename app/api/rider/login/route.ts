@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: rider } = await supabase
-    .from('riders')
+    .from('vm_riders')
     .select('id, name, is_active')
     .eq('portal_username', username)
     .eq('portal_password', password)

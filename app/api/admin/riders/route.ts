@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { data: riders, error } = await supabase
-    .from('riders')
+    .from('vm_riders')
     .select('*')
     .order('created_at', { ascending: false });
 
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { data, error } = await supabase
-    .from('riders')
+    .from('vm_riders')
     .insert({ name, phone, portal_username, portal_password, vehicle_type: vehicle_type || null, notes: notes || null })
     .select()
     .single();
@@ -105,7 +105,7 @@ export async function PATCH(request: NextRequest) {
   };
   if (body.portal_password) update.portal_password = body.portal_password;
 
-  const { data, error } = await supabase.from('riders').update(update).eq('id', id).select().single();
+  const { data, error } = await supabase.from('vm_riders').update(update).eq('id', id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ rider: data });
 }
@@ -118,7 +118,7 @@ export async function DELETE(request: NextRequest) {
   const id = request.nextUrl.searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-  const { error } = await supabase.from('riders').delete().eq('id', id);
+  const { error } = await supabase.from('vm_riders').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

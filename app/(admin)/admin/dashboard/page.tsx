@@ -33,7 +33,7 @@ export default function AdminDashboard() {
     const [users, merchants, riders] = await Promise.all([
       supabase.from('vm_users').select('id', { count: 'exact', head: true }),
       supabase.from('merchants').select('id', { count: 'exact', head: true }),
-      supabase.from('riders').select('id', { count: 'exact', head: true }),
+      supabase.from('vm_riders').select('id', { count: 'exact', head: true }),
     ]);
 
     // All orders via service role API (bypasses RLS)
