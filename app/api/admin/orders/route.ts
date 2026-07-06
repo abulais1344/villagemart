@@ -53,10 +53,22 @@ export async function GET(request: NextRequest) {
     merchantMap = Object.fromEntries((merchants ?? []).map((m: any) => [m.id, m.store_name]));
   }
 
+  // Fetch rider name + phone
+  const riderIds = [...new Set(orderList.map((o: any) => o.rider_id).filter(Boolean))] as string[];
+  let riderMap: Record<string, { name: string; phone: string }> = {};
+  if (riderIds.length > 0) {
+    const { data: riders } = await supabase
+      .from('vm_riders')
+      .select('id, name, phone')
+      .in('id', riderIds);
+    riderMap = Object.fromEntries((riders ?? []).map((r: any) => [r.id, { name: r.name, phone: r.phone }]));
+  }
+
   const result = orderList.map((o: any) => ({
     ...o,
     order_items: orderItems.filter((i: any) => i.order_id === o.id),
     merchant: o.merchant_id ? { store_name: merchantMap[o.merchant_id] ?? null } : null,
+    rider: o.rider_id ? (riderMap[o.rider_id] ?? null) : null,
   }));
 
   return NextResponse.json({ orders: result });

@@ -24,6 +24,39 @@ const WA_MESSAGES: Record<string, (name: string, id: string, store: string) => s
   cancelled:        (name, id)        => `Hi ${name}! We're sorry, your order #${id} has been cancelled. Please contact us for support.`,
 };
 
+function getRiderWhatsAppUrl(order: Order): string | null {
+  const rider = (order as any).rider as { name: string; phone: string } | null;
+  if (!rider?.phone) return null;
+
+  const rawPhone = String(rider.phone).replace(/\D/g, '');
+  const e164 = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
+
+  const storeName = (order.merchant as never as { store_name: string })?.store_name ?? 'Restaurant';
+  const shortId = order.id.slice(-6).toUpperCase();
+  const addr = order.delivery_address as any;
+  const addressStr = [addr?.address, addr?.landmark, addr?.area].filter(Boolean).join(', ');
+  const itemLines = (order.order_items ?? [])
+    .map((i: any) => `• ${i.product_snapshot?.name ?? 'Item'} x${i.quantity}`)
+    .join('\n');
+
+  const message = [
+    `🛵 Order Ready for Pickup — #${shortId}`,
+    ``,
+    `🍽️ Pickup: ${storeName}`,
+    ``,
+    `👤 Customer: ${order.customer_name}`,
+    `📞 Phone: ${order.customer_phone}`,
+    `🏠 Deliver to: ${addressStr}`,
+    ``,
+    `📋 Items:`,
+    itemLines,
+    ``,
+    `Payment: PAID ONLINE ✅`,
+  ].join('\n');
+
+  return `https://wa.me/${e164}?text=${encodeURIComponent(message)}`;
+}
+
 function getWhatsAppUrl(order: Order): string | null {
   if (!order.customer_phone) return null;
   const phone = order.customer_phone.replace(/[\s\-]/g, '');
@@ -218,6 +251,34 @@ export default function AdminOrdersPage() {
                 </div>
               );
             })()}
+
+            {/* Rider */}
+            <div className="bg-[#F9FAFB] rounded-xl px-3 py-2.5 space-y-1">
+              <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide">Rider</p>
+              {(selected as any).rider ? (
+                <>
+                  <p className="text-sm font-medium text-[#1A1A1A]">{(selected as any).rider.name}</p>
+                  <div className="flex items-center gap-2">
+                    <a href={`tel:${(selected as any).rider.phone}`} className="text-sm text-primary-600 font-medium">
+                      {(selected as any).rider.phone}
+                    </a>
+                    {getRiderWhatsAppUrl(selected) && (
+                      <a
+                        href={getRiderWhatsAppUrl(selected)!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-xs font-medium"
+                        style={{ backgroundColor: '#25D366' }}
+                      >
+                        💬 WhatsApp
+                      </a>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-[#6B7280]">No rider assigned</p>
+              )}
+            </div>
 
             {/* Items */}
             <div className="space-y-1">
