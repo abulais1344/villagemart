@@ -29,6 +29,7 @@ export default function CartPage() {
   const { items, updateQuantity, removeItem, getSubtotal } = useCartStore();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
   const [showAddressSheet, setShowAddressSheet] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [showCheckoutHint, markCheckoutSeen] = useFirstVisit('checkout_btn');
@@ -39,8 +40,15 @@ export default function CartPage() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    fetch('/api/customer/delivery-info')
+      .then(r => r.json())
+      .then(d => { if (typeof d.free_delivery_threshold === 'number') setFreeDeliveryThreshold(d.free_delivery_threshold); })
+      .catch(() => {});
+  }, []);
+
   const subtotal = getSubtotal();
-  const deliveryCharge = subtotal >= 199 ? 0 : 20;
+  const deliveryCharge = subtotal >= (freeDeliveryThreshold ?? Infinity) ? 0 : 20;
   const total = subtotal + deliveryCharge;
 
   const activeAddr: AddressData | null =
@@ -226,33 +234,35 @@ export default function CartPage() {
           )}
         </div>
 
-        {/* Free delivery progress */}
-        <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4">
-          {subtotal >= 199 ? (
-            <div className="flex items-center gap-2">
-              <span className="text-base">🎉</span>
-              <p className="text-sm font-semibold text-green-600">You've unlocked free delivery!</p>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-[#7C3AED] shrink-0" />
-                  <p className="text-sm font-medium text-[#1A1A1A]">
-                    Add <span className="font-bold text-[#7C3AED]">{formatCurrency(199 - subtotal)}</span> more for free delivery!
-                  </p>
+        {/* Free delivery progress — only shown when threshold is loaded */}
+        {freeDeliveryThreshold !== null && (
+          <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4">
+            {subtotal >= freeDeliveryThreshold ? (
+              <div className="flex items-center gap-2">
+                <span className="text-base">🎉</span>
+                <p className="text-sm font-semibold text-green-600">You've unlocked free delivery!</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-[#7C3AED] shrink-0" />
+                    <p className="text-sm font-medium text-[#1A1A1A]">
+                      Add <span className="font-bold text-[#7C3AED]">{formatCurrency(freeDeliveryThreshold - subtotal)}</span> more for free delivery!
+                    </p>
+                  </div>
+                  <span className="text-xs text-[#6B7280]">₹{freeDeliveryThreshold}</span>
                 </div>
-                <span className="text-xs text-[#6B7280]">₹199</span>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[#7C3AED] rounded-full transition-all duration-300"
-                  style={{ width: `${Math.min((subtotal / 199) * 100, 100)}%` }}
-                />
-              </div>
-            </>
-          )}
-        </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#7C3AED] rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min((subtotal / freeDeliveryThreshold) * 100, 100)}%` }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Bill details */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 space-y-2">
