@@ -1,15 +1,18 @@
+const CACHE_VERSION = 'v2';
+
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', () => self.clients.claim())
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Never intercept: non-GET, API calls, admin/merchant/auth routes
+  // Never intercept: non-GET, API calls, admin/merchant/rider/auth routes
   if (
     event.request.method !== 'GET' ||
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/admin') ||
     url.pathname.startsWith('/merchant') ||
+    url.pathname.startsWith('/rider') ||
     url.pathname.startsWith('/auth')
   ) {
     return;
