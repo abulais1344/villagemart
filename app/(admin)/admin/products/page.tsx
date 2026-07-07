@@ -261,8 +261,7 @@ function AdminProductsPageInner() {
     let q = supabase
       .from('vm_products')
       .select('*, category:categories(id, name, slug)')
-      .order('created_at', { ascending: false })
-      .limit(200);
+      .order('created_at', { ascending: false });
 
     if (merchantId) {
       q = q.eq('merchant_id', merchantId);
