@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import Image from 'next/image';
+import { ProductImage } from '@/components/shared/ProductImage';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ProductGrid } from '@/components/customer/ProductGrid';
@@ -351,19 +352,7 @@ export function SearchPageClient({ initialQuery }: Props) {
                     className="w-36 shrink-0 rounded-xl border border-gray-100 p-2"
                   >
                     <div className="w-full h-24 rounded-lg overflow-hidden bg-gray-100">
-                      {item.images?.[0] ? (
-                        <Image
-                          src={item.images[0]}
-                          alt={item.name}
-                          width={144}
-                          height={96}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-purple-600 to-purple-800 flex items-center justify-center">
-                          <span className="text-2xl">🍽️</span>
-                        </div>
-                      )}
+                      <ProductImage images={item.images} categorySlug={(item as any).category?.slug} alt={item.name} width={144} height={96} />
                     </div>
                     <p className="text-xs font-medium text-gray-800 mt-1 line-clamp-1">{item.name}</p>
                     <p className="text-[10px] text-gray-400 truncate">

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
+import { ProductImage } from '@/components/shared/ProductImage';
 import { Plus, Minus } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import type { Product } from '@/types';
@@ -50,19 +50,13 @@ export function ProductCard({ product, hint = false, onHintDismiss }: ProductCar
       <div className={`bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden transition-shadow hover:shadow-md ${outOfStock ? 'opacity-70' : ''}`}>
         {/* Image */}
         <div className="relative h-36 bg-gray-50">
-          {product.images?.[0] ? (
-            <Image
-              src={product.images[0]}
-              alt={product.name}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 50vw, 200px"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-4xl">🛒</span>
-            </div>
-          )}
+          <ProductImage
+            images={product.images}
+            categorySlug={product.category?.slug}
+            alt={product.name}
+            fill
+            sizes="(max-width: 640px) 50vw, 200px"
+          />
 
           {/* Offer badge */}
           {product.offer_percentage > 0 && (

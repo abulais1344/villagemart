@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ShieldCheck, MapPin, Lock } from 'lucide-react';
-import Image from 'next/image';
+import { ProductImage } from '@/components/shared/ProductImage';
 import { useCartStore } from '@/store/cartStore';
 import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
 import { formatCurrency } from '@/lib/utils/format';
@@ -251,10 +251,7 @@ export default function CheckoutPage() {
                   className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white overflow-hidden shrink-0"
                   style={{ marginLeft: i === 0 ? 0 : -8 }}
                 >
-                  {product.images?.[0]
-                    ? <Image src={product.images[0]} alt={product.name} width={28} height={28} className="object-cover w-full h-full" />
-                    : <div className="w-full h-full flex items-center justify-center text-[10px]">🛒</div>
-                  }
+                  <ProductImage images={product.images} categorySlug={product.category?.slug} alt={product.name} width={28} height={28} />
                 </div>
               ))}
               {items.length > 3 && (

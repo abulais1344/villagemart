@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useMerchant } from '../MerchantProvider';
 import { MerchantHeader } from '@/components/merchant/MerchantHeader';
+import { ProductImage } from '@/components/shared/ProductImage';
 import { Plus, X, Camera } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -303,16 +304,8 @@ export default function MerchantMenuPage() {
                 onClick={() => { if (!touchHandled.current) openForm(product); }}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-2xl overflow-hidden shrink-0 relative">
-                    {product.images?.[0] ? (
-                      <img
-                        src={product.images[0]}
-                        alt={product.name}
-                        className="w-full h-full object-cover rounded-xl"
-                      />
-                    ) : (
-                      <span>{getFoodEmoji(product.name)}</span>
-                    )}
+                  <div className="w-12 h-12 rounded-xl bg-orange-50 overflow-hidden shrink-0 relative">
+                    <ProductImage images={product.images} categorySlug={null} alt={product.name} width={48} height={48} />
                     {discount > 0 && (
                       <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[8px] font-bold px-1 rounded-full leading-4">
                         {discount}%

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import Link from 'next/link';
-import Image from 'next/image';
+import { ProductImage } from '@/components/shared/ProductImage';
 
 interface LowStockProduct {
   id: string;
@@ -15,7 +15,7 @@ interface LowStockProduct {
   low_stock_threshold: number;
   stock_status: string;
   images: string[];
-  category: { name: string }[] | null;
+  category: { name: string; slug?: string }[] | null;
 }
 
 export function LowStockAlert() {
@@ -102,11 +102,7 @@ export function LowStockAlert() {
         {urgent.map(p => (
           <div key={p.id} className="bg-white rounded-2xl border border-[#E5E7EB] p-3 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-gray-50 overflow-hidden shrink-0 border border-[#E5E7EB]">
-              {p.images?.[0] ? (
-                <Image src={p.images[0]} alt={p.name} width={40} height={40} className="object-cover w-full h-full" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-base">🛒</div>
-              )}
+              <ProductImage images={p.images} categorySlug={p.category?.[0]?.slug ?? null} alt={p.name} width={40} height={40} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-[#1A1A1A] truncate">{p.name}</p>

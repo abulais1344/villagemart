@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { ProductImage } from '@/components/shared/ProductImage';
 import { ArrowLeft, Minus, Plus, ChevronDown, X } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
@@ -294,20 +295,13 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
           className={`shrink-0 w-28 h-24 rounded-xl overflow-hidden bg-gray-100 ${product.images?.[0] ? 'cursor-pointer active:opacity-80' : ''}`}
           onClick={() => product.images?.[0] && setSelectedImage(product)}
         >
-          {product.images?.[0] ? (
-            <Image
-              src={product.images[0]}
-              alt={product.name}
-              width={112}
-              height={96}
-              className="w-full h-full object-cover"
-              priority={renderIdx < 6}
-            />
-          ) : (
-            <div className="w-full h-full bg-purple-50 flex items-center justify-center">
-              <span className="text-3xl">🍽️</span>
-            </div>
-          )}
+          <ProductImage
+            images={product.images}
+            categorySlug={product.category?.slug}
+            alt={product.name}
+            width={112}
+            height={96}
+          />
         </div>
       </div>
     );
@@ -423,19 +417,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
                 className="flex-shrink-0 flex flex-col gap-1 text-left cursor-pointer"
               >
                 <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
-                  {product.images?.[0] ? (
-                    <Image
-                      src={product.images[0]}
-                      alt={product.name}
-                      width={80}
-                      height={80}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-purple-50 flex items-center justify-center">
-                      <span className="text-xl">🍽️</span>
-                    </div>
-                  )}
+                  <ProductImage images={product.images} categorySlug={product.category?.slug} alt={product.name} width={80} height={80} />
                 </div>
                 <p className="text-xs text-gray-800 font-medium w-20 line-clamp-2 leading-tight">{product.name}</p>
                 <p className="text-xs font-bold text-gray-900">{formatCurrency(product.selling_price)}</p>

@@ -14,7 +14,7 @@ import { formatCurrency } from '@/lib/utils/format';
 import type { Product } from '@/types';
 import type { ProductFormData } from '@/lib/utils/validators';
 import toast from 'react-hot-toast';
-import Image from 'next/image';
+import { ProductImage } from '@/components/shared/ProductImage';
 
 export default function MerchantProductsPage() {
   const { user } = useAuth();
@@ -115,7 +115,7 @@ export default function MerchantProductsPage() {
             {filtered.map(p => (
               <div key={p.id} className="bg-white rounded-2xl border border-[#E5E7EB] p-3 flex items-center gap-3">
                 <div className="w-14 h-14 rounded-xl bg-gray-50 overflow-hidden shrink-0 border border-[#E5E7EB]">
-                  {p.images?.[0] ? <Image src={p.images[0]} alt={p.name} width={56} height={56} className="object-cover w-full h-full" /> : <div className="w-full h-full flex items-center justify-center text-xl">🛒</div>}
+                  <ProductImage images={p.images} categorySlug={p.category?.slug ?? null} alt={p.name} width={56} height={56} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[#1A1A1A] truncate">{p.name}</p>

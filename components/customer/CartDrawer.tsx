@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
+import { ProductImage } from '@/components/shared/ProductImage';
 import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
@@ -32,11 +32,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
             {items.map(({ product, quantity }) => (
               <div key={product.id} className="flex items-center gap-3">
                 <div className="w-14 h-14 rounded-xl bg-gray-50 overflow-hidden shrink-0 border border-[#E5E7EB]">
-                  {product.images?.[0] ? (
-                    <Image src={product.images[0]} alt={product.name} width={56} height={56} className="object-cover w-full h-full" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xl">🛒</div>
-                  )}
+                  <ProductImage images={product.images} categorySlug={product.category?.slug} alt={product.name} width={56} height={56} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[#1A1A1A] line-clamp-1">{product.name}</p>

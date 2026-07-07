@@ -21,7 +21,7 @@ import {
 } from '@/lib/actions/products';
 import type { Product } from '@/types';
 import toast from 'react-hot-toast';
-import Image from 'next/image';
+import { ProductImage } from '@/components/shared/ProductImage';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -157,11 +157,7 @@ function ProductRow({
 
         {/* Image */}
         <div className="w-14 h-14 rounded-xl bg-gray-50 overflow-hidden shrink-0 border border-[#E5E7EB]">
-          {product.images?.[0] ? (
-            <Image src={product.images[0]} alt={product.name} width={56} height={56} className="object-cover w-full h-full" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-xl">🛒</div>
-          )}
+          <ProductImage images={product.images} categorySlug={(product.category as any)?.slug ?? null} alt={product.name} width={56} height={56} />
         </div>
 
         {/* Info */}
@@ -264,7 +260,7 @@ function AdminProductsPageInner() {
   const load = useCallback(async () => {
     let q = supabase
       .from('vm_products')
-      .select('*, category:categories(id, name)')
+      .select('*, category:categories(id, name, slug)')
       .order('created_at', { ascending: false })
       .limit(200);
 
