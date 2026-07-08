@@ -241,6 +241,22 @@ export async function POST(request: NextRequest) {
       console.error('Order items insert error:', itemsError);
     }
 
+    // Insert payments row so webhook updates (payment.captured, payment.failed, refund.created)
+    // can find it by razorpay_order_id / razorpay_payment_id. Do this synchronously so the row
+    // exists before the webhook fires (which can race verify-payment by milliseconds).
+    const { error: paymentInsertError } = await supabase.from('payments').insert({
+      order_id: order.id,
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      amount: serverTotal,
+      currency: 'INR',
+      status: 'paid',
+    });
+    if (paymentInsertError) {
+      console.error('[verify-payment] payments insert error:', paymentInsertError);
+    }
+
     // Fire-and-forget: auto-assign the first active rider
     ;(async () => {
       try {
