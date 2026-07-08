@@ -49,7 +49,7 @@ export function ProductCard({ product, hint = false, onHintDismiss }: ProductCar
     <Link href={`/product/${product.id}`} className="block">
       <div className={`bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden transition-shadow hover:shadow-md ${outOfStock ? 'opacity-70' : ''}`}>
         {/* Image */}
-        <div className="relative h-36 bg-gray-50">
+        <div className="relative aspect-square bg-gray-50">
           <ProductImage
             images={product.images}
             categorySlug={product.category?.slug}

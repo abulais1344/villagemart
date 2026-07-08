@@ -60,32 +60,65 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const [showMenuSheet, setShowMenuSheet] = useState(false);
   const [selectedImage, setSelectedImage] = useState<Product | null>(null);
   const [imgVisible, setImgVisible] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
+  const [viewerProduct, setViewerProduct] = useState<Product | null>(null);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerLoaded, setViewerLoaded] = useState(false);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [isPinching, setIsPinching] = useState(false);
   const categoryNavRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef(0);
   const touchDeltaY = useRef(0);
+  const pinchDist = useRef<number | null>(null);
+  const pinchBaseScale = useRef(1);
+  const lastTapMs = useRef(0);
+  const viewerSwipeY = useRef(0);
+  const viewerSwipeDelta = useRef(0);
   const { items, addItem, updateQuantity, removeItem, clearCart } = useCartStore();
   const supabase = createClient();
 
   useEffect(() => { setMounted(true); }, []);
 
-  function closeViewer() {
+  function closeSheet() {
     setImgVisible(false);
-    setTimeout(() => setSelectedImage(null), 220);
+    setTimeout(() => setSelectedImage(null), 250);
+  }
+
+  function openFullViewer() {
+    setViewerProduct(selectedImage);
+    setZoomScale(1);
+    setViewerLoaded(false);
+  }
+
+  function closeFullViewer() {
+    setViewerVisible(false);
+    setTimeout(() => setViewerProduct(null), 220);
   }
 
   useEffect(() => {
-    if (!selectedImage) return;
-    setImgLoaded(false);
-    requestAnimationFrame(() => requestAnimationFrame(() => setImgVisible(true)));
-    document.body.style.overflow = 'hidden';
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeViewer(); };
-    window.addEventListener('keydown', onKey);
-    return () => {
+    if (selectedImage) {
+      requestAnimationFrame(() => requestAnimationFrame(() => setImgVisible(true)));
+      document.body.style.overflow = 'hidden';
+    } else {
       document.body.style.overflow = '';
-      window.removeEventListener('keydown', onKey);
-    };
+    }
   }, [selectedImage]);
+
+  useEffect(() => {
+    if (viewerProduct) {
+      setViewerLoaded(false);
+      requestAnimationFrame(() => requestAnimationFrame(() => setViewerVisible(true)));
+    }
+  }, [viewerProduct]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (viewerProduct) closeFullViewer();
+      else if (selectedImage) closeSheet();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedImage, viewerProduct]);
 
   // ── IntersectionObserver scroll spy ──────────────────────────────────────
   useEffect(() => {
@@ -290,16 +323,16 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
           </div>
         </div>
 
-        {/* Right: image — tappable to open fullscreen viewer */}
+        {/* Right: image — tappable to open product detail sheet */}
         <div
-          className={`shrink-0 w-28 h-24 rounded-xl overflow-hidden bg-gray-100 ${product.images?.[0] ? 'cursor-pointer active:opacity-80' : ''}`}
+          className={`shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-gray-100 ${product.images?.[0] ? 'cursor-pointer active:opacity-80' : ''}`}
           onClick={() => product.images?.[0] && setSelectedImage(product)}
         >
           <ProductImage
             images={product.images}
             categorySlug={product.category?.slug}
             alt={product.name}
-            width={112}
+            width={96}
             height={96}
           />
         </div>
@@ -562,137 +595,234 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         </div>
       )}
 
-      {/* ── Fullscreen image viewer ── */}
+      {/* ── Product detail sheet ── */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-50 flex flex-col"
+          className="fixed inset-0 z-50 flex items-end"
           style={{
-            backgroundColor: `rgba(0,0,0,${imgVisible ? '0.88' : '0'})`,
-            backdropFilter: `blur(${imgVisible ? '6px' : '0px'})`,
-            transition: 'background-color 150ms ease-out, backdrop-filter 150ms ease-out',
+            backgroundColor: `rgba(0,0,0,${imgVisible ? '0.55' : '0'})`,
+            transition: 'background-color 220ms ease-out',
           }}
-          onClick={closeViewer}
+          onClick={closeSheet}
           onTouchStart={e => { touchStartY.current = e.touches[0].clientY; touchDeltaY.current = 0; }}
           onTouchMove={e => { touchDeltaY.current = e.touches[0].clientY - touchStartY.current; }}
-          onTouchEnd={() => { if (touchDeltaY.current > 80) closeViewer(); }}
+          onTouchEnd={() => { if (touchDeltaY.current > 80) closeSheet(); }}
         >
-          {/* Close button */}
-          <button
-            onClick={closeViewer}
-            className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full flex items-center justify-center"
+          <div
+            className="bg-white rounded-t-3xl w-full overflow-hidden relative"
+            onClick={e => e.stopPropagation()}
             style={{
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(8px)',
-              opacity: imgVisible ? 1 : 0,
-              transition: 'opacity 200ms ease-out',
+              transform: imgVisible ? 'translateY(0)' : 'translateY(100%)',
+              transition: 'transform 280ms cubic-bezier(0.32, 0.72, 0, 1)',
+              maxHeight: '92vh',
             }}
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-0">
+              <div className="w-10 h-1 rounded-full bg-gray-200" />
+            </div>
+
+            {/* X close */}
+            <button
+              onClick={closeSheet}
+              className="absolute top-3 right-4 z-10 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"
+            >
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+
+            {/* Image — only shown for real photos; tap opens full-screen viewer */}
+            {selectedImage.images?.[0] && (
+              <div
+                className="relative aspect-square w-full bg-gray-100 cursor-zoom-in"
+                onClick={openFullViewer}
+              >
+                <Image
+                  src={selectedImage.images[0]}
+                  alt={selectedImage.name}
+                  fill
+                  className="object-cover object-center"
+                  sizes="100vw"
+                />
+                <div className="absolute bottom-2.5 right-2.5 bg-black/45 rounded-full px-2.5 py-1 flex items-center gap-1 backdrop-blur-sm pointer-events-none">
+                  <svg className="w-3 h-3 fill-white" viewBox="0 0 24 24">
+                    <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14zm.5-7H9v2H7v1h2v2h1v-2h2V9h-2V7z" />
+                  </svg>
+                  <span className="text-white text-[10px] font-medium">Expand</span>
+                </div>
+              </div>
+            )}
+
+            {/* Product info */}
+            <div className="overflow-y-auto overscroll-contain px-5 pt-4 pb-10">
+              <div className="flex items-start gap-2 mb-1">
+                <div className={`mt-1 w-4 h-4 border-2 rounded-sm flex items-center justify-center shrink-0 ${isNonVeg(selectedImage) ? 'border-red-500' : 'border-green-600'}`}>
+                  <div className={`w-2 h-2 rounded-full ${isNonVeg(selectedImage) ? 'bg-red-500' : 'bg-green-600'}`} />
+                </div>
+                <p className="text-xl font-bold text-gray-900 leading-snug">{selectedImage.name}</p>
+              </div>
+
+              <p className="text-lg font-semibold text-purple-600 ml-6 mb-2">
+                {formatCurrency(selectedImage.selling_price)}
+                {selectedImage.mrp > selectedImage.selling_price && (
+                  <span className="ml-2 text-sm text-gray-400 line-through font-normal">{formatCurrency(selectedImage.mrp)}</span>
+                )}
+              </p>
+
+              {!isGrouped && selectedImage.description && (
+                <p className="text-sm text-gray-500 ml-6 mb-3 leading-relaxed">{selectedImage.description}</p>
+              )}
+
+              {mounted && (() => {
+                const qty = getQty(selectedImage.id);
+                return qty > 0 ? (
+                  <div className="flex items-center gap-4 mt-3">
+                    <div className="inline-flex items-center rounded-xl overflow-hidden">
+                      <button
+                        onClick={() => qty <= 1 ? removeItem(selectedImage.id) : updateQuantity(selectedImage.id, qty - 1)}
+                        className="bg-purple-600 text-white w-11 h-11 flex items-center justify-center"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="bg-purple-600 text-white text-sm font-bold w-11 h-11 flex items-center justify-center border-x border-purple-500">
+                        {qty}
+                      </span>
+                      <button
+                        onClick={() => updateQuantity(selectedImage.id, qty + 1)}
+                        className="bg-purple-600 text-white w-11 h-11 flex items-center justify-center"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <span className="text-sm text-gray-500">{qty} in cart</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      if (!isOpen) {
+                        toast.error(`${merchant.store_name} is closed. Opens at ${merchant.opening_time}`);
+                        return;
+                      }
+                      handleAddItem(selectedImage);
+                    }}
+                    className={`w-full py-4 rounded-xl text-white font-bold text-sm mt-2 shadow-lg shadow-purple-200 bg-gradient-to-r from-purple-600 to-purple-700 ${!isOpen ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  >
+                    Add to Cart
+                  </button>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Full-screen image viewer ── */}
+      {viewerProduct && (
+        <div
+          className="fixed inset-0 z-[60] bg-black overflow-hidden"
+          style={{
+            opacity: viewerVisible ? 1 : 0,
+            transform: viewerVisible ? 'scale(1)' : 'scale(0.95)',
+            transition: 'opacity 220ms ease-out, transform 220ms ease-out',
+          }}
+          onClick={() => { if (zoomScale <= 1.05) closeFullViewer(); }}
+          onTouchStart={(e) => {
+            if (e.touches.length === 2) {
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              pinchDist.current = Math.sqrt(dx * dx + dy * dy);
+              pinchBaseScale.current = zoomScale;
+              viewerSwipeDelta.current = 0;
+              setIsPinching(true);
+            } else {
+              viewerSwipeY.current = e.touches[0].clientY;
+              viewerSwipeDelta.current = 0;
+            }
+          }}
+          onTouchMove={(e) => {
+            if (e.touches.length === 2 && pinchDist.current !== null) {
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              setZoomScale(Math.max(1, Math.min(4, pinchBaseScale.current * (dist / pinchDist.current))));
+            } else if (e.touches.length === 1 && !isPinching) {
+              viewerSwipeDelta.current = e.touches[0].clientY - viewerSwipeY.current;
+            }
+          }}
+          onTouchEnd={() => {
+            if (isPinching) {
+              setIsPinching(false);
+              pinchDist.current = null;
+              return;
+            }
+            if (zoomScale <= 1.1 && viewerSwipeDelta.current > 80) {
+              closeFullViewer();
+              return;
+            }
+            if (Math.abs(viewerSwipeDelta.current) < 12) {
+              const now = Date.now();
+              if (now - lastTapMs.current < 280) {
+                setZoomScale(s => (s > 1.05 ? 1 : 2.5));
+                lastTapMs.current = 0;
+              } else {
+                lastTapMs.current = now;
+              }
+            }
+          }}
+        >
+          {/* X close */}
+          <button
+            onClick={(e) => { e.stopPropagation(); closeFullViewer(); }}
+            className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}
           >
             <X className="w-5 h-5 text-white" />
           </button>
 
-          {/* Image area — fills space above bottom sheet */}
+          {/* Zoomable image */}
           <div
-            className="flex-1 min-h-0 flex items-center justify-center px-5 pt-14 bg-black"
+            className="absolute inset-0"
             onClick={e => e.stopPropagation()}
             style={{
-              opacity: imgVisible ? 1 : 0,
-              transform: imgVisible ? 'scale(1)' : 'scale(0.92)',
-              transition: 'opacity 200ms ease-out, transform 200ms ease-out',
+              transform: `scale(${zoomScale})`,
+              transformOrigin: 'center center',
+              transition: isPinching ? 'none' : 'transform 200ms ease-out',
+              touchAction: zoomScale > 1 ? 'none' : 'pan-y',
             }}
           >
-            <div className="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-black" style={{ height: '50vh' }}>
-              {/* Blur placeholder — renders instantly from cached thumbnail */}
-              <Image
-                src={selectedImage.images![0]}
-                alt=""
-                fill
-                className="object-cover scale-110 blur-xl"
-                style={{ opacity: imgLoaded ? 0 : 1, transition: 'opacity 300ms ease-out' }}
-                sizes="90vw"
-              />
-              {/* Full-res image fades in on load */}
-              <Image
-                src={selectedImage.images![0]}
-                alt={selectedImage.name}
-                fill
-                className="object-cover"
-                style={{ opacity: imgLoaded ? 1 : 0, transition: 'opacity 300ms ease-out' }}
-                sizes="90vw"
-                priority
-                onLoad={() => setImgLoaded(true)}
-              />
-            </div>
+            {/* Blur placeholder from cached thumbnail */}
+            <Image
+              src={viewerProduct.images![0]}
+              alt=""
+              fill
+              className="object-contain scale-110 blur-2xl"
+              style={{ opacity: viewerLoaded ? 0 : 0.5, transition: 'opacity 300ms ease-out' }}
+              sizes="100vw"
+            />
+            {/* Sharp full-res image fades in on load */}
+            <Image
+              src={viewerProduct.images![0]}
+              alt={viewerProduct.name}
+              fill
+              className="object-contain"
+              style={{ opacity: viewerLoaded ? 1 : 0, transition: 'opacity 300ms ease-out' }}
+              sizes="100vw"
+              priority
+              onLoad={() => setViewerLoaded(true)}
+            />
           </div>
 
-          {/* Bottom info card — slides up */}
+          {/* Bottom gradient with name + price */}
           <div
-            className="bg-white rounded-t-3xl px-5 pt-4 pb-10 shrink-0"
-            onClick={e => e.stopPropagation()}
+            className="absolute bottom-0 left-0 right-0 px-5 pt-16 pb-12 pointer-events-none"
             style={{
-              transform: imgVisible ? 'translateY(0)' : 'translateY(100%)',
-              transition: 'transform 200ms ease-out',
+              background: 'linear-gradient(to top, rgba(0,0,0,0.82) 0%, transparent 100%)',
+              opacity: viewerVisible ? 1 : 0,
+              transition: 'opacity 350ms ease-out',
             }}
           >
-            {/* Drag handle */}
-            <div className="flex justify-center mb-3">
-              <div className="w-10 h-1 rounded-full bg-gray-200" />
-            </div>
-
-            {/* Veg dot + name */}
-            <div className="flex items-start gap-2 mb-1">
-              <div className={`mt-1 w-4 h-4 border-2 rounded-sm flex items-center justify-center shrink-0 ${isNonVeg(selectedImage) ? 'border-red-500' : 'border-green-600'}`}>
-                <div className={`w-2 h-2 rounded-full ${isNonVeg(selectedImage) ? 'bg-red-500' : 'bg-green-600'}`} />
-              </div>
-              <p className="text-xl font-bold text-gray-900 leading-snug">{selectedImage.name}</p>
-            </div>
-
-            {/* Price */}
-            <p className="text-lg font-semibold text-purple-600 ml-6 mb-2">{formatCurrency(selectedImage.selling_price)}</p>
-
-            {/* Description (only in search/flat mode — in grouped mode it's the category name) */}
-            {!isGrouped && selectedImage.description && (
-              <p className="text-sm text-gray-500 ml-6 mb-3 leading-relaxed">{selectedImage.description}</p>
-            )}
-
-            {/* Cart control */}
-            {mounted && (() => {
-              const qty = getQty(selectedImage.id);
-              return qty > 0 ? (
-                <div className="flex items-center gap-4 mt-3">
-                  <div className="inline-flex items-center rounded-xl overflow-hidden">
-                    <button
-                      onClick={() => qty <= 1 ? removeItem(selectedImage.id) : updateQuantity(selectedImage.id, qty - 1)}
-                      className="bg-purple-600 text-white w-11 h-11 flex items-center justify-center"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
-                    <span className="bg-purple-600 text-white text-sm font-bold w-11 h-11 flex items-center justify-center border-x border-purple-500">
-                      {qty}
-                    </span>
-                    <button
-                      onClick={() => updateQuantity(selectedImage.id, qty + 1)}
-                      className="bg-purple-600 text-white w-11 h-11 flex items-center justify-center"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <span className="text-sm text-gray-500">{qty} in cart</span>
-                </div>
-              ) : (
-                <button
-                  onClick={() => {
-                    if (!isOpen) {
-                      toast.error(`${merchant.store_name} is closed. Opens at ${merchant.opening_time}`);
-                      return;
-                    }
-                    handleAddItem(selectedImage);
-                  }}
-                  className={`w-full py-4 rounded-xl text-white font-bold text-sm mt-2 shadow-lg shadow-purple-200 bg-gradient-to-r from-purple-600 to-purple-700 ${!isOpen ? 'opacity-40 cursor-not-allowed' : ''}`}
-                >
-                  Add to Cart
-                </button>
-              );
-            })()}
+            <p className="text-white text-lg font-bold leading-snug drop-shadow">{viewerProduct.name}</p>
+            <p className="text-purple-300 text-base font-semibold mt-0.5 drop-shadow">{formatCurrency(viewerProduct.selling_price)}</p>
+            <p className="text-white/40 text-[11px] mt-2">Pinch to zoom · Double-tap · Swipe down to close</p>
           </div>
         </div>
       )}
