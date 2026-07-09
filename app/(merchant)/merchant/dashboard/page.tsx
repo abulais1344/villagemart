@@ -211,8 +211,21 @@ export default function MerchantDashboard() {
       )}
 
       <main className="px-4 py-4 space-y-4">
+        {/* Admin override banner */}
+        {merchant.admin_override !== null && (
+          <div className={`rounded-2xl px-4 py-3 text-sm ${
+            merchant.admin_override === true
+              ? 'bg-green-100 text-green-800 border border-green-200'
+              : 'bg-red-100 text-red-800 border border-red-200'
+          }`}>
+            ⚠️ Admin has forced your restaurant{' '}
+            <strong>{merchant.admin_override === true ? 'OPEN' : 'CLOSED'}</strong>
+            , overriding your setting.
+          </div>
+        )}
+
         {/* Open / Closed toggle */}
-        <div className={`rounded-2xl p-4 flex items-center justify-between ${isOpen ? 'bg-green-50' : 'bg-red-50'}`}>
+        <div className={`rounded-2xl p-4 flex items-center justify-between ${isOpen ? 'bg-green-50' : 'bg-red-50'}${merchant.admin_override !== null ? ' opacity-50' : ''}`}>
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xl">{isOpen ? '🟢' : '🔴'}</span>

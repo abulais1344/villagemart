@@ -36,7 +36,9 @@ function getCuisineTags(cuisineType: string | null): string[] {
   return tags.length > 0 ? tags.slice(0, 3) : ['🍽️ Meals'];
 }
 
-function isRestaurantOpen(openingTime: string | null, closingTime: string | null, isOpenFlag?: boolean | null): boolean {
+function isRestaurantOpen(openingTime: string | null, closingTime: string | null, isOpenFlag?: boolean | null, adminOverride?: boolean | null): boolean {
+  if (adminOverride === true) return true;
+  if (adminOverride === false) return false;
   if (isOpenFlag === false) return false;
   if (!openingTime || !closingTime) return true;
   const now = new Date();
@@ -155,8 +157,8 @@ export function HomePageClient({
   const featuredWithCat = withCategory(featuredProducts);
 
   const sortedFoodMerchants = [...foodMerchants].sort((a, b) => {
-    const aOpen = isRestaurantOpen((a as any).opening_time ?? null, (a as any).closing_time ?? null, (a as any).is_open);
-    const bOpen = isRestaurantOpen((b as any).opening_time ?? null, (b as any).closing_time ?? null, (b as any).is_open);
+    const aOpen = isRestaurantOpen((a as any).opening_time ?? null, (a as any).closing_time ?? null, (a as any).is_open, (a as any).admin_override);
+    const bOpen = isRestaurantOpen((b as any).opening_time ?? null, (b as any).closing_time ?? null, (b as any).is_open, (b as any).admin_override);
     if (aOpen !== bOpen) return aOpen ? -1 : 1;
     return ((b as any).priority ?? 0) - ((a as any).priority ?? 0);
   });
@@ -292,6 +294,7 @@ export function HomePageClient({
                   (merchant as any).opening_time,
                   (merchant as any).closing_time,
                   (merchant as any).is_open,
+                  (merchant as any).admin_override,
                 );
                 return (
                   <Link key={merchant.id} href={`/stores/${merchant.id}`}

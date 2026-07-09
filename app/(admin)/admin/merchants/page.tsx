@@ -33,6 +33,15 @@ export default function AdminMerchantsPage() {
     loadMerchants();
   }
 
+  async function handleOverrideChange(merchantId: string, value: boolean | null) {
+    await fetch(`/api/admin/merchants/${merchantId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_override: value }),
+    });
+    loadMerchants();
+  }
+
   const filtered = filterStatus === 'all'
     ? merchants
     : merchants.filter(m => m.status === filterStatus);
@@ -93,14 +102,23 @@ export default function AdminMerchantsPage() {
                       {merchant.merchant_type ?? '—'} · {merchant.area || merchant.address || '—'}
                     </p>
                   </div>
-                  <span className={`shrink-0 text-xs px-2 py-1 rounded-full font-medium ${
-                    merchant.status === 'approved'  ? 'bg-green-100 text-green-700'  :
-                    merchant.status === 'pending'   ? 'bg-yellow-100 text-yellow-700' :
-                    merchant.status === 'suspended' ? 'bg-red-100 text-red-700'      :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {merchant.status}
-                  </span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      merchant.status === 'approved'  ? 'bg-green-100 text-green-700'  :
+                      merchant.status === 'pending'   ? 'bg-yellow-100 text-yellow-700' :
+                      merchant.status === 'suspended' ? 'bg-red-100 text-red-700'      :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {merchant.status}
+                    </span>
+                    {merchant.admin_override !== null && (
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        merchant.admin_override === true ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        Override Active
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Meta row */}
@@ -109,6 +127,37 @@ export default function AdminMerchantsPage() {
                   <span>⏱ {merchant.avg_delivery_time ?? 30} min</span>
                   <span>Min ₹{merchant.min_order_amount ?? 50}</span>
                   <span>Commission {merchant.commission_rate ?? 10}%</span>
+                </div>
+
+                {/* Merchant status + admin override */}
+                <div className="flex items-center justify-between mb-3 bg-gray-50 rounded-xl px-3 py-2">
+                  <span className="text-xs text-gray-500">
+                    Merchant: {merchant.is_open !== false ? '🟢 Open' : '🔴 Closed'}
+                  </span>
+                  <div className="flex rounded-lg overflow-hidden border border-gray-200 text-xs font-medium">
+                    {([
+                      { label: 'Force Open', value: true },
+                      { label: 'Auto', value: null },
+                      { label: 'Force Closed', value: false },
+                    ] as { label: string; value: boolean | null }[]).map(({ label, value }) => {
+                      const active = (merchant.admin_override ?? null) === value;
+                      return (
+                        <button
+                          key={label}
+                          onClick={() => handleOverrideChange(merchant.id, value)}
+                          className={`px-2 py-1 transition-colors border-r last:border-r-0 border-gray-200 ${
+                            active
+                              ? value === true  ? 'bg-green-500 text-white'
+                                : value === false ? 'bg-red-500 text-white'
+                                : 'bg-gray-600 text-white'
+                              : 'bg-white text-gray-500 hover:bg-gray-50'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Action buttons */}
