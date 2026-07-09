@@ -64,6 +64,7 @@ export default function MerchantMenuPage() {
 
   const [menu, setMenu] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState<any | null>(null);
   const [deleteProduct, setDeleteProduct] = useState<any | null>(null);
@@ -269,12 +270,35 @@ export default function MerchantMenuPage() {
   }
 
   const uniqueCategories = Array.from(new Set(menu.map(p => p.description).filter(Boolean)));
+  const displayedMenu = searchQuery.trim()
+    ? menu.filter(p => p.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : menu;
 
   return (
     <>
       <MerchantHeader storeName={merchant.store_name} />
       <main className="px-4 py-4 pb-32">
-        <p className="text-sm text-gray-500 mb-4">{menu.length} items · Tap to edit · Hold to delete</p>
+        <p className="text-sm text-gray-500 mb-3">
+          {searchQuery.trim() ? `${displayedMenu.length} of ${menu.length}` : menu.length} items · Tap to edit · Hold to delete
+        </p>
+
+        <div className="relative mb-4">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="🔍 Search items..."
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#7C3AED]"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
         {loading ? (
           <div className="space-y-3">
@@ -288,8 +312,13 @@ export default function MerchantMenuPage() {
             <p className="text-sm text-gray-500">No menu items yet</p>
             <p className="text-xs text-gray-400 mt-1">Tap + to add your first item</p>
           </div>
+        ) : displayedMenu.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-4xl mb-2">🔍</p>
+            <p className="text-sm text-gray-500">No items match &ldquo;{searchQuery}&rdquo;</p>
+          </div>
         ) : (
-          menu.map(product => {
+          displayedMenu.map(product => {
             const discount =
               Number(product.mrp) > Number(product.selling_price)
                 ? Math.round((1 - Number(product.selling_price) / Number(product.mrp)) * 100)
