@@ -17,7 +17,8 @@ interface ProductCardProps {
 
 export function ProductCard({ product, hint = false, onHintDismiss }: ProductCardProps) {
   const [mounted, setMounted] = useState(false);
-  const { items, addItem, updateQuantity, removeItem } = useCartStore();
+  const { items, addItem, updateQuantity, removeItem, clearCart } = useCartStore();
+  const [showConflict, setShowConflict] = useState(false);
   const cartItem = items.find(i => i.product.id === product.id);
   const qty = cartItem?.quantity ?? 0;
   const outOfStock = product.stock_status === 'out_of_stock' || product.stock_quantity === 0;
@@ -28,10 +29,15 @@ export function ProductCard({ product, hint = false, onHintDismiss }: ProductCar
 
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!outOfStock) {
-      addItem(product);
-      onHintDismiss?.();
+    if (outOfStock) return;
+    const hasConflict = product.merchant_id != null &&
+      items.some(i => i.product.merchant_id !== product.merchant_id);
+    if (hasConflict) {
+      setShowConflict(true);
+      return;
     }
+    addItem(product);
+    onHintDismiss?.();
   };
 
   const handleIncrease = (e: React.MouseEvent) => {
@@ -46,6 +52,7 @@ export function ProductCard({ product, hint = false, onHintDismiss }: ProductCar
   };
 
   return (
+    <>
     <Link href={`/product/${product.id}`} className="block">
       <div className={`bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden transition-shadow hover:shadow-md ${outOfStock ? 'opacity-70' : ''}`}>
         {/* Image */}
@@ -112,5 +119,41 @@ export function ProductCard({ product, hint = false, onHintDismiss }: ProductCar
         </div>
       </div>
     </Link>
+    {showConflict && (
+      <div
+        className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-4 pb-8"
+        onClick={() => setShowConflict(false)}
+      >
+        <div
+          className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3"
+          onClick={e => e.stopPropagation()}
+        >
+          <p className="font-bold text-gray-900 text-base">Start new order?</p>
+          <p className="text-sm text-gray-600 leading-snug">
+            Your cart has items from another restaurant. Clear your cart to add this item?
+          </p>
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={() => setShowConflict(false)}
+              className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-semibold text-gray-700"
+            >
+              Keep Cart
+            </button>
+            <button
+              onClick={() => {
+                clearCart();
+                addItem(product);
+                setShowConflict(false);
+                onHintDismiss?.();
+              }}
+              className="flex-1 bg-purple-600 text-white rounded-xl py-2.5 text-sm font-semibold"
+            >
+              Clear &amp; Add
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

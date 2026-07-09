@@ -2,12 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, LayoutGrid, ClipboardList } from 'lucide-react';
+import { Home, Search, ClipboardList } from 'lucide-react';
 
 const NAV = [
   { href: '/', icon: Home, label: 'Home' },
   { href: '/search', icon: Search, label: 'Search' },
-  { href: '/categories', icon: LayoutGrid, label: 'Categories' },
   { href: '/orders', icon: ClipboardList, label: 'Orders' },
 ];
 

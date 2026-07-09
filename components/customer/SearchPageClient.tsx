@@ -4,12 +4,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import Image from 'next/image';
-import { ProductImage } from '@/components/shared/ProductImage';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ProductGrid } from '@/components/customer/ProductGrid';
 import { StoreCard } from '@/components/customer/StoreCard';
-import { formatCurrency } from '@/lib/utils/format';
 import type { Product, Merchant } from '@/types';
 
 const ALIASES: Record<string, string> = {
@@ -27,15 +25,6 @@ const ALIASES: Record<string, string> = {
   'sabji': 'vegetables',
 };
 
-interface RestaurantProduct {
-  id: string;
-  name: string;
-  selling_price: number;
-  images: string[] | null;
-  merchant_id: string;
-  merchant_name: string;
-}
-
 interface Props {
   initialQuery: string;
 }
@@ -46,9 +35,7 @@ export function SearchPageClient({ initialQuery }: Props) {
   const [products, setProducts] = useState<Product[]>([]);
   const [stores, setStores] = useState<Merchant[]>([]);
   const [suggestions, setSuggestions] = useState<Product[]>([]);
-  const [restaurantItems, setRestaurantItems] = useState<RestaurantProduct[]>([]);
   const [loading, setLoading] = useState(false);
-  const [restaurantLoading, setRestaurantLoading] = useState(false);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [popularProducts, setPopularProducts] = useState<Product[]>([]);
   const [nearbyRestaurants, setNearbyRestaurants] = useState<Merchant[]>([]);
@@ -78,7 +65,6 @@ export function SearchPageClient({ initialQuery }: Props) {
 
   const doFetch = useCallback(async (q: string) => {
     setLoading(true);
-    setRestaurantLoading(true);
     setSuggestions([]);
 
     const resolvedQuery = ALIASES[q.toLowerCase().trim()] ?? q;
@@ -88,13 +74,12 @@ export function SearchPageClient({ initialQuery }: Props) {
       .flatMap(t => [`name.ilike.%${t}%`, `description.ilike.%${t}%`])
       .join(',');
 
-    const [pResult, sResult, rResult] = await Promise.all([
+    const [pResult, sResult] = await Promise.all([
       supabase
         .from('vm_products')
         .select('*, category:categories(*)')
         .or(orFilter)
         .eq('is_active', true)
-        .is('merchant_id', null)
         .limit(30),
       supabase
         .from('merchants')
@@ -102,13 +87,6 @@ export function SearchPageClient({ initialQuery }: Props) {
         .ilike('store_name', `%${resolvedQuery}%`)
         .eq('status', 'approved')
         .limit(10),
-      supabase
-        .from('vm_products')
-        .select('id, name, selling_price, images, merchant_id')
-        .or(orFilter)
-        .eq('is_active', true)
-        .not('merchant_id', 'is', null)
-        .limit(4),
     ]);
 
     let fetched = pResult.data ?? [];
@@ -127,32 +105,6 @@ export function SearchPageClient({ initialQuery }: Props) {
     }
 
     setLoading(false);
-
-    // Step 2: fetch merchant names for restaurant products
-    const restProducts = rResult.data ?? [];
-    if (restProducts.length > 0) {
-      const merchantIds = [...new Set(restProducts.map(p => p.merchant_id).filter(Boolean))] as string[];
-      const { data: merchantData } = await supabase
-        .from('merchants')
-        .select('id, store_name')
-        .in('id', merchantIds);
-      const merchantMap = Object.fromEntries(merchantData?.map(m => [m.id, m.store_name]) ?? []);
-      setRestaurantItems(
-        restProducts
-          .filter(p => p.merchant_id != null)
-          .map(p => ({
-            id: p.id,
-            name: p.name,
-            selling_price: p.selling_price,
-            images: p.images,
-            merchant_id: p.merchant_id,
-            merchant_name: merchantMap[p.merchant_id] ?? 'Restaurant',
-          }))
-      );
-    } else {
-      setRestaurantItems([]);
-    }
-    setRestaurantLoading(false);
   }, [inStockOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounce: 300ms after typing stops → update URL + fetch
@@ -161,9 +113,7 @@ export function SearchPageClient({ initialQuery }: Props) {
       setProducts([]);
       setStores([]);
       setSuggestions([]);
-      setRestaurantItems([]);
       setLoading(false);
-      setRestaurantLoading(false);
       router.replace('/search', { scroll: false });
       return;
     }
@@ -198,7 +148,7 @@ export function SearchPageClient({ initialQuery }: Props) {
           type="text"
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Search milk, eggs, bread..."
+          placeholder="Search restaurants, dishes..."
           autoFocus
           className="flex-1 bg-transparent outline-none text-sm placeholder-[#9CA3AF]"
         />
@@ -314,64 +264,12 @@ export function SearchPageClient({ initialQuery }: Props) {
           ) : (
             <section>
               <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">
-                Products {!loading && `(${products.length})`}
+                Results {!loading && `(${products.length})`}
               </h3>
               <ProductGrid products={products} loading={loading} />
             </section>
           )}
 
-          {/* Restaurant cross-sell section */}
-          {restaurantLoading ? (
-            <div>
-              <div className="mt-6 mb-3">
-                <p className="text-sm font-semibold text-gray-700">🍽️ Also available at restaurants</p>
-                <p className="text-xs text-gray-400">Order food with your groceries</p>
-              </div>
-              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-                {[0, 1, 2].map(i => (
-                  <div key={i} className="w-36 shrink-0 rounded-xl border border-gray-100 p-2 animate-pulse">
-                    <div className="w-full h-24 rounded-lg bg-gray-200" />
-                    <div className="h-3 bg-gray-200 rounded mt-2 w-4/5" />
-                    <div className="h-2.5 bg-gray-100 rounded mt-1 w-3/5" />
-                    <div className="h-3 bg-gray-200 rounded mt-1 w-2/5" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : restaurantItems.length > 0 ? (
-            <div>
-              <div className="mt-6 mb-3">
-                <p className="text-sm font-semibold text-gray-700">🍽️ Also available at restaurants</p>
-                <p className="text-xs text-gray-400">Order food with your groceries</p>
-              </div>
-              <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-                {restaurantItems.map(item => (
-                  <Link
-                    key={item.id}
-                    href={`/stores/${item.merchant_id}`}
-                    className="w-36 shrink-0 rounded-xl border border-gray-100 p-2"
-                  >
-                    <div className="w-full h-24 rounded-lg overflow-hidden bg-gray-100">
-                      <ProductImage images={item.images} categorySlug={(item as any).category?.slug} alt={item.name} width={144} height={96} />
-                    </div>
-                    <p className="text-xs font-medium text-gray-800 mt-1 line-clamp-1">{item.name}</p>
-                    <p className="text-[10px] text-gray-400 truncate">
-                      {item.merchant_name}
-                    </p>
-                    <p className="text-xs font-bold text-gray-900 mt-0.5">
-                      {formatCurrency(item.selling_price)}
-                    </p>
-                  </Link>
-                ))}
-              </div>
-              <Link
-                href="/stores"
-                className="flex items-center gap-1 text-purple-600 text-xs font-medium mt-2 px-1"
-              >
-                See all restaurants →
-              </Link>
-            </div>
-          ) : null}
         </>
       )}
     </div>
