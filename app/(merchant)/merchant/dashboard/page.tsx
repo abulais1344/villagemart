@@ -50,6 +50,26 @@ export default function MerchantDashboard() {
   const [allOrders, setAllOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
+  const [isOpen, setIsOpen] = useState<boolean>(merchant.is_open ?? true);
+  const [toggling, setToggling] = useState(false);
+
+  async function handleToggle() {
+    const newVal = !isOpen;
+    setIsOpen(newVal);
+    setToggling(true);
+    try {
+      const res = await fetch('/api/merchant/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_open: newVal }),
+      });
+      if (!res.ok) setIsOpen(!newVal);
+    } catch {
+      setIsOpen(!newVal);
+    } finally {
+      setToggling(false);
+    }
+  }
 
   useEffect(() => {
     setShowDebug(new URLSearchParams(window.location.search).has('debug'));
@@ -191,6 +211,29 @@ export default function MerchantDashboard() {
       )}
 
       <main className="px-4 py-4 space-y-4">
+        {/* Open / Closed toggle */}
+        <div className={`rounded-2xl p-4 flex items-center justify-between ${isOpen ? 'bg-green-50' : 'bg-red-50'}`}>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">{isOpen ? '🟢' : '🔴'}</span>
+              <span className={`font-semibold text-base ${isOpen ? 'text-green-800' : 'text-red-800'}`}>
+                {isOpen ? 'Restaurant Open' : 'Restaurant Closed'}
+              </span>
+            </div>
+            {!isOpen && (
+              <p className="text-xs text-red-500 mt-1 ml-7">Customers will see your restaurant as closed</p>
+            )}
+          </div>
+          <button
+            onClick={handleToggle}
+            disabled={toggling}
+            aria-label={isOpen ? 'Close restaurant' : 'Open restaurant'}
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${isOpen ? 'bg-green-500' : 'bg-gray-300'} ${toggling ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+          >
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${isOpen ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+
         {loading ? (
           <>
             <div className="grid grid-cols-2 gap-3">
