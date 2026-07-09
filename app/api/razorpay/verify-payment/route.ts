@@ -372,7 +372,7 @@ export async function POST(request: NextRequest) {
         const authToken  = process.env.TWILIO_AUTH_TOKEN;
         const from       = process.env.TWILIO_WHATSAPP_FROM;
 
-        await fetch(
+        const twilioRes = await fetch(
           `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
           {
             method: 'POST',
@@ -383,6 +383,15 @@ export async function POST(request: NextRequest) {
             body: new URLSearchParams({ From: from!, To: `whatsapp:+${e164}`, Body: merchantBody }),
           }
         );
+        if (!twilioRes.ok) {
+          const errBody = await twilioRes.text();
+          console.error('[verify-payment] merchant WhatsApp failed', {
+            status: twilioRes.status,
+            merchant_id: orderData.merchantId,
+            phone: e164,
+            body: errBody,
+          });
+        }
       } catch (err) {
         console.error('[verify-payment] merchant WhatsApp failed:', err);
       }

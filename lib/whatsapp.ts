@@ -52,7 +52,15 @@ export async function sendWhatsAppNotification(
       }),
     }
   );
-  return response.json();
+  const rawText = await response.text();
+  if (!response.ok) {
+    console.error('[whatsapp] sendWhatsAppNotification failed', {
+      status: response.status,
+      phone: toPhone,
+      body: rawText,
+    });
+  }
+  try { return JSON.parse(rawText); } catch { return null; }
 }
 
 export async function sendRiderPickupAlert(
