@@ -42,15 +42,17 @@ export async function GET(request: NextRequest) {
     orderItems = items ?? [];
   }
 
-  // Fetch merchant store names
+  // Fetch merchant store names + phone (phone needed for admin WhatsApp button)
   const merchantIds = [...new Set(orderList.map((o: any) => o.merchant_id).filter(Boolean))] as string[];
-  let merchantMap: Record<string, string> = {};
+  let merchantMap: Record<string, { store_name: string; phone: string | null }> = {};
   if (merchantIds.length > 0) {
     const { data: merchants } = await supabase
       .from('merchants')
-      .select('id, store_name')
+      .select('id, store_name, phone')
       .in('id', merchantIds);
-    merchantMap = Object.fromEntries((merchants ?? []).map((m: any) => [m.id, m.store_name]));
+    merchantMap = Object.fromEntries(
+      (merchants ?? []).map((m: any) => [m.id, { store_name: m.store_name, phone: m.phone ?? null }])
+    );
   }
 
   // Fetch rider name + phone
@@ -67,7 +69,9 @@ export async function GET(request: NextRequest) {
   const result = orderList.map((o: any) => ({
     ...o,
     order_items: orderItems.filter((i: any) => i.order_id === o.id),
-    merchant: o.merchant_id ? { store_name: merchantMap[o.merchant_id] ?? null } : null,
+    merchant: o.merchant_id
+      ? { store_name: merchantMap[o.merchant_id]?.store_name ?? null, phone: merchantMap[o.merchant_id]?.phone ?? null }
+      : null,
     rider: o.rider_id ? (riderMap[o.rider_id] ?? null) : null,
   }));
 

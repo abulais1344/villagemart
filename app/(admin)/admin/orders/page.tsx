@@ -57,6 +57,34 @@ function getRiderWhatsAppUrl(order: Order): string | null {
   return `https://wa.me/${e164}?text=${encodeURIComponent(message)}`;
 }
 
+function getMerchantWhatsAppUrl(order: Order): string | null {
+  const merchant = (order as any).merchant as { store_name: string; phone?: string | null } | null;
+  if (!merchant?.phone) return null;
+
+  const rawPhone = String(merchant.phone).replace(/\D/g, '');
+  const e164 = rawPhone.startsWith('91') ? rawPhone : `91${rawPhone}`;
+
+  const shortId = order.id.slice(-6).toUpperCase();
+  const itemLines = (order.order_items ?? [])
+    .map((i: any) => `• ${i.product_snapshot?.name ?? 'Item'} x${i.quantity}`)
+    .join('\n');
+
+  const message = [
+    `🛒 New Order to Prepare — #${shortId}`,
+    ``,
+    `📋 Items:`,
+    itemLines,
+    ``,
+    `💰 Total: ₹${order.total_amount}`,
+    ``,
+    `Please prepare and pack this order. Thank you! 🙏`,
+    ``,
+    `_Zupr Admin_`,
+  ].join('\n');
+
+  return `https://wa.me/${e164}?text=${encodeURIComponent(message)}`;
+}
+
 function getWhatsAppUrl(order: Order): string | null {
   if (!order.customer_phone) return null;
   const phone = order.customer_phone.replace(/[\s\-]/g, '');
@@ -251,6 +279,25 @@ export default function AdminOrdersPage() {
                 </div>
               );
             })()}
+
+            {/* Merchant */}
+            {(selected as any).merchant && (
+              <div className="bg-[#F9FAFB] rounded-xl px-3 py-2.5 space-y-1">
+                <p className="text-xs font-semibold text-[#6B7280] uppercase tracking-wide">Merchant</p>
+                <p className="text-sm font-medium text-[#1A1A1A]">{(selected as any).merchant.store_name}</p>
+                {getMerchantWhatsAppUrl(selected) && (
+                  <a
+                    href={getMerchantWhatsAppUrl(selected)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-xs font-medium"
+                    style={{ backgroundColor: '#25D366' }}
+                  >
+                    💬 WhatsApp
+                  </a>
+                )}
+              </div>
+            )}
 
             {/* Rider */}
             <div className="bg-[#F9FAFB] rounded-xl px-3 py-2.5 space-y-1">
