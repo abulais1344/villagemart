@@ -36,7 +36,8 @@ function getCuisineTags(cuisineType: string | null): string[] {
   return tags.length > 0 ? tags.slice(0, 3) : ['🍽️ Meals'];
 }
 
-function isRestaurantOpen(openingTime: string | null, closingTime: string | null): boolean {
+function isRestaurantOpen(openingTime: string | null, closingTime: string | null, isOpenFlag?: boolean | null): boolean {
+  if (isOpenFlag === false) return false;
   if (!openingTime || !closingTime) return true;
   const now = new Date();
   const [openH, openM] = openingTime.split(':').map(Number);
@@ -152,6 +153,13 @@ export function HomePageClient({
 
   const ownWithCat = withCategory(ownProducts);
   const featuredWithCat = withCategory(featuredProducts);
+
+  const sortedFoodMerchants = [...foodMerchants].sort((a, b) => {
+    const aOpen = isRestaurantOpen((a as any).opening_time ?? null, (a as any).closing_time ?? null, (a as any).is_open);
+    const bOpen = isRestaurantOpen((b as any).opening_time ?? null, (b as any).closing_time ?? null, (b as any).is_open);
+    if (aOpen !== bOpen) return aOpen ? -1 : 1;
+    return ((b as any).priority ?? 0) - ((a as any).priority ?? 0);
+  });
 
   return (
     <div className="min-h-screen bg-white">
@@ -279,10 +287,11 @@ export function HomePageClient({
               {foodMerchants.length} restaurant{foodMerchants.length !== 1 ? 's' : ''} open
             </p>
             <div className="flex flex-col gap-3 mt-2">
-              {foodMerchants.map((merchant, index) => {
+              {sortedFoodMerchants.map((merchant, index) => {
                 const open = isRestaurantOpen(
                   (merchant as any).opening_time,
-                  (merchant as any).closing_time
+                  (merchant as any).closing_time,
+                  (merchant as any).is_open,
                 );
                 return (
                   <Link key={merchant.id} href={`/stores/${merchant.id}`}
