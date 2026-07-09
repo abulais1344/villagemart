@@ -242,7 +242,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const cuisineTags = getCuisineTags(merchant.cuisine_type ?? null);
   const isOpen = isRestaurantOpen(merchant.opening_time ?? null, merchant.closing_time ?? null);
   const isGrouped = !searchQuery.trim() && categories.length > 0;
-  const popularItems = products.filter(p => isBestseller(p)).slice(0, 8);
+  const popularItems = filtered.filter(isBestseller).slice(0, 8);
 
   let bestsellerCount = 0;
   let productRenderIndex = 0;
