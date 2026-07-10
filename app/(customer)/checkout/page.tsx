@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ShieldCheck, MapPin, Lock } from 'lucide-react';
 import { ProductImage } from '@/components/shared/ProductImage';
+import Image from 'next/image';
 import { useCartStore } from '@/store/cartStore';
 import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
 import { formatCurrency } from '@/lib/utils/format';
@@ -47,6 +48,8 @@ export default function CheckoutPage() {
   const [hydrated, setHydrated] = useState(false);
   const [zoneOk, setZoneOk] = useState<boolean | null>(null);
   const [restaurantClosed, setRestaurantClosed] = useState(false);
+  const [merchantName, setMerchantName] = useState<string | null>(null);
+  const [merchantLogoUrl, setMerchantLogoUrl] = useState<string | null>(null);
   const [showAddressManager, setShowAddressManager] = useState(false);
   const [appliedOffer, setAppliedOffer] = useState<{ id: string; title: string; discount_type: string; discount_value: number; max_discount: number | null; ends_at?: string | null } | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -102,12 +105,14 @@ export default function CheckoutPage() {
     if (merchantId) {
       fetch(`/api/customer/merchant-status?id=${merchantId}`)
         .then(r => r.json())
-        .then((data: { opening_time?: string; closing_time?: string }) => {
+        .then((data: { opening_time?: string; closing_time?: string; store_name?: string; logo_url?: string | null }) => {
           if (data.opening_time && data.closing_time) {
             setRestaurantClosed(!isRestaurantOpen(data.opening_time, data.closing_time));
           }
+          setMerchantName(data.store_name ?? null);
+          setMerchantLogoUrl(data.logo_url ?? null);
         })
-        .catch(() => {});
+        .catch((err) => console.error('Failed to fetch merchant info:', err));
     }
   }, [hydrated, items]);
 
@@ -236,6 +241,18 @@ export default function CheckoutPage() {
           <span className="text-base">🛵</span>
           <p className="text-sm font-semibold text-green-700">Estimated delivery: 30–45 min</p>
         </div>
+
+        {/* Merchant */}
+        {merchantName && (
+          <div className="flex items-center gap-2 px-1">
+            {merchantLogoUrl
+              ? <Image src={merchantLogoUrl} alt={merchantName} width={20} height={20} className="rounded-full object-cover shrink-0" />
+              : <span className="text-base">🏪</span>}
+            <p className="text-sm text-[#6B7280]">
+              Ordering from <span className="font-semibold text-[#1A1A1A]">{merchantName}</span>
+            </p>
+          </div>
+        )}
 
         {/* Order items */}
         <div className="bg-white rounded-2xl border border-gray-100 p-4">

@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data } = await supabase
     .from('merchants')
-    .select('opening_time, closing_time, status')
+    .select('opening_time, closing_time, status, store_name, logo_url')
     .eq('id', id)
     .single();
 

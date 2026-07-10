@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ProductImage } from '@/components/shared/ProductImage';
+import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Minus, Plus, Trash2, ShoppingCart, Tag, MapPin } from 'lucide-react';
@@ -29,16 +30,30 @@ export default function CartPage() {
   const { items, updateQuantity, removeItem, getSubtotal } = useCartStore();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [merchantName, setMerchantName] = useState<string | null>(null);
+  const [merchantLogoUrl, setMerchantLogoUrl] = useState<string | null>(null);
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
   const [showAddressSheet, setShowAddressSheet] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [showCheckoutHint, markCheckoutSeen] = useFirstVisit('checkout_btn');
   const router = useRouter();
+  const merchantId = items[0]?.product.merchant_id ?? null;
 
   useEffect(() => {
     setCustomer(getCustomer());
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!merchantId) return;
+    fetch(`/api/customer/merchant-status?id=${merchantId}`)
+      .then(r => r.json())
+      .then(d => {
+        setMerchantName(d.store_name ?? null);
+        setMerchantLogoUrl(d.logo_url ?? null);
+      })
+      .catch((err) => console.error('Failed to fetch merchant info:', err));
+  }, [merchantId]);
 
   useEffect(() => {
     fetch('/api/customer/delivery-info')
@@ -114,6 +129,14 @@ export default function CartPage() {
             <p className="text-sm text-[#6B7280] mt-0.5 flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5 shrink-0" />
               Delivering to {customer.name}
+            </p>
+          )}
+          {merchantName && (
+            <p className="text-sm text-[#6B7280] mt-0.5 flex items-center gap-1.5">
+              {merchantLogoUrl
+                ? <Image src={merchantLogoUrl} alt={merchantName} width={16} height={16} className="rounded-full object-cover shrink-0" />
+                : <span>🏪</span>}
+              Ordering from <span className="font-medium text-[#1A1A1A]">{merchantName}</span>
             </p>
           )}
         </div>
