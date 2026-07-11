@@ -91,7 +91,7 @@ export function Header({ location = 'Ardhapur, Maharashtra' }: HeaderProps) {
       </div>
 
       {/* Search */}
-      {pathname !== '/search' && (
+      {pathname !== '/search' && pathname !== '/cart' && (
         <div className="px-4 pb-3">
           <SearchBar navigates />
         </div>
