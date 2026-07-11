@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { requireMerchant } from '@/lib/auth-helpers';
 import { createClient } from '@supabase/supabase-js';
 
@@ -26,5 +27,6 @@ export async function PATCH(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  revalidatePath('/');
   return NextResponse.json({ success: true });
 }
