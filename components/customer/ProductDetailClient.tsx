@@ -389,7 +389,7 @@ export function ProductDetailClient({ product, category, similarProducts, topInC
               Go to Cart · {formatCurrency(cartItem!.quantity * product.selling_price)}
             </button>
             <button
-              onClick={handleAddToCart}
+              onClick={() => router.back()}
               className="w-full py-3 rounded-xl bg-primary-50 text-primary-600 font-semibold text-lg hover:bg-primary-100"
             >
               Continue Shopping
