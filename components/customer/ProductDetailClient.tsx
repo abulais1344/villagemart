@@ -264,7 +264,7 @@ export function ProductDetailClient({ product, category, similarProducts, topInC
           )}
 
           {/* Quantity selector */}
-          {!outOfStock && (
+          {!outOfStock && !isInCart && (
             <div className="bg-gray-50 rounded-xl p-4">
               <label className="text-sm font-semibold text-[#1A1A1A] block mb-3">Quantity</label>
               <div className="flex items-center gap-3 w-fit">
