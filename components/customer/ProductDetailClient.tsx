@@ -63,6 +63,8 @@ export function ProductDetailClient({ product, category, similarProducts, topInC
   const [showConflict, setShowConflict] = useState(false);
   const [mounted, setMounted] = useState(false);
   const outOfStock = product.stock_status === 'out_of_stock' || product.stock_quantity === 0;
+  const cartItemCount = items.reduce((s, i) => s + i.quantity, 0);
+  const onlyThisItemInCart = items.length === 1 && cartItem !== undefined && cartItem.quantity === 1;
   const images = product.images?.length ? product.images : [];
   const totalPrice = product.selling_price * qty;
 
@@ -121,6 +123,14 @@ export function ProductDetailClient({ product, category, similarProducts, topInC
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto pb-40">
+        {mounted && cartItemCount > 0 && !onlyThisItemInCart && (
+          <button
+            onClick={() => router.push('/cart')}
+            className="mx-4 mt-3 flex items-center gap-1.5 text-xs text-[#7C3AED] bg-purple-50 border border-purple-100 rounded-full px-3 py-1.5 w-fit"
+          >
+            🛒 {cartItemCount} item{cartItemCount !== 1 ? 's' : ''} already in your cart <span className="text-purple-400">→</span>
+          </button>
+        )}
         {/* Product image gallery */}
         <div className="relative bg-gray-50">
           <div
