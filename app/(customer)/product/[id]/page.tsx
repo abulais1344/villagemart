@@ -78,6 +78,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   return (
     <ProductDetailClient
+      key={product.id}
       product={product}
       category={category}
       similarProducts={similarProducts ?? []}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ArrowLeft, Minus, Plus, Heart, X } from 'lucide-react';
@@ -61,9 +61,12 @@ export function ProductDetailClient({ product, category, similarProducts, topInC
   const cartItem = items.find(i => i.product.id === product.id);
   const isInCart = !!cartItem;
   const [showConflict, setShowConflict] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const outOfStock = product.stock_status === 'out_of_stock' || product.stock_quantity === 0;
   const images = product.images?.length ? product.images : [];
   const totalPrice = product.selling_price * qty;
+
+  useEffect(() => { setMounted(true); }, []);
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
@@ -374,8 +377,8 @@ export function ProductDetailClient({ product, category, similarProducts, topInC
         </div>
       )}
 
-      {/* Fixed bottom button */}
-      <div className="fixed bottom-16 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 px-4 py-3 bg-white border-t border-[#E5E7EB] safe-bottom">
+      {/* Fixed bottom button — mounted guard prevents ghost-click on Add to Cart during navigation */}
+      {mounted && <div className="fixed bottom-16 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 px-4 py-3 bg-white border-t border-[#E5E7EB] safe-bottom">
         {outOfStock ? (
           <button disabled className="w-full py-3 rounded-xl bg-gray-200 text-gray-500 font-semibold text-lg">
             Out of Stock
@@ -403,7 +406,7 @@ export function ProductDetailClient({ product, category, similarProducts, topInC
             Add to Cart · {formatCurrency(totalPrice)}
           </button>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

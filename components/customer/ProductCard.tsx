@@ -31,6 +31,7 @@ export function ProductCard({ product, hint = false, onHintDismiss, merchantName
 
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (outOfStock || merchantClosed) return;
     const hasConflict = product.merchant_id != null &&
       items.some(i => i.product.merchant_id !== product.merchant_id);
@@ -44,12 +45,14 @@ export function ProductCard({ product, hint = false, onHintDismiss, merchantName
 
   const handleIncrease = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (merchantClosed) return;
     updateQuantity(product.id, qty + 1);
   };
 
   const handleDecrease = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (qty <= 1) removeItem(product.id);
     else updateQuantity(product.id, qty - 1);
   };
