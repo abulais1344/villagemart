@@ -79,6 +79,7 @@ export function HomePageClient({
   const itemCount = items.length;
   const [showAddHint, markAddSeen] = useFirstVisit('add_product');
   const [showCartHint, markCartSeen] = useFirstVisit('cart_icon');
+  const [sortedFoodMerchants, setSortedFoodMerchants] = useState<Merchant[]>([...foodMerchants]);
   const [activeOffers, setActiveOffers] = useState<Array<{
     id: string;
     title: string;
@@ -91,6 +92,12 @@ export function HomePageClient({
 
   useEffect(() => {
     setMounted(true);
+    setSortedFoodMerchants([...foodMerchants].sort((a, b) => {
+      const aOpen = isRestaurantOpen((a as any).opening_time ?? null, (a as any).closing_time ?? null, (a as any).is_open, (a as any).admin_override);
+      const bOpen = isRestaurantOpen((b as any).opening_time ?? null, (b as any).closing_time ?? null, (b as any).is_open, (b as any).admin_override);
+      if (aOpen !== bOpen) return aOpen ? -1 : 1;
+      return ((b as any).priority ?? 0) - ((a as any).priority ?? 0);
+    }));
     let phone: string | null = null;
     try {
       const raw = localStorage.getItem('vm_customer');
@@ -155,13 +162,6 @@ export function HomePageClient({
 
   const ownWithCat = withCategory(ownProducts);
   const featuredWithCat = withCategory(featuredProducts);
-
-  const sortedFoodMerchants = [...foodMerchants].sort((a, b) => {
-    const aOpen = isRestaurantOpen((a as any).opening_time ?? null, (a as any).closing_time ?? null, (a as any).is_open, (a as any).admin_override);
-    const bOpen = isRestaurantOpen((b as any).opening_time ?? null, (b as any).closing_time ?? null, (b as any).is_open, (b as any).admin_override);
-    if (aOpen !== bOpen) return aOpen ? -1 : 1;
-    return ((b as any).priority ?? 0) - ((a as any).priority ?? 0);
-  });
 
   return (
     <div className="min-h-screen bg-white">
@@ -290,7 +290,7 @@ export function HomePageClient({
             </p>
             <div className="flex flex-col gap-3 mt-2">
               {sortedFoodMerchants.map((merchant, index) => {
-                const open = isRestaurantOpen(
+                const open = !mounted || isRestaurantOpen(
                   (merchant as any).opening_time,
                   (merchant as any).closing_time,
                   (merchant as any).is_open,
