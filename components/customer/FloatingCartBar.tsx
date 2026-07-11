@@ -14,7 +14,7 @@ export function FloatingCartBar() {
 
   useEffect(() => { setMounted(true); }, []);
 
-  if (pathname === '/cart' || pathname === '/checkout') return null;
+  if (pathname === '/cart' || pathname === '/checkout' || pathname.startsWith('/product/')) return null;
   if (!mounted || items.length === 0) return null;
 
   const itemCount = items.length;
