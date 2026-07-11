@@ -222,7 +222,7 @@ export default function ProfilePage() {
           {[
             { href: '/privacy', label: 'Privacy Policy' },
             { href: '/terms',   label: 'Terms & Conditions' },
-            { href: '/refund',  label: 'Refund Policy' },
+            // { href: '/refund',  label: 'Refund Policy' },
           ].map(({ href, label }) => (
             <Link
               key={href}
