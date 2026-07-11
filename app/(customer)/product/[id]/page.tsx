@@ -46,20 +46,22 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   const product: Product = { ...rawProduct, category, merchant } as Product;
 
-  // Similar products (same category, excluding current)
+  // Similar products (same category + same merchant, excluding current)
   const { data: similarProducts } = await supabase
     .from('vm_products')
     .select('*')
     .eq('category_id', product.category_id)
+    .eq('merchant_id', product.merchant_id)
     .eq('is_active', true)
     .neq('id', product.id)
     .limit(8);
 
-  // Top/featured products in same category
+  // Top/featured products in same category + same merchant
   const { data: topInCategory } = await supabase
     .from('vm_products')
     .select('*')
     .eq('category_id', product.category_id)
+    .eq('merchant_id', product.merchant_id)
     .eq('is_active', true)
     .eq('is_featured', true)
     .neq('id', product.id)

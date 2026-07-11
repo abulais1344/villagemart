@@ -57,9 +57,10 @@ export function ProductDetailClient({ product, category, similarProducts, topInC
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const lightboxTouchStartY = useRef<number | null>(null);
-  const { items, addItem } = useCartStore();
+  const { items, addItem, clearCart } = useCartStore();
   const cartItem = items.find(i => i.product.id === product.id);
   const isInCart = !!cartItem;
+  const [showConflict, setShowConflict] = useState(false);
   const outOfStock = product.stock_status === 'out_of_stock' || product.stock_quantity === 0;
   const images = product.images?.length ? product.images : [];
   const totalPrice = product.selling_price * qty;
@@ -93,9 +94,13 @@ export function ProductDetailClient({ product, category, similarProducts, topInC
   }
 
   const handleAddToCart = () => {
-    for (let i = 0; i < qty; i++) {
-      addItem(product);
+    const hasConflict = product.merchant_id != null &&
+      items.some(i => i.product.merchant_id !== product.merchant_id);
+    if (hasConflict) {
+      setShowConflict(true);
+      return;
     }
+    for (let i = 0; i < qty; i++) addItem(product);
     toast.success(`${product.name} added to cart!`);
   };
 
@@ -332,6 +337,42 @@ export function ProductDetailClient({ product, category, similarProducts, topInC
           </div>
         )}
       </div>
+
+      {showConflict && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 px-4 pb-8"
+          onClick={() => setShowConflict(false)}
+        >
+          <div
+            className="bg-white rounded-2xl p-5 w-full max-w-sm space-y-3"
+            onClick={e => e.stopPropagation()}
+          >
+            <p className="font-bold text-gray-900 text-base">Start new order?</p>
+            <p className="text-sm text-gray-600 leading-snug">
+              Your cart has items from another restaurant. Clear your cart to add this item?
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setShowConflict(false)}
+                className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-semibold text-gray-700"
+              >
+                Keep Cart
+              </button>
+              <button
+                onClick={() => {
+                  clearCart();
+                  for (let i = 0; i < qty; i++) addItem(product);
+                  setShowConflict(false);
+                  toast.success(`${product.name} added to cart!`);
+                }}
+                className="flex-1 bg-purple-600 text-white rounded-xl py-2.5 text-sm font-semibold"
+              >
+                Clear &amp; Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Fixed bottom button */}
       <div className="fixed bottom-16 left-1/2 -translate-x-1/2 w-full max-w-lg z-50 px-4 py-3 bg-white border-t border-[#E5E7EB] safe-bottom">
