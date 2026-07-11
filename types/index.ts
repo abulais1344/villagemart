@@ -143,6 +143,7 @@ export interface Merchant {
   is_open: boolean;
   opening_time: string | null;
   closing_time: string | null;
+  admin_override?: boolean | null;
   avg_delivery_time: number;
   min_order_amount: number;
   created_at: string;

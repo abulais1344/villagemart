@@ -4,6 +4,7 @@ import { Clock, MapPin, ShoppingBag } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { formatCurrency, formatDistance } from '@/lib/utils/format';
 import type { Merchant } from '@/types';
+import { isRestaurantOpen } from '@/lib/utils/restaurant';
 
 interface StoreCardProps {
   merchant: Merchant;
@@ -11,6 +12,13 @@ interface StoreCardProps {
 }
 
 export function StoreCard({ merchant, distance }: StoreCardProps) {
+  const open = isRestaurantOpen(
+    merchant.opening_time,
+    merchant.closing_time,
+    merchant.is_open,
+    merchant.admin_override,
+  );
+
   return (
     <Link href={`/stores/${merchant.id}`}>
       <div className="bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden hover:shadow-md transition-shadow min-w-[220px]">
@@ -24,8 +32,8 @@ export function StoreCard({ merchant, distance }: StoreCardProps) {
             </div>
           )}
           <div className="absolute top-2 right-2">
-            <Badge variant={merchant.is_open ? 'success' : 'gray'}>
-              {merchant.is_open ? 'Open' : 'Closed'}
+            <Badge variant={open ? 'success' : 'gray'}>
+              {open ? 'Open' : 'Closed'}
             </Badge>
           </div>
         </div>

@@ -14,6 +14,7 @@ import type { Customer, AddressData } from '@/lib/customer';
 import { AddressManager } from './AddressManager';
 import { PulseHint } from './PulseHint';
 import { useFirstVisit } from '@/hooks/useFirstVisit';
+import { isRestaurantOpen } from '@/lib/utils/restaurant';
 
 interface HomePageClientProps {
   categories: Category[];
@@ -34,21 +35,6 @@ function getCuisineTags(cuisineType: string | null): string[] {
   if (!cuisineType) return ['🍽️ Meals'];
   const tags = cuisineType.split(',').map(t => t.trim()).filter(Boolean);
   return tags.length > 0 ? tags.slice(0, 3) : ['🍽️ Meals'];
-}
-
-function isRestaurantOpen(openingTime: string | null, closingTime: string | null, isOpenFlag?: boolean | null, adminOverride?: boolean | null): boolean {
-  if (adminOverride === true) return true;
-  if (adminOverride === false) return false;
-  if (isOpenFlag === false) return false;
-  if (!openingTime || !closingTime) return true;
-  const now = new Date();
-  const [openH, openM] = openingTime.split(':').map(Number);
-  const [closeH, closeM] = closingTime.split(':').map(Number);
-  const nowMins  = now.getHours() * 60 + now.getMinutes();
-  const openMins = openH * 60 + openM;
-  const closeMins = closeH * 60 + closeM;
-  if (closeMins > openMins) return nowMins >= openMins && nowMins < closeMins;
-  return nowMins >= openMins || nowMins < closeMins; // overnight
 }
 
 function deliveryRange(avg: number): string {

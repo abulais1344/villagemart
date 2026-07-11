@@ -7,8 +7,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { ProductGrid } from '@/components/customer/ProductGrid';
+import { ProductCard } from '@/components/customer/ProductCard';
+import { ProductCardSkeleton } from '@/components/ui/Skeleton';
 import { StoreCard } from '@/components/customer/StoreCard';
 import type { Product, Merchant } from '@/types';
+import { isRestaurantOpen } from '@/lib/utils/restaurant';
 
 const ALIASES: Record<string, string> = {
   'lays': "lay's",
@@ -29,6 +32,14 @@ interface Props {
   initialQuery: string;
 }
 
+interface MerchantInfo {
+  store_name: string;
+  opening_time: string | null;
+  closing_time: string | null;
+  is_open: boolean;
+  admin_override: boolean | null;
+}
+
 export function SearchPageClient({ initialQuery }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
@@ -41,6 +52,7 @@ export function SearchPageClient({ initialQuery }: Props) {
   const [nearbyRestaurants, setNearbyRestaurants] = useState<Merchant[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [emptyStateLoading, setEmptyStateLoading] = useState(true);
+  const [merchantMap, setMerchantMap] = useState<Record<string, MerchantInfo>>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
@@ -93,6 +105,28 @@ export function SearchPageClient({ initialQuery }: Props) {
     if (inStockOnly) fetched = fetched.filter(p => p.stock_status !== 'out_of_stock');
     setProducts(fetched);
     setStores(sResult.data ?? []);
+
+    // Batch-fetch merchant info for all unique merchant_ids in the results
+    const merchantIds = [...new Set(fetched.map((p: any) => p.merchant_id).filter(Boolean))];
+    if (merchantIds.length > 0) {
+      const { data: mData } = await supabase
+        .from('merchants')
+        .select('id, store_name, opening_time, closing_time, is_open, admin_override')
+        .in('id', merchantIds);
+      const map: Record<string, MerchantInfo> = {};
+      for (const m of mData ?? []) {
+        map[m.id] = {
+          store_name: m.store_name,
+          opening_time: m.opening_time,
+          closing_time: m.closing_time,
+          is_open: m.is_open,
+          admin_override: m.admin_override ?? null,
+        };
+      }
+      setMerchantMap(map);
+    } else {
+      setMerchantMap({});
+    }
 
     if (fetched.length === 0) {
       const { data } = await supabase
@@ -266,7 +300,28 @@ export function SearchPageClient({ initialQuery }: Props) {
               <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">
                 Results {!loading && `(${products.length})`}
               </h3>
-              <ProductGrid products={products} loading={loading} />
+              {loading ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  {products.map(p => {
+                    const info = p.merchant_id ? merchantMap[p.merchant_id] : null;
+                    const merchantClosed = info
+                      ? !isRestaurantOpen(info.opening_time, info.closing_time, info.is_open, info.admin_override)
+                      : false;
+                    return (
+                      <ProductCard
+                        key={p.id}
+                        product={p}
+                        merchantName={info?.store_name ?? null}
+                        merchantClosed={merchantClosed}
+                      />
+                    );
+                  })}
+                </div>
+              )}
             </section>
           )}
 

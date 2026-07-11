@@ -13,9 +13,11 @@ interface ProductCardProps {
   product: Product;
   hint?: boolean;
   onHintDismiss?: () => void;
+  merchantName?: string | null;
+  merchantClosed?: boolean;
 }
 
-export function ProductCard({ product, hint = false, onHintDismiss }: ProductCardProps) {
+export function ProductCard({ product, hint = false, onHintDismiss, merchantName, merchantClosed = false }: ProductCardProps) {
   const [mounted, setMounted] = useState(false);
   const { items, addItem, updateQuantity, removeItem, clearCart } = useCartStore();
   const [showConflict, setShowConflict] = useState(false);
@@ -29,7 +31,7 @@ export function ProductCard({ product, hint = false, onHintDismiss }: ProductCar
 
   const handleAdd = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (outOfStock) return;
+    if (outOfStock || merchantClosed) return;
     const hasConflict = product.merchant_id != null &&
       items.some(i => i.product.merchant_id !== product.merchant_id);
     if (hasConflict) {
@@ -42,6 +44,7 @@ export function ProductCard({ product, hint = false, onHintDismiss }: ProductCar
 
   const handleIncrease = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (merchantClosed) return;
     updateQuantity(product.id, qty + 1);
   };
 
@@ -54,7 +57,7 @@ export function ProductCard({ product, hint = false, onHintDismiss }: ProductCar
   return (
     <>
     <Link href={`/product/${product.id}`} className="block">
-      <div className={`bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden transition-shadow hover:shadow-md ${outOfStock ? 'opacity-70' : ''}`}>
+      <div className={`bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden transition-shadow hover:shadow-md ${outOfStock || merchantClosed ? 'opacity-60' : ''}`}>
         {/* Image */}
         <div className="relative aspect-square bg-gray-50">
           <ProductImage
@@ -78,11 +81,21 @@ export function ProductCard({ product, hint = false, onHintDismiss }: ProductCar
               <span className="text-xs font-semibold text-[#6B7280] bg-white px-2 py-1 rounded-full border">Out of stock</span>
             </div>
           )}
+
+          {/* Closed restaurant overlay */}
+          {merchantClosed && !outOfStock && (
+            <div className="absolute inset-0 bg-black/30 flex items-end justify-center pb-2">
+              <span className="text-[10px] font-semibold text-white bg-red-500/90 px-2.5 py-0.5 rounded-full">Closed</span>
+            </div>
+          )}
         </div>
 
         {/* Details */}
         <div className="p-2.5">
           <p className="text-sm font-medium text-[#1A1A1A] line-clamp-2 leading-tight">{product.name}</p>
+          {merchantName && (
+            <p className="text-[10px] text-[#6B7280] mt-0.5 truncate">from {merchantName}</p>
+          )}
 
           <div className="flex items-center justify-between mt-2">
             <div>
@@ -94,7 +107,11 @@ export function ProductCard({ product, hint = false, onHintDismiss }: ProductCar
 
             {/* Cart control */}
             {mounted && !outOfStock && (
-              qty > 0 ? (
+              merchantClosed ? (
+                <span className="text-[10px] font-medium text-red-500 bg-red-50 border border-red-200 px-2 py-1 rounded-lg">
+                  Closed
+                </span>
+              ) : qty > 0 ? (
                 <div className="flex items-center gap-1.5 bg-primary-600 rounded-lg px-2 py-1">
                   <button onClick={handleDecrease} className="text-white">
                     <Minus className="w-3.5 h-3.5" />
