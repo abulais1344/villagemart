@@ -38,9 +38,9 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!mounted) return;
     const stored = localStorage.getItem('vm_customer');
-    console.log('profile - vm_customer:', stored);
     if (!stored) {
-      router.push('/auth/login');
+      localStorage.setItem('login_redirect', '/profile');
+      router.replace('/auth/login');
       return;
     }
     const c: Customer = JSON.parse(stored);

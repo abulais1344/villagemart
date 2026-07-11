@@ -43,14 +43,21 @@ export default function NotificationsPage() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [phone, setPhone] = useState<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem('vm_customer');
     if (!raw) { setLoading(false); return; }
-    const { phone } = JSON.parse(raw);
-    if (!phone) { setLoading(false); return; }
-    load(phone);
+    const { phone: p } = JSON.parse(raw);
+    if (!p) { setLoading(false); return; }
+    setPhone(p);
+    load(p);
   }, []);
+
+  function goToLogin() {
+    localStorage.setItem('login_redirect', '/notifications');
+    router.push('/auth/login');
+  }
 
   async function load(phone: string) {
     const supabase = createClient();
@@ -80,6 +87,40 @@ export default function NotificationsPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-[#7C3AED]" />
+      </div>
+    );
+  }
+
+  if (!phone) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        <header className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
+          <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-100">
+            <ChevronRight className="w-5 h-5 text-gray-700 rotate-180" />
+          </button>
+          <h1 className="text-base font-bold text-gray-900">Notifications</h1>
+        </header>
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+          <div className="w-20 h-20 bg-purple-50 rounded-full flex items-center justify-center mb-6">
+            <Bell className="w-10 h-10 text-purple-400" />
+          </div>
+          <h2 className="text-xl font-bold text-[#1A1A1A] mb-2">Stay in the loop</h2>
+          <p className="text-sm text-[#6B7280] mb-8 max-w-xs">
+            Login to see order updates and offers from your favourite stores.
+          </p>
+          <button
+            onClick={goToLogin}
+            className="w-full max-w-xs py-3.5 bg-[#7C3AED] text-white rounded-xl font-semibold text-sm mb-3"
+          >
+            Login / Sign up
+          </button>
+          <button
+            onClick={() => router.push('/')}
+            className="w-full max-w-xs py-3.5 border border-[#E5E7EB] text-[#6B7280] rounded-xl font-semibold text-sm"
+          >
+            Browse Menu →
+          </button>
+        </div>
       </div>
     );
   }
