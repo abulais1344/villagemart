@@ -22,7 +22,7 @@ export default async function MerchantPortalLayout({ children }: { children: Rea
   const supabase = await createServiceClient();
   const { data: merchant } = await supabase
     .from('merchants')
-    .select('*')
+    .select('id, store_name, status, is_open, commission_rate, address, area, admin_override, avg_delivery_time, closing_time, cuisine_type, min_order_amount, opening_time, phone')
     .eq('id', merchantId)
     .single();
 
