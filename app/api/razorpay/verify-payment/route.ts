@@ -410,9 +410,10 @@ export async function POST(request: NextRequest) {
 
         const shortId = order.id.slice(-6).toUpperCase();
         const itemCount = (orderData.items as any[]).reduce((sum: number, item: any) => sum + item.quantity, 0);
+        const payout = Math.round(serverSubtotal * (1 - commissionRatePct / 100));
         const payload = JSON.stringify({
           title: '🛍️ New Order!',
-          body: `Order #${shortId} • ₹${serverTotal} • ${itemCount} item${itemCount !== 1 ? 's' : ''}`,
+          body: `Order #${shortId} • Payout ₹${payout} • ${itemCount} item${itemCount !== 1 ? 's' : ''}`,
         });
 
         webpush.sendNotification(merchant.push_subscription as webpush.PushSubscription, payload)

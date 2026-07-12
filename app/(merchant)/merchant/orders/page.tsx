@@ -25,6 +25,8 @@ const STATUS_COLOR: Record<string, string> = {
   cancelled:        'bg-red-100 text-red-700',
 };
 
+const earn = (o: any) => (o.subtotal ?? 0) - (o.commission_amount ?? 0);
+
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (diff < 60) return `${diff}s ago`;
@@ -241,9 +243,9 @@ export default function MerchantOrdersPage() {
               </span>
             </div>
             <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-              <span className="text-gray-700 font-semibold">Total Amount</span>
+              <span className="text-gray-700 font-semibold">Your Payout</span>
               <span className="text-2xl font-black text-green-600">
-                ₹{newOrderAlert.total_amount}
+                ₹{earn(newOrderAlert)}
               </span>
             </div>
           </div>
@@ -327,7 +329,7 @@ export default function MerchantOrdersPage() {
           style={{ background: '#f97316' }}
         >
           <span className="text-white font-bold text-sm">
-            🔔 New Order! #{(newOrderAlert.id as string).slice(-6).toUpperCase()} — ₹{newOrderAlert.total_amount}
+            🔔 New Order! #{(newOrderAlert.id as string).slice(-6).toUpperCase()} — Payout ₹{earn(newOrderAlert)}
           </span>
           <span className="text-orange-100 text-xs font-medium">Tap to view →</span>
         </button>
@@ -397,7 +399,7 @@ export default function MerchantOrdersPage() {
                 <p className="text-xs text-gray-400 mb-3">📍 {order.delivery_address.area}</p>
               )}
 
-              <p className="font-semibold text-gray-900 mb-3">Total: ₹{order.total_amount}</p>
+              <p className="font-semibold text-gray-900 mb-3">Your Payout: ₹{earn(order)}</p>
 
               {order.status === 'pending' && (
                 <div className="flex gap-2">

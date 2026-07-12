@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 
   const { data: pendingOrders, error } = await supabase
     .from('orders')
-    .select('id, total_amount, customer_name, created_at, notified_pending_at, merchants(store_name, push_subscription, phone)')
+    .select('id, total_amount, subtotal, commission_amount, customer_name, created_at, notified_pending_at, merchants(store_name, push_subscription, phone)')
     .eq('status', 'pending')
     .lt('created_at', oneMinuteAgo);
 
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
           merchant.push_subscription,
           JSON.stringify({
             title: `⚠️ Order Waiting ${ageMinutes}min!`,
-            body:  `Order #${orderId} • ₹${order.total_amount} • Please accept!`,
+            body:  `Order #${orderId} • Payout ₹${Math.round((order.subtotal ?? 0) - (order.commission_amount ?? 0))} • Please accept!`,
           })
         )
         .catch(err => console.error('Repeat push failed:', err.message));
