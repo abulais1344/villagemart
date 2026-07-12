@@ -28,9 +28,6 @@ export default function LoginPage() {
   const firebaseUidRef                = useRef<string | null>(null);
   const [otp, setOtp]                 = useState('');
   const [name, setName]               = useState('');
-  const [address, setAddress]         = useState('');
-  const [landmark, setLandmark]       = useState('');
-  const [area, setArea]               = useState('');
 
   const [phoneError, setPhoneError]   = useState('');
   const [otpError, setOtpError]       = useState('');
@@ -179,21 +176,12 @@ export default function LoginPage() {
   // ── Step 2: profile completion ──────────────────────────────────────────────
   async function handleProfileSubmit(e: React.FormEvent) {
     e.preventDefault();
-
-    const firstAddress = {
-      label:   'Home' as const,
-      address,
-      area,
-      lat:     null,
-      lng:     null,
-      pincode: null,
-    };
     const uid = firebaseUidRef.current;
     const payload = {
-      uid,  // sent to API as the DB id
-      id: uid, // stored in localStorage so Customer.id is populated
-      phone, name, address, landmark, area,
-      addresses:            [firstAddress],
+      uid,
+      id: uid,
+      phone, name,
+      addresses:            [],
       active_address_index: 0,
     };
 
@@ -222,7 +210,7 @@ export default function LoginPage() {
     ? 'Enter your mobile number to continue'
     : step === 1
     ? `Code sent to +91 ${phone}`
-    : 'Tell us where to deliver';
+    : 'Almost there';
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -340,8 +328,8 @@ export default function LoginPage() {
         {/* ── Step 2: profile completion ── */}
         {step === 2 && (
           <>
-            <h2 className="text-xl font-bold text-[#1A1A1A] mb-1">Almost there!</h2>
-            <p className="text-sm text-[#6B7280] mb-6">Tell us where to deliver your order</p>
+            <h2 className="text-xl font-bold text-[#1A1A1A] mb-1">What's your name?</h2>
+            <p className="text-sm text-[#6B7280] mb-6">So we know what to call you on your orders</p>
 
             <form onSubmit={handleProfileSubmit} className="space-y-4">
               <div>
@@ -351,66 +339,14 @@ export default function LoginPage() {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   required
+                  autoFocus
                   placeholder="Your name"
                   className={fieldClass}
                 />
               </div>
 
-              <div>
-                <label className={labelClass}>Mobile Number</label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 border-r border-[#E5E7EB] pr-2.5">
-                    <span className="text-base">🇮🇳</span>
-                    <span className="text-sm font-medium text-[#6B7280]">+91</span>
-                  </div>
-                  <input
-                    type="tel"
-                    value={phone}
-                    readOnly
-                    className="w-full pl-20 pr-4 py-3 rounded-xl border border-[#E5E7EB] text-sm bg-gray-50 text-[#6B7280]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className={labelClass}>Delivery Address *</label>
-                <textarea
-                  value={address}
-                  onChange={e => setAddress(e.target.value)}
-                  required
-                  rows={2}
-                  placeholder="House no, Street, Area"
-                  className={`${fieldClass} resize-none`}
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>
-                  Landmark <span className="text-[#6B7280] font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={landmark}
-                  onChange={e => setLandmark(e.target.value)}
-                  placeholder="Near school, mosque, temple..."
-                  className={fieldClass}
-                />
-              </div>
-
-              <div>
-                <label className={labelClass}>Village / Area *</label>
-                <input
-                  type="text"
-                  value={area}
-                  onChange={e => setArea(e.target.value)}
-                  required
-                  placeholder="e.g. Ardhapur"
-                  className={fieldClass}
-                />
-              </div>
-
               <Button type="submit" fullWidth size="lg">
-                Save & Continue
+                Continue
               </Button>
             </form>
           </>

@@ -310,6 +310,7 @@ export default function CartPage() {
             onClick={() => {
               markCheckoutSeen();
               if (!customer) {
+                localStorage.setItem('login_redirect', '/checkout');
                 window.location.href = '/auth/login';
               } else {
                 window.location.href = '/checkout';

@@ -393,25 +393,21 @@ export default function CheckoutPage() {
             </div>
           </div>
         )}
-        {zoneOk === null && (
-          <div className="px-4 pt-3 flex items-start gap-2 bg-amber-50 border-b border-amber-200">
-            <span className="text-sm">📍</span>
-            <div className="pb-2">
-              <p className="text-xs font-semibold text-amber-700">Location not pinned — we might miss you!</p>
-              <button onClick={() => setShowAddressManager(true)} className="text-xs text-purple-600 font-semibold">
-                Set exact location →
-              </button>
-            </div>
-          </div>
-        )}
         <div className="p-4">
           <button
-            onClick={handlePayment}
-            disabled={loading || zoneOk === false || restaurantClosed || total === null}
+            onClick={zoneOk === true ? handlePayment : () => setShowAddressManager(true)}
+            disabled={loading || restaurantClosed || total === null}
             className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-60 text-white rounded-2xl py-4 font-semibold text-base transition-colors flex items-center justify-center gap-2"
           >
-            <Lock className="w-4 h-4 shrink-0" />
-            {loading ? 'Processing…' : total !== null ? `Pay ${formatCurrency(total)} via UPI / Card` : 'Loading…'}
+            {zoneOk !== true ? (
+              <><MapPin className="w-4 h-4 shrink-0" /> Confirm your location to continue</>
+            ) : loading ? (
+              'Processing…'
+            ) : total !== null ? (
+              <><Lock className="w-4 h-4 shrink-0" /> {`Pay ${formatCurrency(total)} via UPI / Card`}</>
+            ) : (
+              'Loading…'
+            )}
           </button>
           <div className="flex items-center justify-center gap-1 mt-2">
             <ShieldCheck className="w-3.5 h-3.5 text-green-500 shrink-0" />
