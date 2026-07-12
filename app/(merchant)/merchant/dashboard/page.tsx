@@ -118,7 +118,7 @@ export default function MerchantDashboard() {
   const todayOrders  = allOrders.filter(o => new Date(o.created_at) >= todayStart);
   const pendingCount = allOrders.filter(o => o.status === 'pending').length;
 
-  const earn = (o: any) => (o.total_amount ?? 0) * keepRate;
+  const earn = (o: any) => (o.subtotal ?? 0) - (o.commission_amount ?? 0);
 
   const incomeToday = todayOrders.filter(countableOrder).reduce((s, o) => s + earn(o), 0);
   const incomeWeek  = allOrders.filter(o => new Date(o.created_at) >= weekStart  && countableOrder(o)).reduce((s, o) => s + earn(o), 0);

@@ -27,12 +27,12 @@ export default function MerchantAnalyticsPage() {
       const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
 
       const [allOrders, monthOrders] = await Promise.all([
-        supabase.from('orders').select('total_amount').eq('merchant_id', m.id).neq('status', 'cancelled'),
-        supabase.from('orders').select('total_amount').eq('merchant_id', m.id).neq('status', 'cancelled').gte('created_at', monthStart.toISOString()),
+        supabase.from('orders').select('subtotal, commission_amount').eq('merchant_id', m.id).neq('status', 'cancelled'),
+        supabase.from('orders').select('subtotal, commission_amount').eq('merchant_id', m.id).neq('status', 'cancelled').gte('created_at', monthStart.toISOString()),
       ]);
 
-      const totalRev = allOrders.data?.reduce((s, o) => s + o.total_amount, 0) ?? 0;
-      const monthRev = monthOrders.data?.reduce((s, o) => s + o.total_amount, 0) ?? 0;
+      const totalRev = allOrders.data?.reduce((s, o) => s + (o.subtotal ?? 0) - (o.commission_amount ?? 0), 0) ?? 0;
+      const monthRev = monthOrders.data?.reduce((s, o) => s + (o.subtotal ?? 0) - (o.commission_amount ?? 0), 0) ?? 0;
 
       setStats({
         totalOrders: allOrders.data?.length ?? 0,
