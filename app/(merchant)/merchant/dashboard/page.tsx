@@ -316,9 +316,10 @@ export default function MerchantDashboard() {
                           </p>
                           <p className="text-xs text-gray-400 mt-0.5">{shortDate(order.created_at)}</p>
                         </div>
-                        <span className="text-sm font-bold text-[#7C3AED] shrink-0">
-                          {fmt(order.total_amount ?? 0)}
-                        </span>
+                        <div className="text-right shrink-0">
+                          <span className="text-sm font-bold text-[#7C3AED]">{fmt(earn(order))}</span>
+                          <p className="text-[10px] text-gray-400">payout</p>
+                        </div>
                       </div>
                     </div>
                   ))}
