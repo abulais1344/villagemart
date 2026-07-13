@@ -181,7 +181,8 @@ export default function CartPage() {
           </button>
         )}
 
-        {/* Delivery address */}
+        {/* Delivery address — only shown for logged-in users */}
+        {customer && (
         <div>
           <h3 className="text-sm font-semibold text-[#1A1A1A] mb-2">Deliver to</h3>
 
@@ -252,6 +253,7 @@ export default function CartPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* Free delivery progress — only shown when threshold is loaded */}
         {freeDeliveryThreshold !== null && (
