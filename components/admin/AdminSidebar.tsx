@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, Store, Package, ClipboardList,
-  Tag, Percent, Truck, BarChart2, Gift, LogOut, Bike
+  Tag, Percent, Truck, BarChart2, Gift, LogOut, Bike, Archive
 } from 'lucide-react';
 
 const NAV = [
   { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/admin/orders', icon: ClipboardList, label: 'Orders' },
+  { href: '/admin/parcel-orders', icon: Archive, label: 'Parcels' },
   { href: '/admin/products', icon: Package, label: 'Products' },
   { href: '/admin/users', icon: Users, label: 'Users' },
   { href: '/admin/merchants', icon: Store, label: 'Merchants' },

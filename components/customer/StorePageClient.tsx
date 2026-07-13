@@ -460,6 +460,19 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         </div>
       )}
 
+      {/* ── Parcel delivery banner ── */}
+      {merchant.parcel_service_enabled && (
+        <a
+          href={`/parcel/${merchant.id}`}
+          className="flex items-center justify-between px-4 py-2.5 bg-amber-50 border-b border-amber-100 gap-3"
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-amber-800">📦 Ordering from outside our delivery zone?</p>
+            <p className="text-xs text-amber-600 mt-0.5">Place a parcel order — we'll deliver to you →</p>
+          </div>
+        </a>
+      )}
+
       {/* ── Closed banner ── */}
       {!isOpen && (
         <div className="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2">
