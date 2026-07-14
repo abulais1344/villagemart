@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v12';
+const CACHE_VERSION = 'v13';
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', () => self.clients.claim())
@@ -46,11 +46,14 @@ self.addEventListener('push', function(event) {
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  const url = event.notification.data?.url || '/merchant-login';
+  const url = event.notification.data?.url || '/';
   event.waitUntil(
     clients.matchAll({ type: 'window' }).then(function(clientList) {
+      // Focus any existing PWA window and navigate it to the target URL.
+      // In standalone mode there's typically only one window.
       for (const client of clientList) {
-        if (client.url.includes('merchant') && 'focus' in client) {
+        if ('focus' in client) {
+          client.navigate(url);
           return client.focus();
         }
       }

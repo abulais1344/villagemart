@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { Badge } from '@/components/ui/Badge';
@@ -115,6 +115,15 @@ function toAdminStatus(status: string): AdminStatus {
   return allowed.includes(status as AdminStatus) ? (status as AdminStatus) : 'pending';
 }
 
+function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const arr = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) arr[i] = rawData.charCodeAt(i);
+  return arr.buffer as ArrayBuffer;
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +133,74 @@ export default function AdminOrdersPage() {
   const [riders, setRiders] = useState<{ id: string; name: string }[]>([]);
   const [assigning, setAssigning] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [justInstalled, setJustInstalled] = useState(false);
+  const [notifSubscribed, setNotifSubscribed] = useState(false);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const notifChecked = useRef(false);
   const supabase = createClient();
+
+  // PWA install prompt
+  useEffect(() => {
+    const onPrompt    = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
+    const onInstalled = () => { setInstallPrompt(null); setJustInstalled(true); };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+
+  // Check if a push subscription already exists (don't re-prompt if already subscribed)
+  useEffect(() => {
+    if (notifChecked.current) return;
+    notifChecked.current = true;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    navigator.serviceWorker.ready.then(sw =>
+      sw.pushManager.getSubscription().then(sub => { if (sub) setNotifSubscribed(true); })
+    ).catch(() => {});
+  }, []);
+
+  async function handleInstall() {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') { setInstallPrompt(null); setJustInstalled(true); }
+  }
+
+  async function handleEnableNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      toast.error('Push notifications are not supported in this browser');
+      return;
+    }
+    setNotifLoading(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        toast.error('Notification permission denied — allow it in Chrome site settings');
+        return;
+      }
+      const sw = await navigator.serviceWorker.ready;
+      const sub = await sw.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+      });
+      const res = await fetch('/api/admin/push-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub }),
+      });
+      if (!res.ok) throw new Error('Server rejected subscription');
+      setNotifSubscribed(true);
+      toast.success('Order notifications enabled! ✅');
+    } catch (err) {
+      console.error('[admin] push subscribe failed:', err);
+      toast.error('Failed to enable notifications — check console');
+    } finally {
+      setNotifLoading(false);
+    }
+  }
 
   const loadOrders = async () => {
     const res = await fetch(`/api/admin/orders?status=${statusFilter}&limit=100`);
@@ -186,6 +262,35 @@ export default function AdminOrdersPage() {
   return (
     <>
       <AdminHeader title="Orders" />
+
+      {/* Install + notification opt-in bar — only shown when action is needed */}
+      {(installPrompt || justInstalled || !notifSubscribed) && (
+        <div className="bg-[#7C3AED] px-4 py-3 flex items-center gap-3 flex-wrap">
+          {installPrompt && (
+            <button
+              onClick={handleInstall}
+              className="flex items-center gap-1.5 bg-white text-[#7C3AED] text-xs font-semibold px-3 py-2 rounded-xl shrink-0"
+            >
+              📲 Install App
+            </button>
+          )}
+          {justInstalled && !installPrompt && (
+            <span className="text-xs text-white font-medium">App installed ✅</span>
+          )}
+          {notifSubscribed ? (
+            <span className="text-xs text-white/80 font-medium ml-auto">🔔 Order notifications on</span>
+          ) : (
+            <button
+              onClick={handleEnableNotifications}
+              disabled={notifLoading}
+              className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-2 rounded-xl shrink-0 disabled:opacity-60 transition-colors"
+            >
+              {notifLoading ? '…' : '🔔 Enable Order Notifications'}
+            </button>
+          )}
+        </div>
+      )}
+
       <main className="pb-4">
         <div className="flex overflow-x-auto no-scrollbar bg-white border-b border-[#E5E7EB]">
           {(['all', ...STATUSES] as const).map(s => (

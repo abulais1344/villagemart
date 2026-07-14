@@ -309,6 +309,37 @@ export async function createOrderFromPayment(
     } catch (err) { console.error('[createOrderFromPayment] admin email failed:', err); }
   })();
 
+  // Admin push notification
+  ;(async () => {
+    try {
+      const { data: adminSettings } = await supabase
+        .from('admin_settings')
+        .select('push_subscription')
+        .eq('id', 1)
+        .single();
+      if (!adminSettings?.push_subscription) return;
+
+      let storeName = 'Zupr';
+      if (merchantId) {
+        const { data: m } = await supabase.from('merchants').select('store_name').eq('id', merchantId).single();
+        if (m?.store_name) storeName = m.store_name;
+      }
+
+      const shortId = order.id.slice(-6).toUpperCase();
+      const itemCount = data.items.reduce((s, i) => s + i.quantity, 0);
+
+      webpush.setVapidDetails(process.env.VAPID_EMAIL!, process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!);
+      await webpush.sendNotification(
+        adminSettings.push_subscription as webpush.PushSubscription,
+        JSON.stringify({
+          title: '🛒 New Order!',
+          body: `#${shortId} · ${storeName} · ₹${serverTotal} · ${itemCount} item${itemCount !== 1 ? 's' : ''}`,
+          data: { url: '/admin/orders' },
+        }),
+      );
+    } catch (err) { console.error('[createOrderFromPayment] admin push failed:', err); }
+  })();
+
   // Merchant WhatsApp
   ;(async () => {
     try {
