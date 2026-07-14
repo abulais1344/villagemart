@@ -11,7 +11,7 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { items, offerId } = await request.json();
+    const { items, offerId, merchantId, customer } = await request.json();
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return Response.json({ error: 'Invalid items' }, { status: 400 });
@@ -103,10 +103,32 @@ export async function POST(request: NextRequest) {
       key_secret: process.env.RAZORPAY_KEY_SECRET!,
     });
 
+    // Encode items as "id:qty|id:qty" — truncate at item boundaries to stay within Razorpay's 256-char note value limit
+    const itemParts = (items as Array<{ id: string; quantity: number }>).map(i => `${i.id}:${i.quantity}`);
+    let itemsNote = '';
+    for (const part of itemParts) {
+      const next = itemsNote ? `${itemsNote}|${part}` : part;
+      if (next.length > 256) break;
+      itemsNote = next;
+    }
+
+    const notes: Record<string, string> = {
+      merchant_id:       String(merchantId ?? ''),
+      customer_id:       String(customer?.id ?? ''),
+      customer_name:     String(customer?.name ?? '').slice(0, 256),
+      customer_phone:    String(customer?.phone ?? '').slice(0, 20),
+      customer_address:  String(customer?.address ?? '').slice(0, 256),
+      customer_landmark: String(customer?.landmark ?? '').slice(0, 256),
+      customer_area:     String(customer?.area ?? '').slice(0, 256),
+      offer_id:          String(offerId ?? ''),
+      items:             itemsNote,
+    };
+
     const order = await razorpay.orders.create({
       amount: Math.round(total * 100),
       currency: 'INR',
       receipt: `vm_${Date.now()}`,
+      notes,
     });
 
     return Response.json({

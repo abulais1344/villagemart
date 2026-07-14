@@ -207,6 +207,15 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           items: items.map(({ product, quantity }) => ({ id: product.id, quantity })),
           offerId: appliedOffer?.id ?? null,
+          merchantId: items[0]?.product.merchant_id ?? null,
+          customer: {
+            id: customer.id ?? null,
+            name: customer.name,
+            phone: customer.phone,
+            address: customer.address ?? '',
+            landmark: customer.landmark ?? '',
+            area: customer.area ?? '',
+          },
         }),
       });
       const { orderId, amount, currency } = await res.json();
