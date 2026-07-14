@@ -95,6 +95,15 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     };
   }, []);
 
+  useEffect(() => {
+    function trackInstall() {
+      fetch('/api/track-install', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'customer' }) }).catch(() => {});
+      window.removeEventListener('appinstalled', trackInstall);
+    }
+    window.addEventListener('appinstalled', trackInstall);
+    return () => window.removeEventListener('appinstalled', trackInstall);
+  }, []);
+
   async function handleInstall() {
     if (!installPrompt) return;
     installPrompt.prompt();

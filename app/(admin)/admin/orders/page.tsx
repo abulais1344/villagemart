@@ -152,6 +152,15 @@ export default function AdminOrdersPage() {
     };
   }, []);
 
+  useEffect(() => {
+    function trackInstall() {
+      fetch('/api/track-install', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'admin' }) }).catch(() => {});
+      window.removeEventListener('appinstalled', trackInstall);
+    }
+    window.addEventListener('appinstalled', trackInstall);
+    return () => window.removeEventListener('appinstalled', trackInstall);
+  }, []);
+
   // Check if a push subscription already exists (don't re-prompt if already subscribed)
   useEffect(() => {
     if (notifChecked.current) return;

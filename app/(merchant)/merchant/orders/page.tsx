@@ -85,6 +85,15 @@ export default function MerchantOrdersPage() {
     };
   }, []);
 
+  useEffect(() => {
+    function trackInstall() {
+      fetch('/api/track-install', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'merchant' }) }).catch(() => {});
+      window.removeEventListener('appinstalled', trackInstall);
+    }
+    window.addEventListener('appinstalled', trackInstall);
+    return () => window.removeEventListener('appinstalled', trackInstall);
+  }, []);
+
   // Repeat push check every 60s for unaccepted orders
   useEffect(() => {
     const id = setInterval(() => {
