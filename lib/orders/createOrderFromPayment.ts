@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendWhatsAppNotification } from '@/lib/whatsapp';
+import { sendAdminOrderEmail } from '@/lib/email';
 import webpush from 'web-push';
 
 const supabase = createClient(
@@ -277,6 +278,35 @@ export async function createOrderFromPayment(
         body: new URLSearchParams({ From: from!, To: `whatsapp:+${adminPhone}`, Body: body }),
       });
     } catch (err) { console.error('[createOrderFromPayment] admin WhatsApp failed:', err); }
+  })();
+
+  // Admin email (backup channel, independent of WhatsApp)
+  ;(async () => {
+    try {
+      let storeName = 'Zupr';
+      if (merchantId) {
+        const { data: m } = await supabase.from('merchants').select('store_name').eq('id', merchantId).single();
+        if (m?.store_name) storeName = m.store_name;
+      }
+      const addrParts = [data.customer.address, data.customer.landmark, data.customer.area].filter(Boolean).join(', ');
+      await sendAdminOrderEmail({
+        orderId: order.id,
+        storeName,
+        customerName: data.customer.name,
+        customerPhone: data.customer.phone,
+        deliveryAddress: addrParts,
+        items: data.items.map(i => ({
+          name: dbNameMap[i.id] ?? i.id,
+          quantity: i.quantity,
+          unitPrice: dbPriceMap[i.id] ?? 0,
+        })),
+        subtotal: serverSubtotal,
+        deliveryCharge: serverDeliveryCharge,
+        discountAmount: serverDiscountAmount,
+        total: serverTotal,
+        source,
+      });
+    } catch (err) { console.error('[createOrderFromPayment] admin email failed:', err); }
   })();
 
   // Merchant WhatsApp
