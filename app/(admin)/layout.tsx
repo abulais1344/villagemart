@@ -6,6 +6,7 @@ export const metadata: Metadata = {
     default: 'Dashboard | Zupr Admin',
     template: '%s | Zupr Admin',
   },
+  manifest: '/manifest-admin.json',
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
