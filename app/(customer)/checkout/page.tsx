@@ -7,7 +7,8 @@ import { ProductImage } from '@/components/shared/ProductImage';
 import Image from 'next/image';
 import { useCartStore } from '@/store/cartStore';
 import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
-import { formatCurrency } from '@/lib/utils/format';
+import { formatCurrency, formatTime12hr } from '@/lib/utils/format';
+import { SUPPORT_WHATSAPP_URL } from '@/lib/constants';
 import { isWithinDeliveryZone } from '@/lib/delivery-zone';
 import { AddressManager } from '@/components/customer/AddressManager';
 import ConfirmingPaymentOverlay from '@/components/ConfirmingPaymentOverlay';
@@ -159,6 +160,7 @@ export default function CheckoutPage() {
   const total: number | null = deliveryCharge !== null ? subtotal + deliveryCharge - discountAmount : null;
 
   const isParcelEligible = zoneOk === false && merchantParcelEnabled && isBeforeParcelCutoff(merchantParcelCutoff);
+  const isPastCutoff = zoneOk === false && merchantParcelEnabled && !isBeforeParcelCutoff(merchantParcelCutoff);
   const parcelEstimatedTotal = subtotal + merchantParcelCharge;
 
   async function handleParcelOrder() {
@@ -504,9 +506,18 @@ export default function CheckoutPage() {
         {isParcelEligible ? (
           <div className="p-4 space-y-3">
             <div className="bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
-              <p className="text-xs font-semibold text-amber-800">📦 Your address is outside our delivery zone</p>
-              <p className="text-xs text-amber-600 mt-0.5">
-                We offer parcel delivery · Orders accepted till {merchantParcelCutoff?.slice(0, 5) ?? '17:30'} IST
+              <p className="text-xs font-semibold text-amber-800">📦 You&apos;re outside our regular zone — but we&apos;ve still got you covered</p>
+              <p className="text-xs text-amber-700 mt-0.5">Scheduled parcel delivery is available here.</p>
+              {merchantParcelCutoff && (
+                <p className="text-xs text-amber-600 mt-0.5">
+                  🕔 Order before {formatTime12hr(merchantParcelCutoff)} for today&apos;s delivery
+                </p>
+              )}
+              <p className="text-xs text-amber-600 mt-1">
+                💬 Questions?{' '}
+                <a href={SUPPORT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                  Chat with us on WhatsApp
+                </a>
               </p>
             </div>
             <input
@@ -528,15 +539,31 @@ export default function CheckoutPage() {
         ) : (
           <>
             {zoneOk === false && (
-              <div className="px-4 pt-3 flex items-start gap-2 bg-red-50 border-b border-red-100">
-                <span className="text-sm">⚠️</span>
-                <div className="pb-2">
-                  <p className="text-xs font-semibold text-red-600">Delivery not available at your location</p>
-                  <button onClick={() => setShowAddressManager(true)} className="text-xs text-purple-600 font-semibold">
-                    Change location →
-                  </button>
+              isPastCutoff ? (
+                <div className="px-4 pt-3 pb-3 bg-orange-50 border-b border-orange-100">
+                  <p className="text-xs font-semibold text-orange-800">
+                    ⏰ Today&apos;s parcel orders are closed
+                    {merchantParcelCutoff ? ` (cutoff was ${formatTime12hr(merchantParcelCutoff)})` : ''}
+                  </p>
+                  <p className="text-xs text-orange-700 mt-0.5">Check back tomorrow, or message us on WhatsApp for urgent requests.</p>
+                  <p className="text-xs text-orange-700 mt-1">
+                    💬{' '}
+                    <a href={SUPPORT_WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="underline font-medium">
+                      Chat with us on WhatsApp
+                    </a>
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <div className="px-4 pt-3 flex items-start gap-2 bg-red-50 border-b border-red-100">
+                  <span className="text-sm">⚠️</span>
+                  <div className="pb-2">
+                    <p className="text-xs font-semibold text-red-600">Delivery not available at your location</p>
+                    <button onClick={() => setShowAddressManager(true)} className="text-xs text-purple-600 font-semibold">
+                      Change location →
+                    </button>
+                  </div>
+                </div>
+              )
             )}
             <div className="p-4">
               <button

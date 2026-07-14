@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { ArrowLeft, Plus, Minus, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
+import { formatTime12hr } from '@/lib/utils/format';
 
 interface Product {
   id: string;
@@ -328,7 +329,7 @@ export function ParcelOrderClient({ merchant, products, cutoffDisplay }: Props) 
         </Link>
         <div className="absolute bottom-4 left-4 right-4 z-10">
           <h1 className="text-xl font-bold text-white leading-tight">{merchant.store_name}</h1>
-          <p className="text-xs text-white/70 mt-0.5">📦 Parcel orders · Order before {cutoffDisplay}</p>
+          <p className="text-xs text-white/70 mt-0.5">📦 Parcel orders · Order before {formatTime12hr(cutoffDisplay)}</p>
         </div>
       </div>
 
@@ -337,7 +338,7 @@ export function ParcelOrderClient({ merchant, products, cutoffDisplay }: Props) 
         <p className="text-sm font-semibold text-amber-800">📦 Parcel Delivery — Outside Local Zone</p>
         <p className="text-xs text-amber-600 mt-0.5">
           Select items below, then fill in your delivery details. Orders dispatched in batches.
-          Order cutoff: {cutoffDisplay} IST daily.
+          Order cutoff: {formatTime12hr(cutoffDisplay)} IST daily.
         </p>
       </div>
 

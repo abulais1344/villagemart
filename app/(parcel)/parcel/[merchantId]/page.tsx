@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
+import { formatTime12hr } from '@/lib/utils/format';
 import { ParcelOrderClient } from '@/components/parcel/ParcelOrderClient';
 
 const supabase = createClient(
@@ -51,7 +52,7 @@ export default async function ParcelPage({ params }: { params: Promise<{ merchan
         <p className="text-4xl mb-4">🕔</p>
         <h1 className="text-xl font-bold text-gray-900 mb-2">Ordering closed for today</h1>
         <p className="text-sm text-gray-500">
-          Reopens tomorrow at {display}. Please come back then to place your parcel order.
+          Reopens tomorrow at {formatTime12hr(display)}. Please come back then to place your parcel order.
         </p>
       </div>
     );

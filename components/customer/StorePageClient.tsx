@@ -7,7 +7,7 @@ import { ProductImage } from '@/components/shared/ProductImage';
 import { ArrowLeft, Minus, Plus, ChevronDown, X } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
-import { formatCurrency } from '@/lib/utils/format';
+import { formatCurrency, formatTime12hr } from '@/lib/utils/format';
 import type { Product } from '@/types';
 import toast from 'react-hot-toast';
 
@@ -467,8 +467,13 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
           className="flex items-center justify-between px-4 py-2.5 bg-amber-50 border-b border-amber-100 gap-3"
         >
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-amber-800">📦 Ordering from outside our delivery zone?</p>
-            <p className="text-xs text-amber-600 mt-0.5">Place a parcel order — we'll deliver to you →</p>
+            <p className="text-sm font-semibold text-amber-800">📦 Need delivery in Nanded or nearby?</p>
+            <p className="text-xs text-amber-700 mt-0.5">We deliver there too — place a scheduled parcel order.</p>
+            {merchant.parcel_order_cutoff_time && (
+              <p className="text-xs text-amber-600 mt-0.5">
+                🕔 Order before {formatTime12hr(merchant.parcel_order_cutoff_time)} for today&apos;s delivery →
+              </p>
+            )}
           </div>
         </a>
       )}

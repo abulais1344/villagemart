@@ -229,18 +229,23 @@ export default function LocationPickerModal({
             className={`rounded-xl p-3 border ${
               inZone
                 ? 'border-green-200 bg-green-50'
-                : 'border-red-200 bg-red-50'
+                : 'border-amber-200 bg-amber-50'
             }`}
           >
             <p
               className={`text-xs font-semibold mb-1 ${
-                inZone ? 'text-green-700' : 'text-red-600'
+                inZone ? 'text-green-700' : 'text-amber-800'
               }`}
             >
               {inZone
                 ? '✅ Delivery available here'
-                : '⚠️ Outside our delivery zone (10 km from Ardhapur)'}
+                : '📍 A bit outside our regular zone — no problem!'}
             </p>
+            {!inZone && (
+              <p className="text-xs text-amber-700 mb-1">
+                We still deliver here via scheduled parcel orders. Tap Confirm to continue.
+              </p>
+            )}
             <p className="text-sm text-gray-700 leading-snug">{address}</p>
           </div>
         ) : (
