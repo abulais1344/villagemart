@@ -339,7 +339,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
               <button
                 onClick={() => {
                   if (!isOpen) {
-                    toast.error(`${merchant.store_name} is closed. Opens at ${merchant.opening_time}`);
+                    toast.error(`${merchant.store_name} is closed. Opens at ${merchant.opening_time ? formatTime12hr(merchant.opening_time) : '—'}`);
                     return;
                   }
                   handleAddItem(product);
@@ -484,7 +484,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
           <span className="text-red-500 text-lg">🔴</span>
           <div>
             <p className="text-sm font-semibold text-red-600">Restaurant is currently closed</p>
-            <p className="text-xs text-red-400">Opens at {merchant.opening_time} · You can browse the menu</p>
+            <p className="text-xs text-red-400">Opens at {merchant.opening_time ? formatTime12hr(merchant.opening_time) : '—'} · You can browse the menu</p>
           </div>
         </div>
       )}
@@ -776,7 +776,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
                   <button
                     onClick={() => {
                       if (!isOpen) {
-                        toast.error(`${merchant.store_name} is closed. Opens at ${merchant.opening_time}`);
+                        toast.error(`${merchant.store_name} is closed. Opens at ${merchant.opening_time ? formatTime12hr(merchant.opening_time) : '—'}`);
                         return;
                       }
                       handleAddItem(selectedImage);
