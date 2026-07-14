@@ -107,3 +107,22 @@ html {
 .hint-label {
   animation: fade-in-hint 0.3s ease forwards;
 }
+
+/* ConfirmingPaymentOverlay animations */
+@keyframes scooter-bob {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-3px); }
+}
+@keyframes road-move {
+  to { stroke-dashoffset: -24; }
+}
+.scooter-icon {
+  animation: scooter-bob 0.45s ease-in-out infinite;
+  transform-origin: center;
+}
+.road-line {
+  animation: road-move 0.5s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scooter-icon, .road-line { animation: none; }
+}

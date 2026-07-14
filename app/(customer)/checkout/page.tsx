@@ -10,6 +10,7 @@ import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
 import { formatCurrency } from '@/lib/utils/format';
 import { isWithinDeliveryZone } from '@/lib/delivery-zone';
 import { AddressManager } from '@/components/customer/AddressManager';
+import ConfirmingPaymentOverlay from '@/components/ConfirmingPaymentOverlay';
 
 declare global {
   interface Window {
@@ -327,6 +328,8 @@ export default function CheckoutPage() {
 
   return (
     <div className={`min-h-screen bg-gray-50 ${isParcelEligible ? 'pb-64' : 'pb-28'}`}>
+      {(loading || parcelSubmitting) && <ConfirmingPaymentOverlay />}
+
       {/* Header */}
       <div className="sticky top-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-100">
