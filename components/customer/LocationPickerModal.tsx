@@ -155,7 +155,7 @@ export default function LocationPickerModal({
   }
 
   function handleSave() {
-    if (!inZone || !address) return;
+    if (!address) return;
     const fullAddress = [flatNo, address, landmark ? `Near: ${landmark}` : ''].filter(Boolean).join(', ');
     onSave({ label, address: fullAddress, area, lat, lng, pincode });
     onClose();
@@ -294,7 +294,7 @@ export default function LocationPickerModal({
       <div className="px-4 py-4 border-t border-gray-100 shrink-0">
         <button
           onClick={handleSave}
-          disabled={!inZone || !address || geocoding}
+          disabled={!address || geocoding}
           className="w-full bg-purple-600 disabled:opacity-40 text-white rounded-xl py-3.5 font-semibold text-sm"
         >
           Confirm Location
