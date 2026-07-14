@@ -1,7 +1,5 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 interface OrderEmailData {
   orderId: string;
   storeName: string;
@@ -18,7 +16,9 @@ interface OrderEmailData {
 
 export async function sendAdminOrderEmail(data: OrderEmailData): Promise<void> {
   const adminEmail = process.env.ADMIN_EMAIL;
-  if (!adminEmail) return;
+  if (!adminEmail || !process.env.RESEND_API_KEY) return;
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
 
   const shortId = data.orderId.slice(-6).toUpperCase();
 
