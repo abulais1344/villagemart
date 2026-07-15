@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { RiderProvider } from './RiderProvider';
 import { RiderNav } from '@/components/rider/RiderNav';
+import { PWAInstallBanner } from '@/components/customer/PWAInstallBanner';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -32,6 +33,7 @@ export default async function RiderPortalLayout({ children }: { children: React.
   return (
     <RiderProvider rider={rider}>
       <div className="min-h-screen bg-gray-50 pb-20">
+        <PWAInstallBanner source="rider" />
         {children}
         <RiderNav />
       </div>

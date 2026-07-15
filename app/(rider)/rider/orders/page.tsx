@@ -1,8 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRider } from '../RiderProvider';
 import toast from 'react-hot-toast';
+
+function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const arr = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) arr[i] = rawData.charCodeAt(i);
+  return arr.buffer as ArrayBuffer;
+}
 
 const STATUS_LABEL: Record<string, string> = {
   pending:          'Pending',
@@ -29,6 +38,9 @@ export default function RiderOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+  const [notifSubscribed, setNotifSubscribed] = useState(false);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const notifChecked = useRef(false);
 
   async function loadOrders() {
     const res = await fetch('/api/rider/orders');
@@ -40,6 +52,53 @@ export default function RiderOrdersPage() {
   }
 
   useEffect(() => { loadOrders(); }, []);
+
+  useEffect(() => {
+    if (notifChecked.current) return;
+    notifChecked.current = true;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    navigator.serviceWorker.ready.then(reg => {
+      reg.pushManager.getSubscription().then(sub => {
+        if (sub) setNotifSubscribed(true);
+      });
+    });
+  }, []);
+
+  async function handleEnableNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      toast.error('Push notifications not supported on this device');
+      return;
+    }
+    setNotifLoading(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        toast.error('Notification permission denied');
+        setNotifLoading(false);
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+      });
+      const res = await fetch('/api/rider/push-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription }),
+      });
+      if (res.ok) {
+        setNotifSubscribed(true);
+        toast.success('Order notifications enabled!');
+      } else {
+        toast.error('Failed to save notification settings');
+      }
+    } catch (err) {
+      console.error('[rider] push subscribe failed:', err);
+      toast.error('Could not enable notifications');
+    }
+    setNotifLoading(false);
+  }
 
   async function handleAction(orderId: string, action: 'pickup' | 'deliver') {
     setActing(orderId);
@@ -70,12 +129,25 @@ export default function RiderOrdersPage() {
             <h1 className="text-base font-bold text-[#1A1A1A]">My Orders</h1>
             <p className="text-xs text-[#6B7280]">{rider.name} · 🛵</p>
           </div>
-          <button
-            onClick={loadOrders}
-            className="text-xs text-[#7C3AED] font-medium px-3 py-1.5 rounded-lg bg-purple-50"
-          >
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            {notifSubscribed ? (
+              <span className="text-xs text-green-600 font-medium">🔔 On</span>
+            ) : (
+              <button
+                onClick={handleEnableNotifications}
+                disabled={notifLoading}
+                className="text-xs text-[#7C3AED] font-medium px-3 py-1.5 rounded-lg bg-purple-50 disabled:opacity-60"
+              >
+                {notifLoading ? '…' : '🔔 Enable alerts'}
+              </button>
+            )}
+            <button
+              onClick={loadOrders}
+              className="text-xs text-[#7C3AED] font-medium px-3 py-1.5 rounded-lg bg-purple-50"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 

@@ -232,6 +232,12 @@ export default function AdminOrdersPage() {
       delivery_latitude: (order.delivery_address as any)?.latitude,
       delivery_longitude: (order.delivery_address as any)?.longitude,
     });
+    // Fire-and-forget push to the rider — failure never blocks assignment
+    fetch('/api/admin/notify-rider', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, riderId }),
+    }).catch(() => {});
     toast.success('Rider assigned');
     setSelected(null);
     setAssigning(false);

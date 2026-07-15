@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from 'react';
 
-export function PWAInstallBanner() {
+interface PWAInstallBannerProps {
+  source?: string;
+}
+
+export function PWAInstallBanner({ source = 'customer' }: PWAInstallBannerProps) {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [justInstalled, setJustInstalled] = useState(false);
 
@@ -23,7 +27,7 @@ export function PWAInstallBanner() {
 
   useEffect(() => {
     function trackInstall() {
-      fetch('/api/track-install', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'customer' }) }).catch(() => {});
+      fetch('/api/track-install', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source }) }).catch(() => {});
       window.removeEventListener('appinstalled', trackInstall);
     }
     window.addEventListener('appinstalled', trackInstall);
