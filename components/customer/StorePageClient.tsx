@@ -266,6 +266,12 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     if (!grouped.has(cat)) grouped.set(cat, []);
     grouped.get(cat)!.push(p);
   }
+  // Within each category: items with at least one image surface first;
+  // tiebreaker is the existing order (bestseller → fetch order).
+  const hasImg = (p: Product) => !!(p.images?.length);
+  for (const group of grouped.values()) {
+    group.sort((a, b) => (hasImg(b) ? 1 : 0) - (hasImg(a) ? 1 : 0));
+  }
 
   const merchantItems = mounted ? items.filter(i => i.product.merchant_id === merchant.id) : [];
   const cartCount = merchantItems.reduce((s, i) => s + i.quantity, 0);
@@ -280,7 +286,11 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const cuisineTags = getCuisineTags(merchant.cuisine_type ?? null);
   const isOpen = isRestaurantOpen(merchant.opening_time ?? null, merchant.closing_time ?? null);
   const isGrouped = !searchQuery.trim() && categories.length > 0;
-  const popularItems = filtered.filter(isBestseller).slice(0, 8);
+  // Popular Items: bestsellers only, image-first within that set
+  const popularItems = filtered
+    .filter(isBestseller)
+    .sort((a, b) => (hasImg(b) ? 1 : 0) - (hasImg(a) ? 1 : 0))
+    .slice(0, 8);
 
   let bestsellerCount = 0;
   let productRenderIndex = 0;
