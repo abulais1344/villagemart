@@ -30,6 +30,13 @@ export async function POST(request: NextRequest) {
 
       if (!rider?.push_subscription || !order) return;
 
+      // Normalise: null or legacy single-object → array
+      const subscriptions: any[] = Array.isArray(rider.push_subscription)
+        ? rider.push_subscription
+        : [rider.push_subscription];
+
+      if (subscriptions.length === 0) return;
+
       let storeName = 'Restaurant';
       if (order.merchant_id) {
         const { data: merchant } = await supabase
@@ -53,16 +60,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await webpush.sendNotification(
-        rider.push_subscription as webpush.PushSubscription,
-        JSON.stringify({
-          title: '🛵 New Delivery!',
-          body: `#${shortId} · ${storeName} → ${addressStr} · ₹${order.total_amount}`,
-          data: { url: '/rider/orders' },
-        }),
+      const payload = JSON.stringify({
+        title: '🛵 New Delivery!',
+        body: `#${shortId} · ${storeName} → ${addressStr} · ₹${order.total_amount}`,
+        data: { url: '/rider/orders' },
+      });
+
+      // Send to every registered device; a dead subscription never blocks the others
+      await Promise.allSettled(
+        subscriptions.map(sub =>
+          webpush
+            .sendNotification(sub as webpush.PushSubscription, payload)
+            .catch(err => {
+              console.error(`[notify-rider] push to ${sub.endpoint} failed:`, err?.statusCode ?? err);
+            })
+        )
       );
     } catch (err) {
-      console.error('[notify-rider] push failed:', err);
+      console.error('[notify-rider] unexpected error:', err);
     }
   })();
 
