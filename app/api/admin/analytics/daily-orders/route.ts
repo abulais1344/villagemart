@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   const { data: orders, error } = await supabase
     .from('orders')
-    .select('id, order_number, created_at, customer_name, customer_phone, merchant_id, subtotal, discount_amount, commission_amount, total_amount')
+    .select('id, order_number, created_at, customer_name, customer_phone, merchant_id, subtotal, delivery_charge, discount_amount, commission_amount, total_amount')
     .eq('payment_status', 'paid')
     .gte('created_at', startUTC.toISOString())
     .lte('created_at', endUTC.toISOString())
@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
     merchant_name: o.merchant_id ? (merchantMap[o.merchant_id] ?? null) : null,
     item_count: itemCounts[o.id] ?? 0,
     subtotal: o.subtotal ?? 0,
+    delivery_charge: o.delivery_charge ?? 0,
     discount_amount: o.discount_amount ?? 0,
     commission_amount: o.commission_amount ?? 0,
     total_amount: o.total_amount ?? 0,

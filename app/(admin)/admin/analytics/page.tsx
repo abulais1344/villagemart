@@ -13,6 +13,7 @@ interface AdminOrder {
   created_at: string;
   status: string;
   subtotal: number;
+  delivery_charge: number;
   discount_amount: number;
   commission_amount: number;
   total_amount: number;
@@ -27,6 +28,7 @@ interface DailyRow {
   date: string;
   orders: number;
   customerPaid: number;
+  deliveryCharges: number;
   discount: number;
   commission: number;
   zuprPnl: number;
@@ -52,6 +54,7 @@ interface DailyOrderDetail {
   merchant_name: string | null;
   item_count: number;
   subtotal: number;
+  delivery_charge: number;
   discount_amount: number;
   commission_amount: number;
   total_amount: number;
@@ -118,13 +121,14 @@ function DayOrdersTable({ orders }: { orders: DailyOrderDetail[] }) {
   const totals = orders.reduce(
     (acc, o) => ({
       subtotal: acc.subtotal + o.subtotal,
+      deliveryCharge: acc.deliveryCharge + (o.delivery_charge ?? 0),
       discount: acc.discount + o.discount_amount,
       commission: acc.commission + o.commission_amount,
       paid: acc.paid + o.total_amount,
       merchantGets: acc.merchantGets + (o.subtotal - o.commission_amount),
       zuprEarns: acc.zuprEarns + (o.commission_amount - o.discount_amount),
     }),
-    { subtotal: 0, discount: 0, commission: 0, paid: 0, merchantGets: 0, zuprEarns: 0 }
+    { subtotal: 0, deliveryCharge: 0, discount: 0, commission: 0, paid: 0, merchantGets: 0, zuprEarns: 0 }
   );
 
   return (
@@ -137,6 +141,7 @@ function DayOrdersTable({ orders }: { orders: DailyOrderDetail[] }) {
             <th className="px-3 py-2 text-left font-semibold text-purple-700 whitespace-nowrap">Customer</th>
             <th className="px-3 py-2 text-center font-semibold text-purple-700 whitespace-nowrap">Items</th>
             <th className="px-3 py-2 text-right font-semibold text-purple-700 whitespace-nowrap">Subtotal</th>
+            <th className="px-3 py-2 text-right font-semibold text-purple-700 whitespace-nowrap">Delivery</th>
             <th className="px-3 py-2 text-right font-semibold text-purple-700 whitespace-nowrap">Discount</th>
             <th className="px-3 py-2 text-right font-semibold text-purple-700 whitespace-nowrap">Commission</th>
             <th className="px-3 py-2 text-right font-semibold text-purple-700 whitespace-nowrap">Customer Paid</th>
@@ -163,6 +168,9 @@ function DayOrdersTable({ orders }: { orders: DailyOrderDetail[] }) {
                 </td>
                 <td className="px-3 py-2 text-center text-[#6B7280]">{o.item_count || '—'}</td>
                 <td className="px-3 py-2 text-right text-[#1A1A1A]">{formatCurrency(o.subtotal)}</td>
+                <td className={`px-3 py-2 text-right ${(o.delivery_charge ?? 0) > 0 ? 'text-amber-600' : 'text-gray-300'}`}>
+                  {(o.delivery_charge ?? 0) > 0 ? formatCurrency(o.delivery_charge) : '—'}
+                </td>
                 <td className={`px-3 py-2 text-right ${disc > 0 ? 'text-red-500' : 'text-gray-300'}`}>
                   {disc > 0 ? `−${formatCurrency(disc)}` : '—'}
                 </td>
@@ -180,6 +188,9 @@ function DayOrdersTable({ orders }: { orders: DailyOrderDetail[] }) {
           <tr className="border-t-2 border-purple-200 bg-purple-100/60 font-bold text-[11px]">
             <td className="px-3 py-2 text-purple-700" colSpan={4}>Day Total</td>
             <td className="px-3 py-2 text-right text-purple-700">{formatCurrency(totals.subtotal)}</td>
+            <td className={`px-3 py-2 text-right ${totals.deliveryCharge > 0 ? 'text-amber-600' : 'text-gray-300'}`}>
+              {totals.deliveryCharge > 0 ? formatCurrency(totals.deliveryCharge) : '—'}
+            </td>
             <td className={`px-3 py-2 text-right ${totals.discount > 0 ? 'text-red-500' : 'text-gray-300'}`}>
               {totals.discount > 0 ? `−${formatCurrency(totals.discount)}` : '—'}
             </td>
@@ -250,6 +261,7 @@ export default function AdminAnalyticsPage() {
     const weekOrders = valid.filter(o => new Date(o.created_at) >= weekAgo);
     const monthOrders = valid.filter(o => new Date(o.created_at) >= monthStart);
     const commission = valid.reduce((s, o) => s + (o.commission_amount ?? (o.total_amount ?? 0) * 0.10), 0);
+    const totalDeliveryCharges = valid.reduce((s, o) => s + (o.delivery_charge ?? 0), 0);
     return {
       week: weekOrders.length,
       weekRev: weekOrders.reduce((s, o) => s + (o.total_amount ?? 0), 0),
@@ -258,6 +270,7 @@ export default function AdminAnalyticsPage() {
       total: valid.length,
       totalRev: valid.reduce((s, o) => s + (o.total_amount ?? 0), 0),
       commission,
+      totalDeliveryCharges,
     };
   }, [allOrders]);
 
@@ -268,13 +281,14 @@ export default function AdminAnalyticsPage() {
     const byDate: Record<string, DailyRow> = {};
     for (const o of valid) {
       const date = toIST(o.created_at);
-      if (!byDate[date]) byDate[date] = { date, orders: 0, customerPaid: 0, discount: 0, commission: 0, zuprPnl: 0, merchantPayout: 0 };
+      if (!byDate[date]) byDate[date] = { date, orders: 0, customerPaid: 0, deliveryCharges: 0, discount: 0, commission: 0, zuprPnl: 0, merchantPayout: 0 };
       const row = byDate[date];
       const sub = o.subtotal ?? o.total_amount ?? 0;
       const disc = o.discount_amount ?? 0;
       const comm = o.commission_amount ?? sub * 0.10;
       row.orders++;
       row.customerPaid += o.total_amount ?? 0;
+      row.deliveryCharges += o.delivery_charge ?? 0;
       row.discount += disc;
       row.commission += comm;
       row.zuprPnl += comm - disc;
@@ -352,6 +366,7 @@ export default function AdminAnalyticsPage() {
             { label: 'Total Orders', value: stats.total, icon: <TrendingUp className="w-4 h-4" /> },
             { label: 'Gross Revenue', value: formatCurrency(stats.totalRev), icon: <IndianRupee className="w-4 h-4" />, color: 'bg-green-50 text-success' },
             { label: 'Platform Earnings', value: formatCurrency(stats.commission), icon: <IndianRupee className="w-4 h-4" />, color: 'bg-purple-50 text-purple-600' },
+            { label: 'Delivery Charges Collected', value: formatCurrency(stats.totalDeliveryCharges), icon: <IndianRupee className="w-4 h-4" />, color: 'bg-amber-50 text-amber-600' },
           ]} />
         </section>
 
@@ -368,6 +383,7 @@ export default function AdminAnalyticsPage() {
                     <Th>Date</Th>
                     <Th right>Orders</Th>
                     <Th right>Customer Paid</Th>
+                    <Th right>Delivery Charges</Th>
                     <Th right>Discount</Th>
                     <Th right>
                       <span>Commission</span>
@@ -395,6 +411,7 @@ export default function AdminAnalyticsPage() {
                           </Td>
                           <Td right>{row.orders}</Td>
                           <Td right>{formatCurrency(row.customerPaid)}</Td>
+                          <Td right>{row.deliveryCharges > 0 ? formatCurrency(row.deliveryCharges) : '—'}</Td>
                           <Td right red={row.discount > 0}>{row.discount > 0 ? `−${formatCurrency(row.discount)}` : '—'}</Td>
                           <Td right green>
                             <span className="flex items-center justify-end gap-1">
@@ -414,7 +431,7 @@ export default function AdminAnalyticsPage() {
                         {/* Expansion row */}
                         {isExpanded && (
                           <tr key={`${row.date}-detail`}>
-                            <td colSpan={7} className="p-0 border-t border-purple-200">
+                            <td colSpan={8} className="p-0 border-t border-purple-200">
                               <div className="bg-purple-50/30 border-b border-purple-100">
                                 {isLoading ? (
                                   <div className="flex items-center justify-center py-6 gap-2 text-purple-500">
@@ -439,6 +456,7 @@ export default function AdminAnalyticsPage() {
                     <Td><span className="font-bold text-purple-700">Total</span></Td>
                     <Td right purple>{dailyRows.reduce((s, r) => s + r.orders, 0)}</Td>
                     <Td right purple>{formatCurrency(dailyRows.reduce((s, r) => s + r.customerPaid, 0))}</Td>
+                    <Td right>{(() => { const v = dailyRows.reduce((s, r) => s + r.deliveryCharges, 0); return v > 0 ? formatCurrency(v) : '—'; })()}</Td>
                     <Td right red>{dailyRows.some(r => r.discount > 0) ? `−${formatCurrency(dailyRows.reduce((s, r) => s + r.discount, 0))}` : '—'}</Td>
                     <Td right green>{formatCurrency(dailyRows.reduce((s, r) => s + r.commission, 0))}</Td>
                     <Td right green={dailyRows.reduce((s, r) => s + r.zuprPnl, 0) >= 0} red={dailyRows.reduce((s, r) => s + r.zuprPnl, 0) < 0}>
@@ -534,6 +552,7 @@ export default function AdminAnalyticsPage() {
                       <Th>Customer</Th>
                       <Th>Merchant</Th>
                       <Th right>Subtotal</Th>
+                      <Th right>Delivery</Th>
                       <Th right>Discount</Th>
                       <Th right>Total Paid</Th>
                       <Th right>Commission</Th>
@@ -558,6 +577,7 @@ export default function AdminAnalyticsPage() {
                           </Td>
                           <Td>{o.merchant?.store_name ?? '—'}</Td>
                           <Td right>{formatCurrency(sub)}</Td>
+                          <Td right>{(o.delivery_charge ?? 0) > 0 ? formatCurrency(o.delivery_charge ?? 0) : '—'}</Td>
                           <Td right red={disc > 0}>{disc > 0 ? `−${formatCurrency(disc)}` : '—'}</Td>
                           <Td right>{formatCurrency(o.total_amount ?? 0)}</Td>
                           <Td right green>{formatCurrency(comm)}</Td>

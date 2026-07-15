@@ -302,6 +302,7 @@ export interface AdminStats {
   total_orders: number;
   total_revenue: number;
   commission_earned: number;
+  delivery_charges_collected: number;
   pending_orders: number;
   today_orders: number;
 }

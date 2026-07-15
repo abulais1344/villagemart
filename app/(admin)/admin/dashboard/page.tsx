@@ -19,7 +19,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats>({
     total_users: 0, total_merchants: 0, total_riders: 0,
     total_orders: 0, total_revenue: 0, commission_earned: 0,
-    pending_orders: 0, today_orders: 0,
+    delivery_charges_collected: 0, pending_orders: 0, today_orders: 0,
   });
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +46,7 @@ export default function AdminDashboard() {
     const pendingOrders = allOrders.filter(o => o.status === 'pending');
     const totalRev = validOrders.reduce((s, o) => s + (o.total_amount ?? 0), 0);
     const commission = validOrders.reduce((s, o) => s + (o.commission_amount ?? 0), 0);
+    const deliveryCharges = validOrders.reduce((s, o) => s + (o.delivery_charge ?? 0), 0);
 
     setStats({
       total_users: users.count ?? 0,
@@ -54,6 +55,7 @@ export default function AdminDashboard() {
       total_orders: allOrders.length,
       total_revenue: totalRev,
       commission_earned: commission,
+      delivery_charges_collected: deliveryCharges,
       pending_orders: pendingOrders.length,
       today_orders: todayOrders.length,
     });
@@ -107,6 +109,7 @@ export default function AdminDashboard() {
           { label: "Today's Orders", value: stats.today_orders, icon: <ShoppingBag className="w-4 h-4" /> },
           { label: 'Total Revenue', value: formatCurrency(stats.total_revenue), icon: <IndianRupee className="w-4 h-4" />, color: 'bg-green-50 text-success' },
           { label: 'Commission Earned', value: formatCurrency(stats.commission_earned), icon: <Percent className="w-4 h-4" />, color: 'bg-primary-50 text-primary-600' },
+          { label: 'Delivery Charges', value: formatCurrency(stats.delivery_charges_collected), icon: <IndianRupee className="w-4 h-4" />, color: 'bg-amber-50 text-amber-600' },
           { label: 'Pending Orders', value: stats.pending_orders, icon: <Clock className="w-4 h-4" />, color: 'bg-amber-50 text-amber-600' },
           { label: 'Total Orders', value: stats.total_orders, icon: <ShoppingBag className="w-4 h-4" />, color: 'bg-purple-50 text-purple-600' },
         ]} />
