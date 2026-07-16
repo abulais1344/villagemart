@@ -223,8 +223,13 @@ function OrderCard({
   dimmed?: boolean;
 }) {
   const addr = order.delivery_address as any;
-  const addressStr = [addr?.address, addr?.area].filter(Boolean).join(', ');
-  const landmark = addr?.landmark;
+  const fullAddress = addr?.address ?? '';
+  const landmark = addr?.landmark && addr.landmark.trim() ? addr.landmark.trim() : null;
+  const recipientName = addr?.name ?? order.customer_name;
+  const recipientPhone = addr?.phone ?? order.customer_phone;
+  const mapsUrl = fullAddress
+    ? `https://maps.google.com/?q=${encodeURIComponent(fullAddress)}`
+    : null;
   const shortId = order.id.slice(-6).toUpperCase();
   const isActing = acting === order.id;
 
@@ -243,17 +248,34 @@ function OrderCard({
         </span>
       </div>
 
-      {/* Customer */}
+      {/* Delivery recipient */}
       <div className="space-y-1 mb-3">
-        <p className="text-sm font-medium text-[#1A1A1A]">{order.customer_name}</p>
-        <a
-          href={`tel:${order.customer_phone}`}
-          className="text-sm text-[#7C3AED] font-medium"
-        >
-          📞 {order.customer_phone}
+        <p className="text-sm font-semibold text-[#1A1A1A]">{recipientName}</p>
+        <a href={`tel:${recipientPhone}`} className="text-sm text-[#7C3AED] font-medium">
+          📞 {recipientPhone}
         </a>
-        <p className="text-xs text-[#6B7280]">🏠 {addressStr}</p>
-        {landmark && <p className="text-xs text-[#6B7280]">📍 {landmark}</p>}
+      </div>
+
+      {/* Delivery address */}
+      <div className="bg-gray-50 rounded-xl px-3 py-2.5 mb-3 space-y-1.5">
+        {fullAddress ? (
+          <p className="text-sm text-[#1A1A1A] leading-snug break-words">🏠 {fullAddress}</p>
+        ) : (
+          <p className="text-xs text-gray-400">No address on file</p>
+        )}
+        {landmark && (
+          <p className="text-xs text-[#6B7280]">📍 {landmark}</p>
+        )}
+        {mapsUrl && (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 mt-0.5"
+          >
+            🗺️ Open in Google Maps
+          </a>
+        )}
       </div>
 
       {/* Items */}
