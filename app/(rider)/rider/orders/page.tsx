@@ -37,18 +37,21 @@ export default function RiderOrdersPage() {
   const rider = useRider();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [acting, setActing] = useState<string | null>(null);
   const [notifSubscribed, setNotifSubscribed] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
   const notifChecked = useRef(false);
 
   async function loadOrders() {
+    setRefreshing(true);
     const res = await fetch('/api/rider/orders');
     if (res.ok) {
       const data = await res.json();
       setOrders(data.orders ?? []);
     }
     setLoading(false);
+    setRefreshing(false);
   }
 
   useEffect(() => { loadOrders(); }, []);
@@ -143,9 +146,10 @@ export default function RiderOrdersPage() {
             )}
             <button
               onClick={loadOrders}
-              className="text-xs text-[#7C3AED] font-medium px-3 py-1.5 rounded-lg bg-purple-50"
+              disabled={refreshing}
+              className="text-xs text-[#7C3AED] font-medium px-3 py-1.5 rounded-lg bg-purple-50 disabled:opacity-60"
             >
-              Refresh
+              {refreshing ? '…' : 'Refresh'}
             </button>
           </div>
         </div>
