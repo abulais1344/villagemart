@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ClipboardList, Utensils, User } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, Utensils, User, Wallet } from 'lucide-react';
 
 const NAV = [
   { href: '/merchant/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/merchant/orders',    icon: ClipboardList,   label: 'Orders'    },
   { href: '/merchant/menu',      icon: Utensils,        label: 'Menu'      },
+  { href: '/merchant/payouts',   icon: Wallet,          label: 'Payouts'   },
   { href: '/merchant/profile',   icon: User,            label: 'Profile'   },
 ];
 

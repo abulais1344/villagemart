@@ -20,7 +20,7 @@ interface AdminOrder {
   customer_name: string;
   customer_phone: string;
   merchant_id: string | null;
-  merchant?: { store_name: string | null } | null;
+  merchant?: { store_name: string | null; phone: string | null } | null;
   order_number?: string;
 }
 
@@ -38,6 +38,7 @@ interface DailyRow {
 interface MerchantRow {
   merchantId: string;
   storeName: string;
+  phone: string | null;
   orders: number;
   grossSales: number;
   discount: number;
@@ -307,6 +308,7 @@ export default function AdminAnalyticsPage() {
         byMerchant[mid] = {
           merchantId: mid,
           storeName: o.merchant?.store_name ?? mid.slice(0, 8),
+          phone: o.merchant?.phone ?? null,
           orders: 0, grossSales: 0, discount: 0, commission: 0, netPayable: 0,
         };
       }
@@ -496,19 +498,60 @@ export default function AdminAnalyticsPage() {
                     <Th right>Discount</Th>
                     <Th right>Commission</Th>
                     <Th right>Net Payable</Th>
+                    <Th>WhatsApp</Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {merchantRows.map(row => (
-                    <tr key={row.merchantId} className="hover:bg-gray-50">
-                      <Td><span className="font-medium">{row.storeName}</span></Td>
-                      <Td right>{row.orders}</Td>
-                      <Td right>{formatCurrency(row.grossSales)}</Td>
-                      <Td right red={row.discount > 0}>{row.discount > 0 ? `−${formatCurrency(row.discount)}` : '—'}</Td>
-                      <Td right green>{formatCurrency(row.commission)}</Td>
-                      <Td right purple>{formatCurrency(row.netPayable)}</Td>
-                    </tr>
-                  ))}
+                  {merchantRows.map(row => {
+                    function sendWhatsApp() {
+                      const todayIST = toIST(new Date().toISOString());
+                      const todayOrders = allOrders.filter(o =>
+                        o.merchant_id === row.merchantId &&
+                        o.status !== 'cancelled' &&
+                        toIST(o.created_at) === todayIST
+                      );
+                      const gross = todayOrders.reduce((s, o) => s + (o.subtotal ?? o.total_amount ?? 0), 0);
+                      const comm = todayOrders.reduce((s, o) => {
+                        const sub = o.subtotal ?? o.total_amount ?? 0;
+                        return s + (o.commission_amount ?? sub * 0.10);
+                      }, 0);
+                      const net = gross - comm;
+                      const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                      const msg = [
+                        `Hello ${row.storeName} 👋`,
+                        ``,
+                        `Your payout summary for ${dateStr}:`,
+                        ``,
+                        `Orders today: ${todayOrders.length}`,
+                        `Gross Sales: ${formatCurrency(gross)}`,
+                        `Commission: ${formatCurrency(comm)}`,
+                        `*Net Payable: ${formatCurrency(net)}*`,
+                        ``,
+                        `— VillageMart`,
+                      ].join('\n');
+                      const phone = row.phone?.replace(/\D/g, '');
+                      if (!phone) { alert(`No phone number on file for ${row.storeName}`); return; }
+                      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                    }
+                    return (
+                      <tr key={row.merchantId} className="hover:bg-gray-50">
+                        <Td><span className="font-medium">{row.storeName}</span></Td>
+                        <Td right>{row.orders}</Td>
+                        <Td right>{formatCurrency(row.grossSales)}</Td>
+                        <Td right red={row.discount > 0}>{row.discount > 0 ? `−${formatCurrency(row.discount)}` : '—'}</Td>
+                        <Td right green>{formatCurrency(row.commission)}</Td>
+                        <Td right purple>{formatCurrency(row.netPayable)}</Td>
+                        <td className="px-3 py-2.5 border-t border-gray-50">
+                          <button
+                            onClick={sendWhatsApp}
+                            className="text-[11px] font-medium text-green-700 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg whitespace-nowrap transition-colors"
+                          >
+                            📲 Send
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </ScrollTable>
             )
