@@ -125,7 +125,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
     .from('vm_products')
     .select('*')
     .eq('is_active', true)
-    .eq('merchant_id', null)
+    .is('merchant_id', null)
     .order('sort_order')
     .limit(100);
 
