@@ -15,6 +15,8 @@ export interface OrderCustomer {
   address: string;
   landmark?: string | null;
   area?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export interface OrderCreationData {
@@ -171,6 +173,8 @@ export async function createOrderFromPayment(
         address: data.customer.address,
         landmark: data.customer.landmark || '',
         area: data.customer.area,
+        lat: data.customer.lat ?? null,
+        lng: data.customer.lng ?? null,
       },
       subtotal: serverSubtotal,
       delivery_charge: serverDeliveryCharge,

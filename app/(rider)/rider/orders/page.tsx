@@ -227,12 +227,14 @@ function OrderCard({
   const landmark = addr?.landmark && addr.landmark.trim() ? addr.landmark.trim() : null;
   const recipientName = addr?.name ?? order.customer_name;
   const recipientPhone = addr?.phone ?? order.customer_phone;
-  const plusCodeMatch = fullAddress.match(/([A-Z0-9]{4,8}\+[A-Z0-9]{2,3})/);
-  const mapsQuery = plusCodeMatch
-    ? `${plusCodeMatch[1]}${addr?.area ? ' ' + addr.area : ''}`
-    : fullAddress;
-  const mapsUrl = mapsQuery
-    ? `https://maps.google.com/?q=${encodeURIComponent(mapsQuery)}`
+  const hasLatLng = typeof addr?.lat === 'number' && typeof addr?.lng === 'number';
+  const plusCodeMatch = hasLatLng ? null : fullAddress.match(/([A-Z0-9]{4,8}\+[A-Z0-9]{2,3})/);
+  const mapsUrl = hasLatLng
+    ? `https://maps.google.com/?q=${addr.lat},${addr.lng}`
+    : plusCodeMatch
+    ? `https://maps.google.com/?q=${encodeURIComponent(`${plusCodeMatch[1]}${addr?.area ? ' ' + addr.area : ''}`)}`
+    : fullAddress
+    ? `https://maps.google.com/?q=${encodeURIComponent(fullAddress)}`
     : null;
   const shortId = order.id.slice(-6).toUpperCase();
   const isActing = acting === order.id;

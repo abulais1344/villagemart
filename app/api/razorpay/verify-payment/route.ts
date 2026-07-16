@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
           address: orderData.customer.address,
           landmark: orderData.customer.landmark,
           area: orderData.customer.area,
+          lat: orderData.customer?.lat ?? null,
+          lng: orderData.customer?.lng ?? null,
         },
         merchantId: orderData.merchantId ?? null,
         offerId: orderData.offerId ?? null,
