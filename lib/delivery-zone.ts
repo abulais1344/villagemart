@@ -1,5 +1,5 @@
 export const ARDHAPUR_CENTER = { lat: 19.2819, lng: 77.3736 };
-export const DELIVERY_RADIUS_KM = 5;
+export const DELIVERY_RADIUS_KM = 3;
 
 export function getDistanceKm(
   lat1: number,
