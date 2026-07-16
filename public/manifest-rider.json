@@ -1,17 +1,17 @@
 {
-  "name": "Zupr Partner",
-  "short_name": "Zupr Partner",
-  "description": "Zupr merchant portal — manage orders, menu, and your store.",
-  "start_url": "/merchant/orders",
+  "name": "Zupr Rider",
+  "short_name": "Zupr Rider",
+  "description": "Zupr delivery rider portal — manage and complete deliveries.",
+  "start_url": "/rider/orders",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#16A34A",
-  "theme_color": "#16A34A",
+  "background_color": "#EA580C",
+  "theme_color": "#EA580C",
   "orientation": "portrait",
   "lang": "en-IN",
   "icons": [
     {
-      "src": "/icon-merchant.svg",
+      "src": "/icon-rider.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

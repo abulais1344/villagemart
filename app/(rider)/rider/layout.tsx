@@ -7,6 +7,7 @@ import { PWAInstallBanner } from '@/components/customer/PWAInstallBanner';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
+  manifest: '/manifest-rider.json',
   title: { default: 'Orders | Zupr Rider', template: '%s | Zupr Rider' },
 };
 

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: 60 * 60 * 24 * 90, // 90 days; sliding refresh via middleware
   });
 
   return response;
