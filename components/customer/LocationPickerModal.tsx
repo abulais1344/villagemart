@@ -177,9 +177,9 @@ export default function LocationPickerModal({
   }
 
   function handleSave() {
-    if (!address) return;
-    const fullAddress = [flatNo, address, landmark ? `Near: ${landmark}` : ''].filter(Boolean).join(', ');
-    onSave({ label, address: fullAddress, area, lat, lng, pincode });
+    if (!address || !landmark.trim()) return;
+    const fullAddress = [flatNo, address, `Near: ${landmark.trim()}`].filter(Boolean).join(', ');
+    onSave({ label, address: fullAddress, area, lat, lng, pincode, landmark: landmark.trim() });
     onClose();
   }
 
@@ -289,7 +289,7 @@ export default function LocationPickerModal({
               type="text"
               value={landmark}
               onChange={e => setLandmark(e.target.value)}
-              placeholder="Landmark (optional)"
+              placeholder="Landmark *  (e.g. near SBI Bank, behind school)"
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400"
             />
           </div>
@@ -321,7 +321,7 @@ export default function LocationPickerModal({
       <div className="px-4 py-4 border-t border-gray-100 shrink-0">
         <button
           onClick={handleSave}
-          disabled={!address || geocoding}
+          disabled={!address || geocoding || !landmark.trim()}
           className="w-full bg-purple-600 disabled:opacity-40 text-white rounded-xl py-3.5 font-semibold text-sm"
         >
           Confirm Location

@@ -5,6 +5,7 @@ export interface AddressData {
   lat: number | null;
   lng: number | null;
   pincode: string | null;
+  landmark?: string;
 }
 
 export interface Customer {

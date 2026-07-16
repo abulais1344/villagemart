@@ -64,6 +64,7 @@ export default function CheckoutPage() {
   const [merchantName, setMerchantName] = useState<string | null>(null);
   const [merchantLogoUrl, setMerchantLogoUrl] = useState<string | null>(null);
   const [showAddressManager, setShowAddressManager] = useState(false);
+  const [landmarkDraft, setLandmarkDraft] = useState('');
   const [appliedOffer, setAppliedOffer] = useState<{ id: string; title: string; discount_type: string; discount_value: number; max_discount: number | null; ends_at?: string | null } | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
@@ -84,11 +85,28 @@ export default function CheckoutPage() {
     // AddressManager.persist() already updated localStorage; just refresh state
     const updated = getCustomer();
     if (updated) setCustomer(updated);
+    setLandmarkDraft(''); // reset draft when switching addresses
     if (typeof addr.lat === 'number' && typeof addr.lng === 'number') {
       setZoneOk(isWithinDeliveryZone(addr.lat, addr.lng));
     } else {
       setZoneOk(null);
     }
+  }
+
+  async function saveLandmarkBackfill(value: string) {
+    if (!value || !customer?.addresses || !customer.phone) return;
+    const idx = customer.active_address_index ?? 0;
+    const updatedAddresses = customer.addresses.map((addr, i) =>
+      i === idx ? { ...addr, landmark: value } : addr
+    );
+    const patched = { ...customer, addresses: updatedAddresses, landmark: value };
+    localStorage.setItem('vm_customer', JSON.stringify(patched));
+    setCustomer(patched);
+    fetch('/api/customer/addresses', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: customer.phone, addresses: updatedAddresses, active_address_index: idx }),
+    }).catch(() => {});
   }
 
   // Step 1: mark Zustand as hydrated from localStorage
@@ -153,6 +171,10 @@ export default function CheckoutPage() {
       .catch(() => {});
   }, []);
 
+  const activeAddrIdx = customer?.active_address_index ?? 0;
+  const activeAddr = customer?.addresses?.[activeAddrIdx];
+  const needsLandmark = !!customer && !activeAddr?.landmark?.trim();
+
   const subtotal = getSubtotal();
   const deliveryCharge: number | null = freeDeliveryThreshold !== null
     ? (subtotal >= freeDeliveryThreshold ? 0 : deliveryChargeAmount)
@@ -201,6 +223,14 @@ export default function CheckoutPage() {
     if (!customer || total === null) return;
     setLoading(true);
 
+    // If landmark was just typed but blur-save hasn't fired yet, save it now
+    const effectiveLandmark = needsLandmark && landmarkDraft.trim()
+      ? landmarkDraft.trim()
+      : (customer.landmark ?? '');
+    if (needsLandmark && landmarkDraft.trim()) {
+      saveLandmarkBackfill(landmarkDraft.trim());
+    }
+
     try {
       // 1. Create Razorpay order — server computes the authoritative amount
       const res = await fetch('/api/razorpay/create-order', {
@@ -215,7 +245,7 @@ export default function CheckoutPage() {
             name: customer.name,
             phone: customer.phone,
             address: customer.address ?? '',
-            landmark: customer.landmark ?? '',
+            landmark: effectiveLandmark,
             area: customer.area ?? '',
           },
         }),
@@ -427,6 +457,23 @@ export default function CheckoutPage() {
               {[customer.landmark, customer.area].filter(Boolean).join(' · ')}
             </p>
           )}
+
+          {/* One-time landmark backfill for existing addresses that never had one */}
+          {needsLandmark && (
+            <div className="mt-3 pt-3 border-t border-amber-100">
+              <p className="text-xs font-semibold text-amber-700 mb-1.5">
+                📍 Add a landmark to help your rider find you
+              </p>
+              <input
+                type="text"
+                value={landmarkDraft}
+                onChange={e => setLandmarkDraft(e.target.value)}
+                onBlur={() => { if (landmarkDraft.trim()) saveLandmarkBackfill(landmarkDraft.trim()); }}
+                placeholder="e.g. Near SBI Bank, behind the school..."
+                className="w-full border border-amber-200 bg-amber-50 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400"
+              />
+            </div>
+          )}
         </div>
 
         {/* Offer banner */}
@@ -568,7 +615,7 @@ export default function CheckoutPage() {
             <div className="p-4">
               <button
                 onClick={zoneOk === true ? handlePayment : () => setShowAddressManager(true)}
-                disabled={loading || restaurantClosed || total === null}
+                disabled={loading || restaurantClosed || total === null || (needsLandmark && !landmarkDraft.trim())}
                 className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-60 text-white rounded-2xl py-4 font-semibold text-base transition-colors flex items-center justify-center gap-2"
               >
                 {zoneOk !== true ? (

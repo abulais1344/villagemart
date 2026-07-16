@@ -54,7 +54,7 @@ function persist(newAddresses: AddressData[], newActive: number) {
     addresses: newAddresses,
     active_address_index: newActive,
     ...(addr
-      ? { address: addr.address, area: addr.area, lat: addr.lat, lng: addr.lng }
+      ? { address: addr.address, area: addr.area, lat: addr.lat, lng: addr.lng, landmark: addr.landmark ?? '' }
       : {}),
   };
   localStorage.setItem('vm_customer', JSON.stringify(updated));
