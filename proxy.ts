@@ -6,6 +6,9 @@ const ROLE_ROUTES = [
   { prefix: '/merchant/', role: 'merchant' },
 ];
 
+// 90 days — slides forward on every request (see rider and merchant sections below)
+const SLIDING_MAX_AGE = 60 * 60 * 24 * 90;
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -34,6 +37,30 @@ export async function proxy(request: NextRequest) {
       const loginUrl = request.nextUrl.clone();
       loginUrl.pathname = '/rider-login';
       return NextResponse.redirect(loginUrl);
+    }
+    // Slide the expiry forward on every authenticated request
+    const res = NextResponse.next();
+    res.cookies.set('rider_session', riderSession.value, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: SLIDING_MAX_AGE,
+    });
+    return res;
+  }
+
+  // Merchant portal — cookie-based auth; slide the session expiry on each visit
+  if (pathname.startsWith('/merchant/')) {
+    const merchantSession = request.cookies.get('merchant_session');
+    if (merchantSession?.value) {
+      const res = NextResponse.next();
+      res.cookies.set('merchant_session', merchantSession.value, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: SLIDING_MAX_AGE,
+      });
+      return res;
     }
     return NextResponse.next();
   }
