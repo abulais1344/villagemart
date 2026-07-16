@@ -518,7 +518,7 @@ export default function AdminAnalyticsPage() {
                       const net = gross - comm;
                       const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                       const msg = [
-                        `Hello ${row.storeName} 👋`,
+                        `Hello ${row.storeName},`,
                         ``,
                         `Your payout summary for ${dateStr}:`,
                         ``,
@@ -527,7 +527,7 @@ export default function AdminAnalyticsPage() {
                         `Commission: ${formatCurrency(comm)}`,
                         `*Net Payable: ${formatCurrency(net)}*`,
                         ``,
-                        `— VillageMart`,
+                        `— Zupr`,
                       ].join('\n');
                       const phone = row.phone?.replace(/\D/g, '');
                       if (!phone) { alert(`No phone number on file for ${row.storeName}`); return; }
