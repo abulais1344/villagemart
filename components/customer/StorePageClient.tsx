@@ -415,8 +415,20 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
       {/* ── PWA install banner (Chrome/Android only; hidden if already installed or dismissed) ── */}
       <PWAInstallBanner />
 
+      {/* ── Coming Soon screen ── */}
+      {merchant.coming_soon && (
+        <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
+          <p className="text-5xl mb-4">🍽️</p>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">We&apos;re getting the menu ready!</h2>
+          <p className="text-sm text-gray-500 leading-relaxed">
+            {merchant.store_name} is joining VillageMart soon. Check back in a little while — we&apos;ll have
+            everything set up for you.
+          </p>
+        </div>
+      )}
+
       {/* ── Parcel delivery banner ── */}
-      {merchant.parcel_service_enabled && (
+      {!merchant.coming_soon && merchant.parcel_service_enabled && (
         <a
           href={`/parcel/${merchant.id}`}
           className="flex items-center justify-between px-4 py-2.5 bg-amber-50 border-b border-amber-100 gap-3"
@@ -434,7 +446,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
       )}
 
       {/* ── Closed banner ── */}
-      {!isOpen && (
+      {!merchant.coming_soon && !isOpen && (
         <div className="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2">
           <span className="text-red-500 text-lg">🔴</span>
           <div>
@@ -445,33 +457,37 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
       )}
 
       {/* ── Search bar ── */}
-      <div className="bg-white px-4 pt-3 pb-2 border-b border-gray-100">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder="🔍 Search dishes..."
-          className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-purple-400"
-        />
-      </div>
+      {!merchant.coming_soon && (
+        <div className="bg-white px-4 pt-3 pb-2 border-b border-gray-100">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="🔍 Search dishes..."
+            className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-purple-400"
+          />
+        </div>
+      )}
 
       {/* ── Veg / Non-veg filter ── */}
-      <div className="bg-white px-4 py-2 flex gap-2 border-b border-gray-100">
-        {(['all', 'veg', 'nonveg'] as Filter[]).map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              filter === f ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600'
-            }`}
-          >
-            {f === 'all' ? 'All' : f === 'veg' ? '🟢 Veg Only' : '🔴 Non Veg'}
-          </button>
-        ))}
-      </div>
+      {!merchant.coming_soon && (
+        <div className="bg-white px-4 py-2 flex gap-2 border-b border-gray-100">
+          {(['all', 'veg', 'nonveg'] as Filter[]).map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                filter === f ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {f === 'all' ? 'All' : f === 'veg' ? '🟢 Veg Only' : '🔴 Non Veg'}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── Popular Items ── */}
-      {popularItems.length > 0 && !searchQuery.trim() && (
+      {!merchant.coming_soon && popularItems.length > 0 && !searchQuery.trim() && (
         <div className="bg-white pt-4 pb-3 border-b border-gray-100">
           <h2 className="text-sm font-bold text-gray-900 px-4 mb-3">🔥 Popular Items</h2>
           <div className="flex gap-3 overflow-x-auto px-4" style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
@@ -493,7 +509,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
       )}
 
       {/* ── Category nav bar (hidden while searching) ── */}
-      {!searchQuery.trim() && categories.length > 1 && (
+      {!merchant.coming_soon && !searchQuery.trim() && categories.length > 1 && (
         <div
           ref={categoryNavRef}
           className="sticky top-0 z-30 bg-white flex gap-2 overflow-x-auto px-4 py-3"
@@ -530,7 +546,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
       )}
 
       {/* ── 4. Menu ── */}
-      <div className="bg-white mt-2">
+      {!merchant.coming_soon && <div className="bg-white mt-2">
         <div className="px-4 py-3 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-900">Menu ({filtered.length} items)</h2>
         </div>
@@ -578,10 +594,10 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
             );
           })
         )}
-      </div>
+      </div>}
 
       {/* ── "≡ Menu" FAB ── */}
-      {isGrouped && (
+      {!merchant.coming_soon && isGrouped && (
         <button
           onClick={() => setShowMenuSheet(true)}
           className={`fixed right-4 z-40 flex items-center gap-2 bg-gray-900 border border-white/20 shadow-xl rounded-full px-5 py-3 text-sm font-semibold text-white transition-all ${

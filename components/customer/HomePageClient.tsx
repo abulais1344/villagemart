@@ -279,15 +279,15 @@ export function HomePageClient({
             </p>
             <div className="flex flex-col gap-3 mt-2">
               {sortedFoodMerchants.map((merchant, index) => {
-                const open = !mounted || isRestaurantOpen(
+                const comingSoon = !!(merchant as any).coming_soon;
+                const open = comingSoon ? false : (!mounted || isRestaurantOpen(
                   (merchant as any).opening_time,
                   (merchant as any).closing_time,
                   (merchant as any).is_open,
                   (merchant as any).admin_override,
-                );
-                return (
-                  <Link key={merchant.id} href={`/stores/${merchant.id}`}
-                    className="w-full bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                ));
+                const cardContent = (
+                  <>
                     {/* Cover image */}
                     {(merchant as any).cover_image_url ? (
                       <div className="relative w-full h-44 bg-gray-100">
@@ -299,7 +299,13 @@ export function HomePageClient({
                           sizes="100vw"
                           priority={index === 0}
                         />
-                        {!open && (
+                        {comingSoon ? (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm bg-orange-500/90 px-3 py-1 rounded-full">
+                              Coming Soon
+                            </span>
+                          </div>
+                        ) : !open && (
                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                             <span className="text-white font-semibold text-sm bg-black/60 px-3 py-1 rounded-full">
                               Closed
@@ -310,7 +316,13 @@ export function HomePageClient({
                     ) : (
                       <div className="relative w-full h-44 bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] flex items-center justify-center">
                         <span className="text-6xl font-bold text-white/30">{merchant.store_name.charAt(0).toUpperCase()}</span>
-                        {!open && (
+                        {comingSoon ? (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <span className="text-white font-semibold text-sm bg-orange-500/90 px-3 py-1 rounded-full">
+                              Coming Soon
+                            </span>
+                          </div>
+                        ) : !open && (
                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                             <span className="text-white font-semibold text-sm bg-black/60 px-3 py-1 rounded-full">
                               Closed
@@ -338,10 +350,12 @@ export function HomePageClient({
                           </span>
                         ))}
                       </div>
-                      {/* Row 3: open/closed pill + delivery time + free delivery */}
+                      {/* Row 3: status pill + delivery time + free delivery */}
                       <div className="flex items-center justify-between text-xs text-gray-500">
                         <div className="flex items-center gap-2">
-                          {open ? (
+                          {comingSoon ? (
+                            <span className="text-[10px] font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">● Coming Soon</span>
+                          ) : open ? (
                             <span className="text-[10px] font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">● Open</span>
                           ) : (
                             <span className="text-[10px] font-medium text-red-500 bg-red-50 px-2 py-0.5 rounded-full">● Closed</span>
@@ -353,6 +367,16 @@ export function HomePageClient({
                         )}
                       </div>
                     </div>
+                  </>
+                );
+                return comingSoon ? (
+                  <div key={merchant.id} className="w-full bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden opacity-80 cursor-default select-none">
+                    {cardContent}
+                  </div>
+                ) : (
+                  <Link key={merchant.id} href={`/stores/${merchant.id}`}
+                    className="w-full bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+                    {cardContent}
                   </Link>
                 );
               })}

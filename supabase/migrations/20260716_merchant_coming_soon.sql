@@ -1,0 +1,1 @@
+ALTER TABLE merchants ADD COLUMN IF NOT EXISTS coming_soon BOOLEAN DEFAULT false;

@@ -42,6 +42,15 @@ export default function AdminMerchantsPage() {
     loadMerchants();
   }
 
+  async function handleComingSoonToggle(merchantId: string, current: boolean) {
+    await fetch(`/api/admin/merchants/${merchantId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coming_soon: !current }),
+    });
+    loadMerchants();
+  }
+
   const filtered = filterStatus === 'all'
     ? merchants
     : merchants.filter(m => m.status === filterStatus);
@@ -111,6 +120,11 @@ export default function AdminMerchantsPage() {
                     }`}>
                       {merchant.status}
                     </span>
+                    {merchant.coming_soon && (
+                      <span className="text-xs px-2 py-1 rounded-full font-medium bg-orange-100 text-orange-700">
+                        Coming Soon
+                      </span>
+                    )}
                     {merchant.admin_override !== null && (
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                         merchant.admin_override === true ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
@@ -158,6 +172,23 @@ export default function AdminMerchantsPage() {
                       );
                     })}
                   </div>
+                </div>
+
+                {/* Coming Soon toggle */}
+                <div className="flex items-center justify-between mb-3 bg-gray-50 rounded-xl px-3 py-2">
+                  <span className="text-xs text-gray-500">
+                    {merchant.coming_soon ? '🟠 Coming Soon (menu hidden from customers)' : '🟢 Visible to customers'}
+                  </span>
+                  <button
+                    onClick={() => handleComingSoonToggle(merchant.id, merchant.coming_soon ?? false)}
+                    className={`text-xs font-medium px-3 py-1 rounded-lg transition-colors ${
+                      merchant.coming_soon
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    {merchant.coming_soon ? 'Mark as Live' : 'Mark Coming Soon'}
+                  </button>
                 </div>
 
                 {/* Action buttons */}
