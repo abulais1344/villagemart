@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v21';
+const CACHE_VERSION = 'v22';
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', () => self.clients.claim())

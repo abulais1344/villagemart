@@ -6,6 +6,10 @@ import { loadGoogleMaps } from '@/lib/google-maps';
 import { isWithinDeliveryZone, ARDHAPUR_CENTER } from '@/lib/delivery-zone';
 import type { AddressData } from '@/lib/customer';
 
+// Survives component unmount/remount within the same page session
+const geocodeCache = new Map<string, { address: string; area: string; pincode: string }>();
+function geocodeCacheKey(lat: number, lng: number) { return `${lat.toFixed(4)},${lng.toFixed(4)}`; }
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -43,14 +47,24 @@ export default function LocationPickerModal({
   const mapInstanceRef = useRef<any>(null);
   const geocoderRef = useRef<any>(null);
   const geocodeCounter = useRef(0);
+  const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   function reverseGeocode(newLat: number, newLng: number) {
     setLat(newLat);
     setLng(newLng);
     setInZone(isWithinDeliveryZone(newLat, newLng));
-    setGeocoding(true);
 
+    const key = geocodeCacheKey(newLat, newLng);
+    const cached = geocodeCache.get(key);
+    if (cached) {
+      setAddress(cached.address);
+      setArea(cached.area);
+      setPincode(cached.pincode);
+      return;
+    }
+
+    setGeocoding(true);
     const reqId = ++geocodeCounter.current;
 
     geocoderRef.current.geocode(
@@ -61,8 +75,6 @@ export default function LocationPickerModal({
         if (status !== 'OK' || !results?.[0]) return;
 
         const r = results[0];
-        setAddress(r.formatted_address);
-
         let foundArea = '';
         let foundPincode = '';
         for (const comp of (r.address_components as any[])) {
@@ -75,6 +87,8 @@ export default function LocationPickerModal({
           }
           if (types.includes('postal_code')) foundPincode = comp.long_name;
         }
+        geocodeCache.set(key, { address: r.formatted_address, area: foundArea, pincode: foundPincode });
+        setAddress(r.formatted_address);
         setArea(foundArea);
         setPincode(foundPincode);
       },
@@ -110,10 +124,14 @@ export default function LocationPickerModal({
             window.google.maps.event.trigger(map, 'resize');
             map.setCenter(center);
 
-            // Geocode on map idle
+            // Debounced geocode on map idle — collapses rapid pan/zoom into one call
             map.addListener('idle', () => {
               const c = map.getCenter();
-              if (c) reverseGeocode(c.lat(), c.lng());
+              if (!c) return;
+              if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+              geocodeTimerRef.current = setTimeout(() => {
+                reverseGeocode(c.lat(), c.lng());
+              }, 300);
             });
 
             // Search autocomplete
@@ -141,6 +159,10 @@ export default function LocationPickerModal({
         });
       })
       .catch(() => setLoadError(true));
+
+    return () => {
+      if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current);
+    };
   }, [isOpen]);
 
   function handleCurrentLocation() {

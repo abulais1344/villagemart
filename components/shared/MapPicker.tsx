@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
+import { loadGoogleMaps } from '@/lib/google-maps';
 
 interface LatLng {
   lat: number;
@@ -23,17 +24,9 @@ declare global {
   }
 }
 
-function loadGoogleMaps(apiKey: string): Promise<void> {
-  if (window.google?.maps) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
+// Shared with LocationPickerModal — same key format (4dp)
+const geocodeCache = new Map<string, string>();
+function cacheKey(lat: number, lng: number) { return `${lat.toFixed(4)},${lng.toFixed(4)}`; }
 
 export function MapPicker({ initialLat = 18.6784, initialLng = 77.5897, onConfirm }: MapPickerProps) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -42,10 +35,7 @@ export function MapPicker({ initialLat = 18.6784, initialLng = 77.5897, onConfir
   const [coords, setCoords] = useState({ lat: initialLat, lng: initialLng });
 
   useEffect(() => {
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? '';
-    if (!apiKey) { setLoading(false); return; }
-
-    loadGoogleMaps(apiKey).then(() => {
+    loadGoogleMaps().then(() => {
       if (!mapRef.current) return;
 
       const map = new window.google.maps.Map(mapRef.current, {
@@ -64,15 +54,18 @@ export function MapPicker({ initialLat = 18.6784, initialLng = 77.5897, onConfir
       const geocoder = new window.google.maps.Geocoder();
 
       const reverseGeocode = (latLng: google.maps.LatLng) => {
+        const key = cacheKey(latLng.lat(), latLng.lng());
+        const cached = geocodeCache.get(key);
+        if (cached) { setAddress(cached); return; }
         geocoder.geocode({ location: latLng }, (results, status) => {
           if (status === 'OK' && results?.[0]) {
+            geocodeCache.set(key, results[0].formatted_address);
             setAddress(results[0].formatted_address);
           }
         });
       };
 
-      reverseGeocode(new window.google.maps.LatLng(initialLat, initialLng));
-
+      // No geocode on mount — only on explicit user interaction (drag/click)
       marker.addListener('dragend', () => {
         const pos = marker.getPosition();
         if (pos) {
