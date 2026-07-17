@@ -276,6 +276,7 @@ function OrderCard({
         {landmark && (
           <p className="text-xs text-[#6B7280]">📍 {landmark}</p>
         )}
+        {/* Open in Google Maps — temporarily disabled; re-enable by uncommenting
         {mapsUrl && (
           <a
             href={mapsUrl}
@@ -286,6 +287,7 @@ function OrderCard({
             🗺️ Open in Google Maps
           </a>
         )}
+        */}
       </div>
 
       {/* Items */}
