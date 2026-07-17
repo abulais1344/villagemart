@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getAuth } from '@/lib/firebase/admin';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,18 +9,25 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  console.log('[upsert-profile] body:', JSON.stringify(body));
+  const { idToken, phone, name, address, landmark, area, addresses, active_address_index } = body;
 
-  const { uid, phone, name, address, landmark, area, addresses, active_address_index } = body;
-
+  if (!idToken) {
+    return NextResponse.json({ success: false, error: 'Missing idToken' }, { status: 400 });
+  }
   if (!phone || !/^\d{10}$/.test(phone)) {
     return NextResponse.json({ success: false, error: 'Invalid phone number' }, { status: 400 });
   }
   if (!name) {
     return NextResponse.json({ success: false, error: 'Name is required' }, { status: 400 });
   }
-  if (!uid) {
-    return NextResponse.json({ success: false, error: 'Missing user ID' }, { status: 400 });
+
+  let uid: string;
+  try {
+    const decoded = await getAuth().verifyIdToken(idToken);
+    uid = decoded.uid;
+  } catch (err) {
+    console.error('[upsert-profile] token verification failed:', err);
+    return NextResponse.json({ success: false, error: 'Invalid or expired token' }, { status: 401 });
   }
 
   const { error } = await supabase

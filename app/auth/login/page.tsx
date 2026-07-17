@@ -25,7 +25,6 @@ export default function LoginPage() {
 
   const [step, setStep]               = useState<Step>(0);
   const [phone, setPhone]             = useState('');
-  const firebaseUidRef                = useRef<string | null>(null);
   const [otp, setOtp]                 = useState('');
   const [name, setName]               = useState('');
 
@@ -35,6 +34,7 @@ export default function LoginPage() {
   const [verifying, setVerifying]     = useState(false);
   const [resending, setResending]     = useState(false);
   const [countdown, setCountdown]     = useState(30);
+  const [resendCount, setResendCount] = useState(0);
 
   const confirmationResultRef  = useRef<ConfirmationResult | null>(null);
   const recaptchaVerifierRef   = useRef<RecaptchaVerifier | null>(null);
@@ -46,6 +46,11 @@ export default function LoginPage() {
     return () => clearTimeout(t);
   }, [step, countdown]);
 
+  // Reset resend count when user goes back to phone entry (e.g. changing number)
+  useEffect(() => {
+    if (step === 0) setResendCount(0);
+  }, [step]);
+
   // Auto-submit when all 6 OTP digits are entered
   useEffect(() => {
     if (step === 1 && otp.length === 6) handleOtpSubmit(otp);
@@ -54,7 +59,7 @@ export default function LoginPage() {
   // ── Initialise (or re-initialise) the invisible reCAPTCHA ──────────────────
   function initRecaptcha(): RecaptchaVerifier {
     if (recaptchaVerifierRef.current) {
-      try { recaptchaVerifierRef.current.clear(); } catch {}
+      try { recaptchaVerifierRef.current.clear(); } catch (e) { console.warn('[recaptcha] clear() failed:', e); }
       recaptchaVerifierRef.current = null;
     }
     const verifier = new RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
@@ -76,6 +81,16 @@ export default function LoginPage() {
 
     setSendLoading(true);
     try {
+      const gate = await fetch('/api/auth/otp-gate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const gateData = await gate.json();
+      if (!gateData.allowed) {
+        setPhoneError(`Please wait ${gateData.waitSeconds ?? 60}s before requesting another OTP.`);
+        return;
+      }
       const verifier = initRecaptcha();
       const result = await signInWithPhoneNumber(firebaseAuth, `+91${phone}`, verifier);
       confirmationResultRef.current = result;
@@ -86,7 +101,7 @@ export default function LoginPage() {
       console.error('signInWithPhoneNumber error:', err);
       // Clean up broken verifier so next attempt starts fresh
       if (recaptchaVerifierRef.current) {
-        try { recaptchaVerifierRef.current.clear(); } catch {}
+        try { recaptchaVerifierRef.current.clear(); } catch (e) { console.warn('[recaptcha] clear() on error:', e); }
         recaptchaVerifierRef.current = null;
       }
       const msg = (err as { message?: string })?.message;
@@ -123,7 +138,6 @@ export default function LoginPage() {
 
       if (data.isNewUser) {
         setPhone(data.phone);
-        firebaseUidRef.current = credential.user.uid;
         setStep(2);
         return;
       }
@@ -144,10 +158,15 @@ export default function LoginPage() {
       window.location.href = getRedirectTarget();
     } catch (err: unknown) {
       console.error('OTP confirm error:', err);
-      const msg = (err as { message?: string })?.message ?? '';
-      setOtpError(msg.includes('invalid') || msg.includes('INVALID')
-        ? 'Incorrect OTP. Please try again.'
-        : 'Something went wrong. Please try again.');
+      const code = (err as { code?: string })?.code ?? '';
+      const msg  = (err as { message?: string })?.message ?? '';
+      setOtpError(
+        code === 'auth/code-expired'
+          ? 'This OTP has expired — tap Resend OTP to get a new one.'
+          : code === 'auth/invalid-verification-code' || msg.includes('invalid') || msg.includes('INVALID')
+          ? 'Incorrect OTP. Please try again.'
+          : 'Something went wrong. Please try again.'
+      );
       setOtp('');
     } finally {
       setVerifying(false);
@@ -156,12 +175,27 @@ export default function LoginPage() {
 
   // ── Step 1: resend OTP ──────────────────────────────────────────────────────
   const handleResend = async () => {
+    if (resendCount >= 3) {
+      toast.error('Too many attempts. Please wait 10 minutes before trying again.');
+      return;
+    }
     setResending(true);
     setOtpError('');
     try {
+      const gate = await fetch('/api/auth/otp-gate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const gateData = await gate.json();
+      if (!gateData.allowed) {
+        toast.error(`Please wait ${gateData.waitSeconds ?? 60}s before resending.`);
+        return;
+      }
       const verifier = initRecaptcha();
       const result = await signInWithPhoneNumber(firebaseAuth, `+91${phone}`, verifier);
       confirmationResultRef.current = result;
+      setResendCount(c => c + 1);
       setCountdown(30);
       setOtp('');
       toast.success('OTP resent!');
@@ -176,19 +210,25 @@ export default function LoginPage() {
   // ── Step 2: profile completion ──────────────────────────────────────────────
   async function handleProfileSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const uid = firebaseUidRef.current;
-    const payload = {
-      uid,
-      id: uid,
-      phone, name,
-      addresses:            [],
-      active_address_index: 0,
-    };
+    const currentUser = firebaseAuth.currentUser;
+    if (!currentUser) {
+      toast.error('Session expired. Please start over.');
+      setStep(0);
+      return;
+    }
+    let idToken: string;
+    try {
+      idToken = await currentUser.getIdToken();
+    } catch {
+      toast.error('Session expired. Please start over.');
+      setStep(0);
+      return;
+    }
 
     const res = await fetch('/api/customer/upsert-profile', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
+      body:    JSON.stringify({ idToken, phone, name, addresses: [], active_address_index: 0 }),
     });
     const result = await res.json();
 
@@ -197,7 +237,15 @@ export default function LoginPage() {
       return;
     }
 
-    localStorage.setItem('vm_customer', JSON.stringify(payload));
+    localStorage.setItem('vm_customer', JSON.stringify({
+      id:                   currentUser.uid,
+      phone, name,
+      address:              '',
+      landmark:             '',
+      area:                 'Ardhapur',
+      addresses:            [],
+      active_address_index: 0,
+    }));
     window.location.href = getRedirectTarget();
   }
 
