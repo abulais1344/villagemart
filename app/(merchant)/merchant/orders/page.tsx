@@ -393,7 +393,9 @@ export default function MerchantOrdersPage() {
               <div className="mb-3 space-y-0.5">
                 {(order.order_items ?? []).map((item: any, i: number) => (
                   <p key={item.id ?? i} className="text-sm text-gray-700">
-                    {item.quantity}x {getItemName(item)} — ₹{item.unit_price ?? item.total_price ?? 0}
+                    {item.quantity > 1
+                      ? `${item.quantity}x ${getItemName(item)} — ₹${item.total_price ?? (item.unit_price ?? 0) * item.quantity} (₹${item.unit_price ?? 0} each)`
+                      : `${getItemName(item)} — ₹${item.unit_price ?? item.total_price ?? 0}`}
                   </p>
                 ))}
               </div>
