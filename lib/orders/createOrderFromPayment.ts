@@ -393,6 +393,55 @@ export async function createOrderFromPayment(
     } catch (err) { console.error('[createOrderFromPayment] merchant push error:', err); }
   })();
 
+  // All-active-riders push — lightweight heads-up at order placement
+  // (full detail: restaurant + items + address + contact goes later, at assignment time via notify-rider)
+  ;(async () => {
+    try {
+      const { data: activeRiders } = await supabase
+        .from('vm_riders')
+        .select('push_subscription')
+        .eq('is_active', true);
+
+      if (!activeRiders?.length) return;
+
+      const subs = activeRiders.flatMap(rider => {
+        const raw = rider.push_subscription;
+        if (!raw) return [];
+        return Array.isArray(raw) ? raw : [raw];
+      });
+      if (!subs.length) return;
+
+      let storeName = 'Zupr';
+      if (merchantId) {
+        const { data: m } = await supabase.from('merchants').select('store_name').eq('id', merchantId).single();
+        if (m?.store_name) storeName = m.store_name;
+      }
+
+      const shortId = order.id.slice(-6).toUpperCase();
+      const payload = JSON.stringify({
+        title: '🛵 New Order!',
+        body: `#${shortId} · ${storeName} · ₹${serverTotal}`,
+        data: { url: '/rider/orders' },
+      });
+
+      webpush.setVapidDetails(
+        process.env.VAPID_EMAIL!,
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+        process.env.VAPID_PRIVATE_KEY!,
+      );
+
+      await Promise.allSettled(
+        subs.map(sub =>
+          webpush
+            .sendNotification(sub as webpush.PushSubscription, payload)
+            .catch(err =>
+              console.error('[createOrderFromPayment] rider push failed:', err?.statusCode ?? err),
+            ),
+        ),
+      );
+    } catch (err) { console.error('[createOrderFromPayment] all-riders push failed:', err); }
+  })();
+
   // Customer WhatsApp
   if (order.customer_phone) {
     const shortId = order.id.slice(-6).toUpperCase();
