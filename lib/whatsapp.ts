@@ -72,6 +72,7 @@ export async function sendRiderPickupAlert(
     customerPhone: string;
     deliveryAddress: string;
     items: Array<{ name: string; quantity: number }>;
+    total?: number;
   },
 ) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -83,12 +84,13 @@ export async function sendRiderPickupAlert(
     .join('\n');
 
   const message = [
-    '🛵 *Order Ready for Pickup!*',
+    '🛵 *New Delivery Assigned!*',
     '',
     `Order #${params.orderShortId}`,
     `🍽️ Restaurant: ${params.storeName}`,
     '',
     `📋 Items:\n${itemsList}`,
+    ...(params.total !== undefined ? [`💰 Order Total: ₹${params.total}`] : []),
     '',
     `👤 Customer: ${params.customerName}`,
     `📞 Phone: ${params.customerPhone}`,
