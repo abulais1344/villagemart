@@ -25,7 +25,7 @@ export default function TermsPage() {
         <section>
           <h2 className="font-semibold text-lg text-gray-800 mt-6 mb-2">2. Service Description</h2>
           <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 leading-relaxed">
-            <li>Zupr is a hyperlocal grocery and food delivery platform serving Ardhapur and nearby areas within a 5 km delivery zone.</li>
+            <li>Zupr is a hyperlocal grocery and food delivery platform serving Ardhapur and nearby areas within a 3.5 km delivery zone.</li>
             <li>We connect customers with local merchants and our own warehouse.</li>
           </ul>
         </section>
@@ -34,7 +34,7 @@ export default function TermsPage() {
           <h2 className="font-semibold text-lg text-gray-800 mt-6 mb-2">3. Eligibility</h2>
           <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 leading-relaxed">
             <li>You must provide a valid Indian mobile number to use the service.</li>
-            <li>Delivery is only available within our 5 km service zone around Ardhapur.</li>
+            <li>Delivery is only available within our 3.5 km service zone around Ardhapur.</li>
           </ul>
         </section>
 
