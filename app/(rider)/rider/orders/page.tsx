@@ -133,16 +133,8 @@ export default function RiderOrdersPage() {
             <p className="text-xs text-[#6B7280]">{rider.name} · 🛵</p>
           </div>
           <div className="flex items-center gap-2">
-            {notifSubscribed ? (
+            {notifSubscribed && (
               <span className="text-xs text-green-600 font-medium">🔔 On</span>
-            ) : (
-              <button
-                onClick={handleEnableNotifications}
-                disabled={notifLoading}
-                className="text-xs text-[#7C3AED] font-medium px-3 py-1.5 rounded-lg bg-purple-50 disabled:opacity-60"
-              >
-                {notifLoading ? '…' : '🔔 Enable alerts'}
-              </button>
             )}
             <button
               onClick={loadOrders}
@@ -154,6 +146,23 @@ export default function RiderOrdersPage() {
           </div>
         </div>
       </div>
+
+      {/* Notification permission banner — shown until subscribed */}
+      {!notifSubscribed && (
+        <div className="bg-orange-500 text-white px-4 py-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-bold">🔔 Turn on order alerts</p>
+            <p className="text-xs opacity-90 mt-0.5">Get notified the moment a new order comes in</p>
+          </div>
+          <button
+            onClick={handleEnableNotifications}
+            disabled={notifLoading}
+            className="shrink-0 bg-white text-orange-600 font-semibold text-xs rounded-lg px-3 py-1.5 disabled:opacity-60"
+          >
+            {notifLoading ? 'Enabling…' : 'Enable'}
+          </button>
+        </div>
+      )}
 
       <div className="px-4 py-4 space-y-6">
         {/* Active orders */}
