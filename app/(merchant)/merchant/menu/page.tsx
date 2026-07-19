@@ -1,6 +1,8 @@
 import { cookies } from 'next/headers';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { MerchantMenuClient } from '@/components/merchant/MerchantMenuClient';
+
+export const dynamic = 'force-dynamic';
 
 export default async function MerchantMenuPage() {
   const cookieStore = await cookies();
@@ -8,7 +10,10 @@ export default async function MerchantMenuPage() {
 
   let initialMenu: any[] = [];
   if (merchantId) {
-    const supabase = await createServiceClient();
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
     const { data } = await supabase
       .from('vm_products')
       .select('*')
