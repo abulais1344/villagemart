@@ -36,28 +36,37 @@ export default function AdminDashboard() {
       supabase.from('vm_riders').select('id', { count: 'exact', head: true }),
     ]);
 
-    // All orders via service role API (bypasses RLS)
-    const res = await fetch('/api/admin/orders');
-    const json = await res.json();
+    // All orders + delivered parcel orders via service role API (bypasses RLS)
+    const [res, parcelRes] = await Promise.all([
+      fetch('/api/admin/orders'),
+      fetch('/api/admin/parcel-orders'),
+    ]);
+    const [json, parcelJson] = await Promise.all([res.json(), parcelRes.json()]);
     const allOrders: any[] = json.orders ?? [];
+    const deliveredParcels: any[] = (parcelJson.orders ?? []).filter((o: any) => o.status === 'delivered');
 
     const validOrders = allOrders.filter(o => o.status !== 'cancelled');
     const todayOrders = allOrders.filter(o => new Date(o.created_at) >= today);
     const pendingOrders = allOrders.filter(o => o.status === 'pending');
-    const totalRev = validOrders.reduce((s, o) => s + (o.total_amount ?? 0), 0);
-    const commission = validOrders.reduce((s, o) => s + (o.commission_amount ?? 0), 0);
-    const deliveryCharges = validOrders.reduce((s, o) => s + (o.delivery_charge ?? 0), 0);
+    const todayParcels = deliveredParcels.filter((o: any) => new Date(o.created_at) >= today);
+
+    const totalRev = validOrders.reduce((s, o) => s + (o.total_amount ?? 0), 0)
+      + deliveredParcels.reduce((s: number, o: any) => s + (o.subtotal ?? 0) + (o.delivery_charge ?? 0), 0);
+    const commission = validOrders.reduce((s, o) => s + (o.commission_amount ?? 0), 0)
+      + deliveredParcels.reduce((s: number, o: any) => s + (o.commission_amount ?? 0), 0);
+    const deliveryCharges = validOrders.reduce((s, o) => s + (o.delivery_charge ?? 0), 0)
+      + deliveredParcels.reduce((s: number, o: any) => s + (o.delivery_charge ?? 0), 0);
 
     setStats({
       total_users: users.count ?? 0,
       total_merchants: merchants.count ?? 0,
       total_riders: riders.count ?? 0,
-      total_orders: allOrders.length,
+      total_orders: allOrders.length + deliveredParcels.length,
       total_revenue: totalRev,
       commission_earned: commission,
       delivery_charges_collected: deliveryCharges,
       pending_orders: pendingOrders.length,
-      today_orders: todayOrders.length,
+      today_orders: todayOrders.length + todayParcels.length,
     });
 
     setRecentOrders(allOrders.slice(0, 10) as Order[]);

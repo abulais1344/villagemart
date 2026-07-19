@@ -59,6 +59,7 @@ interface DailyOrderDetail {
   discount_amount: number;
   commission_amount: number;
   total_amount: number;
+  _isParcel?: boolean;
 }
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -160,6 +161,7 @@ function DayOrdersTable({ orders }: { orders: DailyOrderDetail[] }) {
             return (
               <tr key={o.id} className="border-t border-purple-50 hover:bg-purple-50/40">
                 <td className="px-3 py-2 font-mono text-[10px] text-gray-400">
+                  {o._isParcel && <span className="mr-1 font-sans font-semibold text-amber-600 not-italic">📦</span>}
                   #{(o.order_number ?? o.id).slice(-6).toUpperCase()}
                 </td>
                 <td className="px-3 py-2 text-[#1A1A1A] max-w-[100px] truncate">{o.merchant_name ?? '—'}</td>
@@ -299,8 +301,28 @@ export default function AdminAnalyticsPage() {
       row.zuprPnl += comm - disc;
       row.merchantPayout += sub - comm;
     }
+
+    // Add delivered parcel orders — UPI payment collected directly by merchant
+    const deliveredParcels = allParcelOrders.filter(
+      (o: any) => o.status === 'delivered' && new Date(o.created_at) >= cutoff
+    );
+    for (const o of deliveredParcels) {
+      const date = toIST(o.created_at);
+      if (!byDate[date]) byDate[date] = { date, orders: 0, customerPaid: 0, deliveryCharges: 0, discount: 0, commission: 0, zuprPnl: 0, merchantPayout: 0 };
+      const row = byDate[date];
+      const sub = o.subtotal ?? 0;
+      const dc = o.delivery_charge ?? 0;
+      const comm = o.commission_amount ?? 0;
+      row.orders++;
+      row.customerPaid += sub + dc;
+      row.deliveryCharges += dc;
+      row.commission += comm;
+      row.zuprPnl += comm; // no discount on parcel orders
+      row.merchantPayout += sub - comm;
+    }
+
     return Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date));
-  }, [allOrders]);
+  }, [allOrders, allParcelOrders]);
 
   // ── merchant settlements ───────────────────────────────────────────────
   const merchantRows = useMemo<MerchantRow[]>(() => {

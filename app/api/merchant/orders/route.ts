@@ -48,10 +48,10 @@ export async function GET(request: NextRequest) {
     order_items: orderItems.filter((item: any) => item.order_id === o.id),
   }));
 
-  // Fetch delivered parcel orders — consumed by dashboard Income Overview only
+  // Fetch delivered parcel orders — consumed by dashboard and orders page
   const { data: parcelData } = await supabase
     .from('parcel_orders')
-    .select('subtotal, commission_amount, created_at')
+    .select('id, customer_name, customer_phone, destination_area, items, subtotal, delivery_charge, commission_amount, created_at')
     .eq('merchant_id', merchantId)
     .eq('status', 'delivered');
 

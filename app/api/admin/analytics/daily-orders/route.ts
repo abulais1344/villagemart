@@ -73,7 +73,50 @@ export async function GET(request: NextRequest) {
     discount_amount: o.discount_amount ?? 0,
     commission_amount: o.commission_amount ?? 0,
     total_amount: o.total_amount ?? 0,
+    _isParcel: false,
   }));
 
-  return NextResponse.json({ orders: result });
+  // Also fetch delivered parcel orders for this day
+  const { data: parcelData } = await supabase
+    .from('parcel_orders')
+    .select('id, merchant_id, customer_name, customer_phone, items, subtotal, delivery_charge, commission_amount, created_at')
+    .eq('status', 'delivered')
+    .gte('created_at', startUTC.toISOString())
+    .lte('created_at', endUTC.toISOString())
+    .order('created_at', { ascending: true });
+
+  // Extend merchantMap with any parcel merchant IDs not already fetched
+  const parcelMerchantIds = [...new Set((parcelData ?? []).map((o: any) => o.merchant_id).filter(Boolean))] as string[];
+  const missingIds = parcelMerchantIds.filter(id => !merchantMap[id]);
+  if (missingIds.length > 0) {
+    const { data: extraMerchants } = await supabase
+      .from('merchants').select('id, store_name').in('id', missingIds);
+    for (const m of extraMerchants ?? []) merchantMap[m.id] = m.store_name ?? '';
+  }
+
+  const parcelResult = (parcelData ?? []).map((o: any) => {
+    const sub = o.subtotal ?? 0;
+    const dc = o.delivery_charge ?? 0;
+    const itemCount = (o.items ?? []).reduce((s: number, i: any) => s + (i.quantity ?? 1), 0);
+    return {
+      id: o.id,
+      order_number: null,
+      created_at: o.created_at,
+      customer_name: o.customer_name,
+      customer_phone: o.customer_phone,
+      merchant_name: o.merchant_id ? (merchantMap[o.merchant_id] ?? null) : null,
+      item_count: itemCount,
+      subtotal: sub,
+      delivery_charge: dc,
+      discount_amount: 0,
+      commission_amount: o.commission_amount ?? 0,
+      total_amount: sub + dc,
+      _isParcel: true,
+    };
+  });
+
+  const combined = [...result, ...parcelResult]
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  return NextResponse.json({ orders: combined });
 }

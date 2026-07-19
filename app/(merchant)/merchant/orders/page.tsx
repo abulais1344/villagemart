@@ -41,6 +41,7 @@ function getItemName(item: any): string {
 export default function MerchantOrdersPage() {
   const merchant = useMerchant();
   const [orders, setOrders]               = useState<any[]>([]);
+  const [parcelOrders, setParcelOrders]   = useState<any[]>([]);
   const [tab, setTab]                     = useState('pending');
   const [loading, setLoading]             = useState(true);
   const [newOrderAlert, setNewOrderAlert] = useState<any>(null);
@@ -176,6 +177,7 @@ export default function MerchantOrdersPage() {
     const json = await res.json();
     const fetched: any[] = json.orders ?? [];
     setOrders(fetched);
+    setParcelOrders(json.parcelOrders ?? []);
     setLoading(false);
 
     const pendingOrders = fetched.filter((o: any) => o.status === 'pending');
@@ -204,6 +206,13 @@ export default function MerchantOrdersPage() {
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
+
+  // Delivered parcel orders surface in the "Delivered" and "All" tabs
+  const showParcel = tab === 'delivered' || tab === 'all';
+  const displayOrders: any[] = showParcel
+    ? [...orders, ...parcelOrders.map(o => ({ ...o, _isParcel: true }))]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    : orders;
 
   return (
     <>
@@ -371,89 +380,126 @@ export default function MerchantOrdersPage() {
               <div key={i} className="h-36 bg-gray-100 rounded-2xl animate-pulse" />
             ))}
           </div>
-        ) : orders.length === 0 ? (
+        ) : displayOrders.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-4xl mb-2">📭</p>
             <p className="text-sm text-gray-500">No orders here</p>
           </div>
         ) : (
-          orders.map(order => (
-            <div key={order.id} className="bg-white rounded-2xl p-4 border border-gray-100 mb-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-bold text-gray-900">
-                  Order #{(order.id as string).slice(-6).toUpperCase()}
-                </span>
-                <span className="text-xs text-gray-400">{timeAgo(order.created_at)}</span>
-              </div>
-
-              <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mb-3 ${STATUS_COLOR[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                {order.status}
-              </span>
-
-              <div className="mb-3 space-y-0.5">
-                {(order.order_items ?? []).map((item: any, i: number) => (
-                  <p key={item.id ?? i} className="text-sm text-gray-700">
-                    {item.quantity > 1
-                      ? `${item.quantity}x ${getItemName(item)} — ₹${item.total_price ?? (item.unit_price ?? 0) * item.quantity} (₹${item.unit_price ?? 0} each)`
-                      : `${getItemName(item)} — ₹${item.unit_price ?? item.total_price ?? 0}`}
-                  </p>
-                ))}
-              </div>
-
-              {order.customer_name && (
-                <p className="text-xs text-gray-500 mb-1">
-                  👤 {order.customer_name}
-                  {order.customer_phone ? ` · ${order.customer_phone}` : ''}
-                </p>
-              )}
-              {order.delivery_address?.area && (
-                <p className="text-xs text-gray-400 mb-3">📍 {order.delivery_address.area}</p>
-              )}
-
-              <p className="font-semibold text-gray-900 mb-3">Your Payout: ₹{earn(order)}</p>
-
-              {order.status === 'pending' && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { stopAlarm(); updateStatus(order, 'preparing'); }}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl py-2.5 text-sm font-semibold"
-                  >
-                    ✅ Accept Order
-                  </button>
-                  <button
-                    onClick={() => { stopAlarm(); updateStatus(order, 'cancelled'); }}
-                    className="flex-1 bg-red-50 text-red-600 border border-red-200 rounded-xl py-2.5 text-sm font-semibold"
-                  >
-                    ❌ Reject
-                  </button>
+          displayOrders.map((order: any) => {
+            if (order._isParcel) {
+              return (
+                <div key={order.id} className="bg-white rounded-2xl p-4 border border-amber-100 mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-gray-900">
+                      Parcel #{(order.id as string).slice(-6).toUpperCase()}
+                    </span>
+                    <span className="text-xs text-gray-400">{timeAgo(order.created_at)}</span>
+                  </div>
+                  <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium mb-3 bg-amber-100 text-amber-700">
+                    📦 Parcel · Delivered
+                  </span>
+                  <div className="mb-3 space-y-0.5">
+                    {(order.items ?? []).map((item: any, i: number) => (
+                      <p key={item.id ?? i} className="text-sm text-gray-700">
+                        {item.quantity > 1
+                          ? `${item.quantity}x ${item.name} — ₹${item.unit_price * item.quantity}`
+                          : `${item.name} — ₹${item.unit_price}`}
+                      </p>
+                    ))}
+                  </div>
+                  {order.customer_name && (
+                    <p className="text-xs text-gray-500 mb-1">
+                      👤 {order.customer_name}
+                      {order.customer_phone ? ` · ${order.customer_phone}` : ''}
+                    </p>
+                  )}
+                  {order.destination_area && (
+                    <p className="text-xs text-gray-400 mb-3">📍 {order.destination_area}</p>
+                  )}
+                  <p className="font-semibold text-gray-900">Your Payout: ₹{earn(order)}</p>
                 </div>
-              )}
-              {order.status === 'confirmed' && (
-                <button
-                  onClick={() => updateStatus(order, 'preparing')}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 text-sm font-semibold"
-                >
-                  👨‍🍳 Mark Preparing
-                </button>
-              )}
-              {order.status === 'preparing' && (
-                <button
-                  onClick={() => updateStatus(order, 'ready')}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-2.5 text-sm font-semibold"
-                >
-                  📦 Mark Ready
-                </button>
-              )}
-              {order.status === 'ready' && (
-                <button
-                  onClick={() => updateStatus(order, 'out_for_delivery')}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 text-sm font-semibold"
-                >
-                  🛵 Out for Delivery
-                </button>
-              )}
-            </div>
-          ))
+              );
+            }
+
+            return (
+              <div key={order.id} className="bg-white rounded-2xl p-4 border border-gray-100 mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-gray-900">
+                    Order #{(order.id as string).slice(-6).toUpperCase()}
+                  </span>
+                  <span className="text-xs text-gray-400">{timeAgo(order.created_at)}</span>
+                </div>
+
+                <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mb-3 ${STATUS_COLOR[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {order.status}
+                </span>
+
+                <div className="mb-3 space-y-0.5">
+                  {(order.order_items ?? []).map((item: any, i: number) => (
+                    <p key={item.id ?? i} className="text-sm text-gray-700">
+                      {item.quantity > 1
+                        ? `${item.quantity}x ${getItemName(item)} — ₹${item.total_price ?? (item.unit_price ?? 0) * item.quantity} (₹${item.unit_price ?? 0} each)`
+                        : `${getItemName(item)} — ₹${item.unit_price ?? item.total_price ?? 0}`}
+                    </p>
+                  ))}
+                </div>
+
+                {order.customer_name && (
+                  <p className="text-xs text-gray-500 mb-1">
+                    👤 {order.customer_name}
+                    {order.customer_phone ? ` · ${order.customer_phone}` : ''}
+                  </p>
+                )}
+                {order.delivery_address?.area && (
+                  <p className="text-xs text-gray-400 mb-3">📍 {order.delivery_address.area}</p>
+                )}
+
+                <p className="font-semibold text-gray-900 mb-3">Your Payout: ₹{earn(order)}</p>
+
+                {order.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { stopAlarm(); updateStatus(order, 'preparing'); }}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl py-2.5 text-sm font-semibold"
+                    >
+                      ✅ Accept Order
+                    </button>
+                    <button
+                      onClick={() => { stopAlarm(); updateStatus(order, 'cancelled'); }}
+                      className="flex-1 bg-red-50 text-red-600 border border-red-200 rounded-xl py-2.5 text-sm font-semibold"
+                    >
+                      ❌ Reject
+                    </button>
+                  </div>
+                )}
+                {order.status === 'confirmed' && (
+                  <button
+                    onClick={() => updateStatus(order, 'preparing')}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 text-sm font-semibold"
+                  >
+                    👨‍🍳 Mark Preparing
+                  </button>
+                )}
+                {order.status === 'preparing' && (
+                  <button
+                    onClick={() => updateStatus(order, 'ready')}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-2.5 text-sm font-semibold"
+                  >
+                    📦 Mark Ready
+                  </button>
+                )}
+                {order.status === 'ready' && (
+                  <button
+                    onClick={() => updateStatus(order, 'out_for_delivery')}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 text-sm font-semibold"
+                  >
+                    🛵 Out for Delivery
+                  </button>
+                )}
+              </div>
+            );
+          })
         )}
       </main>
     </>

@@ -133,7 +133,9 @@ export default function MerchantDashboard() {
   const parcelIncomeMonth = parcelOrders.filter(o => new Date(o.created_at) >= monthStart).reduce((s, o) => s + earn(o), 0);
   const parcelIncomeTotal = parcelOrders.reduce((s, o) => s + earn(o), 0);
 
-  const recentOrders = allOrders.slice(0, 5);
+  const recentOrders = [...allOrders, ...parcelOrders.map((o: any) => ({ ...o, _isParcel: true }))]
+    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5);
 
   const STAT_CARDS = [
     { label: "Today's Orders",  value: todayOrders.length, emoji: '📦', bg: 'bg-purple-50' },
@@ -304,7 +306,7 @@ export default function MerchantDashboard() {
                 <p className="text-sm text-gray-400 text-center py-4">No orders yet</p>
               ) : (
                 <div className="space-y-0">
-                  {recentOrders.map((order, i) => (
+                  {recentOrders.map((order: any, i: number) => (
                     <div
                       key={order.id}
                       className={`py-3 ${i < recentOrders.length - 1 ? 'border-b border-gray-100' : ''}`}
@@ -315,9 +317,15 @@ export default function MerchantDashboard() {
                             <span className="font-mono text-xs text-gray-400">
                               #{order.id.slice(0, 8).toUpperCase()}
                             </span>
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLOR[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                              {order.status}
-                            </span>
+                            {order._isParcel ? (
+                              <span className="text-xs px-1.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">
+                                Parcel
+                              </span>
+                            ) : (
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLOR[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                                {order.status}
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm font-medium text-gray-900 truncate">
                             {order.customer_name ?? '—'}
