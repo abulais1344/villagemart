@@ -15,15 +15,30 @@ export async function GET() {
   // 35 days covers today + this week + this month views
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 35);
+  const cutoffISO = cutoff.toISOString();
 
-  const { data, error } = await supabase
-    .from('orders')
-    .select('subtotal, commission_amount, created_at')
-    .eq('merchant_id', merchantId)
-    .neq('status', 'cancelled')
-    .gte('created_at', cutoff.toISOString())
-    .order('created_at', { ascending: false });
+  const [ordersResult, parcelResult] = await Promise.all([
+    supabase
+      .from('orders')
+      .select('subtotal, commission_amount, created_at')
+      .eq('merchant_id', merchantId)
+      .neq('status', 'cancelled')
+      .gte('created_at', cutoffISO)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('parcel_orders')
+      .select('subtotal, commission_amount, created_at')
+      .eq('merchant_id', merchantId)
+      .eq('status', 'delivered')
+      .gte('created_at', cutoffISO),
+  ]);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ orders: data ?? [] });
+  if (ordersResult.error) return NextResponse.json({ error: ordersResult.error.message }, { status: 500 });
+
+  const combined = [
+    ...(ordersResult.data ?? []),
+    ...(parcelResult.data ?? []),
+  ];
+
+  return NextResponse.json({ orders: combined });
 }

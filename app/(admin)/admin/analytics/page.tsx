@@ -212,6 +212,7 @@ function DayOrdersTable({ orders }: { orders: DailyOrderDetail[] }) {
 // ── main page ──────────────────────────────────────────────────────────────
 export default function AdminAnalyticsPage() {
   const [allOrders, setAllOrders] = useState<AdminOrder[]>([]);
+  const [allParcelOrders, setAllParcelOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDaily, setShowDaily] = useState(true);
   const [showMerchant, setShowMerchant] = useState(true);
@@ -224,10 +225,13 @@ export default function AdminAnalyticsPage() {
   const [loadingDate, setLoadingDate] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/admin/orders')
-      .then(r => r.json())
-      .then(json => {
-        setAllOrders(json.orders ?? []);
+    Promise.all([
+      fetch('/api/admin/orders').then(r => r.json()),
+      fetch('/api/admin/parcel-orders').then(r => r.json()),
+    ])
+      .then(([ordersJson, parcelJson]) => {
+        setAllOrders(ordersJson.orders ?? []);
+        setAllParcelOrders(parcelJson.orders ?? []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -322,8 +326,30 @@ export default function AdminAnalyticsPage() {
       row.commission += comm;
       row.netPayable += sub - comm;
     }
+
+    // Merge delivered parcel orders into the same merchant buckets
+    const deliveredParcels = allParcelOrders.filter((o: any) => o.status === 'delivered' && o.merchant_id);
+    for (const o of deliveredParcels) {
+      const mid = o.merchant_id;
+      if (!byMerchant[mid]) {
+        byMerchant[mid] = {
+          merchantId: mid,
+          storeName: o.store_name ?? mid.slice(0, 8),
+          phone: null,
+          orders: 0, grossSales: 0, discount: 0, commission: 0, netPayable: 0,
+        };
+      }
+      const row = byMerchant[mid];
+      const sub = o.subtotal ?? 0;
+      const comm = o.commission_amount ?? sub * 0.07;
+      row.orders++;
+      row.grossSales += sub;
+      row.commission += comm;
+      row.netPayable += sub - comm;
+    }
+
     return Object.values(byMerchant).sort((a, b) => b.netPayable - a.netPayable);
-  }, [allOrders]);
+  }, [allOrders, allParcelOrders]);
 
   // ── orders list ────────────────────────────────────────────────────────
   const orderListRows = useMemo(() => {
@@ -510,19 +536,30 @@ export default function AdminAnalyticsPage() {
                         o.status !== 'cancelled' &&
                         toIST(o.created_at) === todayIST
                       );
-                      const gross = todayOrders.reduce((s, o) => s + (o.subtotal ?? o.total_amount ?? 0), 0);
-                      const comm = todayOrders.reduce((s, o) => {
-                        const sub = o.subtotal ?? o.total_amount ?? 0;
-                        return s + (o.commission_amount ?? sub * 0.10);
-                      }, 0);
+                      const todayParcels = allParcelOrders.filter((o: any) =>
+                        o.merchant_id === row.merchantId &&
+                        o.status === 'delivered' &&
+                        toIST(o.created_at) === todayIST
+                      );
+                      const gross = [
+                        ...todayOrders.map(o => o.subtotal ?? o.total_amount ?? 0),
+                        ...todayParcels.map((o: any) => o.subtotal ?? 0),
+                      ].reduce((s, v) => s + v, 0);
+                      const comm = [
+                        ...todayOrders.map(o => { const sub = o.subtotal ?? o.total_amount ?? 0; return o.commission_amount ?? sub * 0.10; }),
+                        ...todayParcels.map((o: any) => o.commission_amount ?? 0),
+                      ].reduce((s, v) => s + v, 0);
                       const net = gross - comm;
                       const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+                      const orderCountStr = todayParcels.length > 0
+                        ? `${todayOrders.length} regular + ${todayParcels.length} parcel`
+                        : `${todayOrders.length}`;
                       const msg = [
                         `Hello ${row.storeName},`,
                         ``,
                         `Your payout summary for ${dateStr}:`,
                         ``,
-                        `Orders today: ${todayOrders.length}`,
+                        `Orders today: ${orderCountStr}`,
                         `Gross Sales: ${formatCurrency(gross)}`,
                         `Commission: ${formatCurrency(comm)}`,
                         `*Net Payable: ${formatCurrency(net)}*`,

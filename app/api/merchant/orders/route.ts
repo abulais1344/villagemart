@@ -48,7 +48,14 @@ export async function GET(request: NextRequest) {
     order_items: orderItems.filter((item: any) => item.order_id === o.id),
   }));
 
-  return NextResponse.json({ orders: ordersWithItems });
+  // Fetch delivered parcel orders — consumed by dashboard Income Overview only
+  const { data: parcelData } = await supabase
+    .from('parcel_orders')
+    .select('subtotal, commission_amount, created_at')
+    .eq('merchant_id', merchantId)
+    .eq('status', 'delivered');
+
+  return NextResponse.json({ orders: ordersWithItems, parcelOrders: parcelData ?? [] });
 }
 
 const STATUS_NOTIFICATIONS: Record<string, { title: string; body: string }> = {

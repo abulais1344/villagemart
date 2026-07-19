@@ -48,6 +48,7 @@ export default function MerchantDashboard() {
   const router = useRouter();
 
   const [allOrders, setAllOrders] = useState<any[]>([]);
+  const [parcelOrders, setParcelOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
   const [isOpen, setIsOpen] = useState<boolean>(merchant.is_open ?? true);
@@ -98,6 +99,7 @@ export default function MerchantDashboard() {
       .then(r => r.json())
       .then(json => {
         setAllOrders(json.orders ?? []);
+        setParcelOrders(json.parcelOrders ?? []);
         setLoading(false);
       });
   }, []);
@@ -125,6 +127,12 @@ export default function MerchantDashboard() {
   const incomeMonth = allOrders.filter(o => new Date(o.created_at) >= monthStart && countableOrder(o)).reduce((s, o) => s + earn(o), 0);
   const incomeTotal = allOrders.filter(countableOrder).reduce((s, o) => s + earn(o), 0);
 
+  // Parcel orders are already filtered to status='delivered' by the API
+  const parcelIncomeToday = parcelOrders.filter(o => new Date(o.created_at) >= todayStart).reduce((s, o) => s + earn(o), 0);
+  const parcelIncomeWeek  = parcelOrders.filter(o => new Date(o.created_at) >= weekStart).reduce((s, o) => s + earn(o), 0);
+  const parcelIncomeMonth = parcelOrders.filter(o => new Date(o.created_at) >= monthStart).reduce((s, o) => s + earn(o), 0);
+  const parcelIncomeTotal = parcelOrders.reduce((s, o) => s + earn(o), 0);
+
   const recentOrders = allOrders.slice(0, 5);
 
   const STAT_CARDS = [
@@ -135,10 +143,10 @@ export default function MerchantDashboard() {
   ];
 
   const INCOME_ROWS = [
-    { label: 'Today',      amount: incomeToday },
-    { label: 'This Week',  amount: incomeWeek  },
-    { label: 'This Month', amount: incomeMonth },
-    { label: 'All Time',   amount: incomeTotal },
+    { label: 'Today',      amount: incomeToday + parcelIncomeToday },
+    { label: 'This Week',  amount: incomeWeek  + parcelIncomeWeek  },
+    { label: 'This Month', amount: incomeMonth + parcelIncomeMonth },
+    { label: 'All Time',   amount: incomeTotal + parcelIncomeTotal },
   ];
 
   return (
