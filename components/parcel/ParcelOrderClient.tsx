@@ -33,6 +33,8 @@ interface Props {
   cutoffDisplay: string;
 }
 
+const PARCEL_MIN_SUBTOTAL = 1000;
+
 type Step = 'menu' | 'form' | 'confirmed';
 
 interface ConfirmedOrder {
@@ -103,6 +105,10 @@ export function ParcelOrderClient({ merchant, products, cutoffDisplay }: Props) 
     }
     if (selectedItems.length === 0) {
       setError('Please select at least one item.');
+      return;
+    }
+    if (subtotal < PARCEL_MIN_SUBTOTAL) {
+      setError(`Parcel orders require a minimum of ₹${PARCEL_MIN_SUBTOTAL}. Add ₹${PARCEL_MIN_SUBTOTAL - subtotal} more to proceed.`);
       return;
     }
 
@@ -410,17 +416,28 @@ export function ParcelOrderClient({ merchant, products, cutoffDisplay }: Props) 
       {/* Sticky bottom CTA */}
       {cartCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-3 bg-white border-t border-gray-100">
-          <button
-            onClick={() => setStep('form')}
-            className="w-full bg-[#7C3AED] text-white font-bold py-4 rounded-2xl flex items-center justify-between px-5"
-          >
-            <div className="flex items-center gap-2">
-              <ShoppingBag className="w-5 h-5" />
-              <span>{cartCount} item{cartCount !== 1 ? 's' : ''}</span>
+          {subtotal < PARCEL_MIN_SUBTOTAL ? (
+            <div className="w-full bg-amber-50 border border-amber-200 rounded-2xl py-3.5 px-5">
+              <p className="text-sm font-semibold text-amber-800 text-center">
+                Add ₹{PARCEL_MIN_SUBTOTAL - subtotal} more to proceed
+              </p>
+              <p className="text-xs text-amber-600 text-center mt-0.5">
+                Parcel orders require a minimum of ₹{PARCEL_MIN_SUBTOTAL}
+              </p>
             </div>
-            <span>Continue →</span>
-            <span>₹{subtotal.toFixed(0)}</span>
-          </button>
+          ) : (
+            <button
+              onClick={() => setStep('form')}
+              className="w-full bg-[#7C3AED] text-white font-bold py-4 rounded-2xl flex items-center justify-between px-5"
+            >
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5" />
+                <span>{cartCount} item{cartCount !== 1 ? 's' : ''}</span>
+              </div>
+              <span>Continue →</span>
+              <span>₹{subtotal.toFixed(0)}</span>
+            </button>
+          )}
         </div>
       )}
     </div>

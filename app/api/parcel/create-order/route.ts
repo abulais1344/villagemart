@@ -90,6 +90,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No valid items found' }, { status: 400 });
   }
 
+  const PARCEL_MIN_SUBTOTAL = 1000;
+  if (subtotal < PARCEL_MIN_SUBTOTAL) {
+    return NextResponse.json(
+      { error: `Parcel orders require a minimum of ₹${PARCEL_MIN_SUBTOTAL}. Your subtotal is ₹${subtotal}.` },
+      { status: 400 },
+    );
+  }
+
   const commissionRate = merchant.commission_rate ?? 7;
   const commission_amount = Math.round(subtotal * commissionRate / 100 * 100) / 100;
   const delivery_charge = merchant.parcel_delivery_charge ?? 150;
