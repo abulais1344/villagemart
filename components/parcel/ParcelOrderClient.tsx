@@ -38,6 +38,8 @@ const PARCEL_MIN_SUBTOTAL = 1000;
 // Exact names confirmed from vm_products — Indian Dhabha only, in display order
 const FEATURED_NAMES = [
   'Chicken Handi Gawrani Full',
+  'Chicken Handi Hyderabadi Full',
+  'Chicken Handi Hyderabadi Half',
   'Indian Spl. Mutton Handi',
   'Mutton Handi Half 0.5kg',
 ];
