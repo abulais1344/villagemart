@@ -35,6 +35,13 @@ interface Props {
 
 const PARCEL_MIN_SUBTOTAL = 1000;
 
+// Exact names confirmed from vm_products — Indian Dhabha only, in display order
+const FEATURED_NAMES = [
+  'Chicken Handi Gawrani Full',
+  'Indian Spl. Mutton Handi',
+  'Mutton Handi Half 0.5kg',
+];
+
 type Step = 'menu' | 'form' | 'confirmed';
 
 interface ConfirmedOrder {
@@ -90,6 +97,11 @@ export function ParcelOrderClient({ merchant, products, cutoffDisplay }: Props) 
     if (!grouped.has(cat)) grouped.set(cat, []);
     grouped.get(cat)!.push(p);
   }
+
+  // Preserve confirmed display order; silently skip any name not in products
+  const featuredProducts = FEATURED_NAMES
+    .map(name => products.find(p => p.name === name))
+    .filter((p): p is Product => p !== undefined);
 
   // ── Submit ───────────────────────────────────────────────────────────────
 
@@ -347,6 +359,70 @@ export function ParcelOrderClient({ merchant, products, cutoffDisplay }: Props) 
           Order cutoff: {formatTime12hr(cutoffDisplay)} IST daily.
         </p>
       </div>
+
+      {/* Featured row */}
+      {featuredProducts.length > 0 && (
+        <div className="pt-4 pb-3 border-b border-gray-100">
+          <h2 className="text-sm font-bold text-gray-900 px-4 mb-3">🔥 Featured</h2>
+          <div
+            className="flex gap-3 overflow-x-auto px-4"
+            style={{ scrollbarWidth: 'none' } as React.CSSProperties}
+          >
+            {featuredProducts.map(product => {
+              const q = qty[product.id] ?? 0;
+              return (
+                <div key={product.id} className="flex-shrink-0 w-40 bg-gray-50 rounded-2xl overflow-hidden">
+                  <div className="w-full h-28 bg-gray-100">
+                    {product.images?.[0] ? (
+                      <Image
+                        src={product.images[0]}
+                        alt={product.name}
+                        width={160}
+                        height={112}
+                        className="object-cover w-full h-full"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-4xl">🍲</div>
+                    )}
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-tight mb-1">
+                      {product.name}
+                    </p>
+                    <p className="text-sm font-bold text-gray-900 mb-2">₹{product.selling_price}</p>
+                    {q === 0 ? (
+                      <button
+                        onClick={() => inc(product.id)}
+                        className="w-full border border-purple-600 text-purple-600 text-xs font-bold py-1.5 rounded-lg hover:bg-purple-50"
+                      >
+                        ADD
+                      </button>
+                    ) : (
+                      <div className="flex items-center rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => dec(product.id)}
+                          className="bg-purple-600 text-white h-7 flex-1 flex items-center justify-center"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <span className="bg-purple-600 text-white text-sm font-bold h-7 flex-1 flex items-center justify-center border-x border-purple-500">
+                          {q}
+                        </span>
+                        <button
+                          onClick={() => inc(product.id)}
+                          className="bg-purple-600 text-white h-7 flex-1 flex items-center justify-center"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Menu */}
       {products.length === 0 ? (
