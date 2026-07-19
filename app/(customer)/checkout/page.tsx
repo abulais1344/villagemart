@@ -10,8 +10,10 @@ import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
 import { formatCurrency, formatTime12hr } from '@/lib/utils/format';
 import { SUPPORT_WHATSAPP_URL } from '@/lib/constants';
 import { isWithinDeliveryZone } from '@/lib/delivery-zone';
+import { isRestaurantOpen } from '@/lib/utils/restaurant';
 import { AddressManager } from '@/components/customer/AddressManager';
 import ConfirmingPaymentOverlay from '@/components/ConfirmingPaymentOverlay';
+import toast from 'react-hot-toast';
 
 declare global {
   interface Window {
@@ -27,18 +29,6 @@ function loadRazorpayScript(): Promise<void> {
     script.onload = () => resolve();
     document.body.appendChild(script);
   });
-}
-
-function isRestaurantOpen(openingTime: string | null, closingTime: string | null): boolean {
-  if (!openingTime || !closingTime) return true;
-  const now = new Date();
-  const [openH, openM] = openingTime.split(':').map(Number);
-  const [closeH, closeM] = closingTime.split(':').map(Number);
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const openMins = openH * 60 + openM;
-  const closeMins = closeH * 60 + closeM;
-  if (closeMins > openMins) return nowMins >= openMins && nowMins < closeMins;
-  return nowMins >= openMins || nowMins < closeMins;
 }
 
 function isBeforeParcelCutoff(cutoffStr: string | null): boolean {
@@ -146,10 +136,13 @@ export default function CheckoutPage() {
     if (merchantId) {
       fetch(`/api/customer/merchant-status?id=${merchantId}`)
         .then(r => r.json())
-        .then((data: { opening_time?: string; closing_time?: string; store_name?: string; logo_url?: string | null; parcel_service_enabled?: boolean; parcel_delivery_charge?: number; parcel_order_cutoff_time?: string | null }) => {
-          if (data.opening_time && data.closing_time) {
-            setRestaurantClosed(!isRestaurantOpen(data.opening_time, data.closing_time));
-          }
+        .then((data: { opening_time?: string; closing_time?: string; is_open?: boolean | null; admin_override?: boolean | null; store_name?: string; logo_url?: string | null; parcel_service_enabled?: boolean; parcel_delivery_charge?: number; parcel_order_cutoff_time?: string | null }) => {
+          setRestaurantClosed(!isRestaurantOpen(
+            data.opening_time ?? null,
+            data.closing_time ?? null,
+            data.is_open,
+            data.admin_override,
+          ));
           setMerchantName(data.store_name ?? null);
           setMerchantLogoUrl(data.logo_url ?? null);
           setMerchantParcelEnabled(data.parcel_service_enabled ?? false);
@@ -250,6 +243,10 @@ export default function CheckoutPage() {
           },
         }),
       });
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error ?? 'Failed to create payment order');
+      }
       const { orderId, amount, currency } = await res.json();
       if (!orderId) throw new Error('Failed to create payment order');
 
@@ -322,6 +319,7 @@ export default function CheckoutPage() {
       rzp.open();
     } catch (err) {
       console.error(err);
+      if (err instanceof Error) toast.error(err.message);
       setLoading(false);
     }
   }

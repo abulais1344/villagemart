@@ -8,6 +8,7 @@ import { ArrowLeft, Minus, Plus, ChevronDown, X } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency, formatTime12hr } from '@/lib/utils/format';
+import { isRestaurantOpen } from '@/lib/utils/restaurant';
 import type { Product } from '@/types';
 import toast from 'react-hot-toast';
 import { PWAInstallBanner } from './PWAInstallBanner';
@@ -20,18 +21,6 @@ function getCuisineTags(cuisineType: string | null): string[] {
   if (!cuisineType) return ['🍽️ Meals'];
   const tags = cuisineType.split(',').map(t => t.trim()).filter(Boolean);
   return tags.length > 0 ? tags.slice(0, 3) : ['🍽️ Meals'];
-}
-
-function isRestaurantOpen(openingTime: string | null, closingTime: string | null): boolean {
-  if (!openingTime || !closingTime) return true;
-  const now = new Date();
-  const [openH, openM] = openingTime.split(':').map(Number);
-  const [closeH, closeM] = closingTime.split(':').map(Number);
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const openMins = openH * 60 + openM;
-  const closeMins = closeH * 60 + closeM;
-  if (closeMins > openMins) return nowMins >= openMins && nowMins < closeMins;
-  return nowMins >= openMins || nowMins < closeMins;
 }
 
 function isBestseller(product: Product): boolean {
@@ -247,7 +236,12 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     : '30-40 min';
 
   const cuisineTags = getCuisineTags(merchant.cuisine_type ?? null);
-  const isOpen = isRestaurantOpen(merchant.opening_time ?? null, merchant.closing_time ?? null);
+  const isOpen = isRestaurantOpen(
+    merchant.opening_time ?? null,
+    merchant.closing_time ?? null,
+    merchant.is_open,
+    merchant.admin_override,
+  );
   const isGrouped = !searchQuery.trim() && categories.length > 0;
   // Popular Items: bestsellers only, image-first within that set
   const popularItems = filtered

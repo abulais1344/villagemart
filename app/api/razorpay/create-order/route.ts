@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import Razorpay from 'razorpay';
 import { createClient } from '@supabase/supabase-js';
+import { isRestaurantOpen } from '@/lib/utils/restaurant';
 
 const MAX_ORDER_AMOUNT = 50_000;
 
@@ -46,6 +47,28 @@ export async function POST(request: NextRequest) {
     let subtotal = 0;
     for (const item of items as Array<{ id: string; quantity: number }>) {
       subtotal += priceMap[item.id] * item.quantity;
+    }
+
+    // Server-side restaurant open check — blocks closed-restaurant orders even if the
+    // client UI was bypassed or the restaurant closed mid-session after items were added
+    if (merchantId) {
+      const { data: merchant } = await supabase
+        .from('merchants')
+        .select('opening_time, closing_time, is_open, admin_override')
+        .eq('id', merchantId)
+        .single();
+
+      if (merchant && !isRestaurantOpen(
+        merchant.opening_time ?? null,
+        merchant.closing_time ?? null,
+        merchant.is_open,
+        merchant.admin_override,
+      )) {
+        return Response.json(
+          { error: 'This restaurant is currently closed. Please try again later.' },
+          { status: 409 },
+        );
+      }
     }
 
     // Delivery charge from DB
