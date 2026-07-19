@@ -52,7 +52,7 @@ export default async function ParcelPage({ params }: { params: Promise<{ merchan
         <p className="text-4xl mb-4">🕔</p>
         <h1 className="text-xl font-bold text-gray-900 mb-2">Ordering closed for today</h1>
         <p className="text-sm text-gray-500">
-          Reopens tomorrow at {formatTime12hr(display)}. Please come back then to place your parcel order.
+          Opens tomorrow at midnight. Today's cutoff was {formatTime12hr(display)}.
         </p>
       </div>
     );
