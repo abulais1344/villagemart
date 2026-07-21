@@ -5,6 +5,7 @@ import { MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { loadGoogleMaps } from '@/lib/google-maps';
+import { logEvent } from '@/lib/events';
 
 interface LatLng {
   lat: number;
@@ -57,10 +58,13 @@ export function MapPicker({ initialLat = 18.6784, initialLng = 77.5897, onConfir
         const key = cacheKey(latLng.lat(), latLng.lng());
         const cached = geocodeCache.get(key);
         if (cached) { setAddress(cached); return; }
+        logEvent({ event_type: 'geocode_request', source: 'addresses_page_map_picker' });
         geocoder.geocode({ location: latLng }, (results, status) => {
           if (status === 'OK' && results?.[0]) {
             geocodeCache.set(key, results[0].formatted_address);
             setAddress(results[0].formatted_address);
+          } else {
+            logEvent({ event_type: 'geocode_request', reason: status === 'OVER_QUERY_LIMIT' ? 'geocode_quota_exceeded' : 'geocode_other_error', source: 'addresses_page_map_picker', metadata: { status } });
           }
         });
       };

@@ -218,6 +218,7 @@ export function AddressManager({ isOpen, onClose, onAddressChange }: Props) {
         onSave={addAddress}
         defaultLat={addresses[activeIndex]?.lat ?? undefined}
         defaultLng={addresses[activeIndex]?.lng ?? undefined}
+        geocodeSource="address_manager_location_picker"
       />
     </>
   );

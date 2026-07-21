@@ -333,6 +333,7 @@ export default function CartPage() {
         isOpen={showPicker}
         onClose={() => setShowPicker(false)}
         onSave={handleAddNew}
+        geocodeSource="cart_location_picker"
       />
     </>
   );

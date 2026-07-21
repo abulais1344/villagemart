@@ -12,6 +12,7 @@ import { isRestaurantOpen } from '@/lib/utils/restaurant';
 import type { Product } from '@/types';
 import toast from 'react-hot-toast';
 import { PWAInstallBanner } from './PWAInstallBanner';
+import { logEvent } from '@/lib/events';
 
 function isNonVeg(product: Product): boolean {
   return product.is_veg === false;
@@ -67,6 +68,10 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const supabase = createClient();
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    logEvent({ event_type: 'store_visit', merchant_id: merchant.id });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function closeSheet() {
     setImgVisible(false);
@@ -189,6 +194,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
       return;
     }
     addItem(product);
+    logEvent({ event_type: 'add_to_cart', merchant_id: product.merchant_id, metadata: { product_id: product.id, product_name: product.name } });
   }
 
   // Combined filter + search, bestsellers first
@@ -626,6 +632,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
                 onClick={() => {
                   clearCart();
                   addItem(conflictProduct);
+                  logEvent({ event_type: 'add_to_cart', merchant_id: conflictProduct.merchant_id, metadata: { product_id: conflictProduct.id, product_name: conflictProduct.name } });
                   setConflictProduct(null);
                 }}
                 className="flex-1 bg-purple-600 text-white rounded-xl py-2.5 text-sm font-semibold"

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, Store, Package, ClipboardList,
-  Tag, Percent, Truck, BarChart2, Gift, LogOut, Bike, Archive
+  Tag, Percent, Truck, BarChart2, Gift, LogOut, Bike, Archive, Activity
 } from 'lucide-react';
 
 const NAV = [
@@ -20,6 +20,7 @@ const NAV = [
   { href: '/admin/commissions', icon: Percent, label: 'Commissions' },
   { href: '/admin/delivery-charges', icon: Truck, label: 'Delivery Charges' },
   { href: '/admin/analytics', icon: BarChart2, label: 'Analytics' },
+  { href: '/admin/events', icon: Activity, label: 'Events' },
 ];
 
 export function AdminSidebar() {

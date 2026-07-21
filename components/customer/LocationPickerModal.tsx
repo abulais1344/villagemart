@@ -5,6 +5,7 @@ import { X, Navigation } from 'lucide-react';
 import { loadGoogleMaps } from '@/lib/google-maps';
 import { isWithinDeliveryZone, ARDHAPUR_CENTER } from '@/lib/delivery-zone';
 import type { AddressData } from '@/lib/customer';
+import { logEvent } from '@/lib/events';
 
 // Survives component unmount/remount within the same page session
 const geocodeCache = new Map<string, { address: string; area: string; pincode: string }>();
@@ -16,6 +17,7 @@ interface Props {
   onSave: (data: AddressData) => void;
   defaultLat?: number;
   defaultLng?: number;
+  geocodeSource?: string;
 }
 
 const LABELS: { key: AddressData['label']; emoji: string }[] = [
@@ -30,6 +32,7 @@ export default function LocationPickerModal({
   onSave,
   defaultLat,
   defaultLng,
+  geocodeSource = 'location_picker',
 }: Props) {
   const [loadError, setLoadError] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
@@ -67,12 +70,16 @@ export default function LocationPickerModal({
     setGeocoding(true);
     const reqId = ++geocodeCounter.current;
 
+    logEvent({ event_type: 'geocode_request', source: geocodeSource });
     geocoderRef.current.geocode(
       { location: { lat: newLat, lng: newLng } },
       (results: any[], status: string) => {
         if (reqId !== geocodeCounter.current) return;
         setGeocoding(false);
-        if (status !== 'OK' || !results?.[0]) return;
+        if (status !== 'OK' || !results?.[0]) {
+          logEvent({ event_type: 'geocode_request', reason: status === 'OVER_QUERY_LIMIT' ? 'geocode_quota_exceeded' : 'geocode_other_error', source: geocodeSource, metadata: { status } });
+          return;
+        }
 
         const r = results[0];
         let foundArea = '';

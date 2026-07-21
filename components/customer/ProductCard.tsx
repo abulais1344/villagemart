@@ -8,6 +8,7 @@ import { useCartStore } from '@/store/cartStore';
 import type { Product } from '@/types';
 import { formatCurrency } from '@/lib/utils/format';
 import { PulseHint } from './PulseHint';
+import { logEvent } from '@/lib/events';
 
 interface ProductCardProps {
   product: Product;
@@ -40,6 +41,7 @@ export function ProductCard({ product, hint = false, onHintDismiss, merchantName
       return;
     }
     addItem(product);
+    logEvent({ event_type: 'add_to_cart', merchant_id: product.merchant_id, metadata: { product_id: product.id, product_name: product.name } });
     onHintDismiss?.();
   };
 
@@ -163,6 +165,7 @@ export function ProductCard({ product, hint = false, onHintDismiss, merchantName
               onClick={() => {
                 clearCart();
                 addItem(product);
+                logEvent({ event_type: 'add_to_cart', merchant_id: product.merchant_id, metadata: { product_id: product.id, product_name: product.name } });
                 setShowConflict(false);
                 onHintDismiss?.();
               }}

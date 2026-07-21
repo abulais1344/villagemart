@@ -10,6 +10,7 @@ import { OTPInput } from '@/components/shared/OTPInput';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import toast from 'react-hot-toast';
+import { logEvent } from '@/lib/events';
 
 function getRedirectTarget() {
   const saved = localStorage.getItem('login_redirect') || '/';
@@ -154,6 +155,7 @@ export default function LoginPage() {
         addresses:            u.addresses || [],
         active_address_index: u.active_address_index || 0,
       }));
+      logEvent({ event_type: 'login', customer_id: u.id, source: 'login_existing_user' });
       toast.success(`Welcome back, ${u.name}! 👋`);
       window.location.href = getRedirectTarget();
     } catch (err: unknown) {
@@ -246,6 +248,7 @@ export default function LoginPage() {
       addresses:            [],
       active_address_index: 0,
     }));
+    logEvent({ event_type: 'login', customer_id: currentUser.uid, source: 'login_new_user' });
     window.location.href = getRedirectTarget();
   }
 

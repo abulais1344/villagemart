@@ -14,6 +14,7 @@ import { isRestaurantOpen } from '@/lib/utils/restaurant';
 import { AddressManager } from '@/components/customer/AddressManager';
 import ConfirmingPaymentOverlay from '@/components/ConfirmingPaymentOverlay';
 import toast from 'react-hot-toast';
+import { logEvent } from '@/lib/events';
 
 declare global {
   interface Window {
@@ -137,12 +138,14 @@ export default function CheckoutPage() {
       fetch(`/api/customer/merchant-status?id=${merchantId}`)
         .then(r => r.json())
         .then((data: { opening_time?: string; closing_time?: string; is_open?: boolean | null; admin_override?: boolean | null; store_name?: string; logo_url?: string | null; parcel_service_enabled?: boolean; parcel_delivery_charge?: number; parcel_order_cutoff_time?: string | null }) => {
-          setRestaurantClosed(!isRestaurantOpen(
+          const isClosed = !isRestaurantOpen(
             data.opening_time ?? null,
             data.closing_time ?? null,
             data.is_open,
             data.admin_override,
-          ));
+          );
+          setRestaurantClosed(isClosed);
+          if (isClosed) logEvent({ event_type: 'checkout_blocked', reason: 'restaurant_closed', customer_id: c.id ?? c.phone ?? null, merchant_id: merchantId ?? null });
           setMerchantName(data.store_name ?? null);
           setMerchantLogoUrl(data.logo_url ?? null);
           setMerchantParcelEnabled(data.parcel_service_enabled ?? false);
@@ -317,6 +320,7 @@ export default function CheckoutPage() {
 
       const rzp = new window.Razorpay(options);
       rzp.open();
+      logEvent({ event_type: 'razorpay_opened', customer_id: customer.id ?? customer.phone, merchant_id: items[0]?.product.merchant_id ?? null, metadata: { total } });
     } catch (err) {
       console.error(err);
       if (err instanceof Error) toast.error(err.message);
@@ -612,7 +616,10 @@ export default function CheckoutPage() {
             )}
             <div className="p-4">
               <button
-                onClick={zoneOk === true ? handlePayment : () => setShowAddressManager(true)}
+                onClick={zoneOk === true ? handlePayment : () => {
+                  logEvent({ event_type: 'checkout_blocked', reason: 'zone_invalid', customer_id: customer?.id ?? customer?.phone ?? null });
+                  setShowAddressManager(true);
+                }}
                 disabled={loading || restaurantClosed || total === null || (needsLandmark && !landmarkDraft.trim())}
                 className="w-full bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-60 text-white rounded-2xl py-4 font-semibold text-base transition-colors flex items-center justify-center gap-2"
               >
