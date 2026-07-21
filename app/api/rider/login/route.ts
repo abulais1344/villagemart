@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -15,12 +16,11 @@ export async function POST(request: NextRequest) {
 
   const { data: rider } = await supabase
     .from('vm_riders')
-    .select('id, name, is_active')
+    .select('id, name, is_active, portal_password')
     .eq('portal_username', username)
-    .eq('portal_password', password)
     .single();
 
-  if (!rider || !rider.is_active) {
+  if (!rider || !rider.is_active || !(await bcrypt.compare(password, rider.portal_password))) {
     return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
   }
 

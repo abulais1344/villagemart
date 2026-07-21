@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/auth-helpers';
 
@@ -76,9 +77,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Name, phone, username and password are required' }, { status: 400 });
   }
 
+  const hashedPassword = await bcrypt.hash(portal_password, 10);
   const { data, error } = await supabase
     .from('vm_riders')
-    .insert({ name, phone, portal_username, portal_password, vehicle_type: vehicle_type || null, notes: notes || null })
+    .insert({ name, phone, portal_username, portal_password: hashedPassword, vehicle_type: vehicle_type || null, notes: notes || null })
     .select()
     .single();
 
@@ -103,7 +105,7 @@ export async function PATCH(request: NextRequest) {
     notes: body.notes || null,
     is_active: body.is_active,
   };
-  if (body.portal_password) update.portal_password = body.portal_password;
+  if (body.portal_password) update.portal_password = await bcrypt.hash(body.portal_password, 10);
 
   const { data, error } = await supabase.from('vm_riders').update(update).eq('id', id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import { createServiceClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
@@ -11,13 +12,12 @@ export async function POST(request: NextRequest) {
   const supabase = await createServiceClient();
   const { data: merchant } = await supabase
     .from('merchants')
-    .select('id, store_name, status')
+    .select('id, store_name, status, portal_password')
     .eq('portal_username', username)
-    .eq('portal_password', password)
     .eq('status', 'approved')
     .single();
 
-  if (!merchant) {
+  if (!merchant || !(await bcrypt.compare(password, merchant.portal_password))) {
     return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
   }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/auth-helpers';
@@ -17,6 +18,10 @@ export async function PATCH(
 
   const { id } = await params;
   const payload = await request.json();
+
+  if (payload.portal_password) {
+    payload.portal_password = await bcrypt.hash(payload.portal_password, 10);
+  }
 
   const { error } = await supabase
     .from('merchants')

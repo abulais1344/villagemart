@@ -66,13 +66,7 @@ GRANT SELECT (
   name,
   phone,
   vehicle_type,
-  vehicle_number,
-  license_url,
-  aadhar_url,
-  is_available,
+  notes,
   is_active,
-  current_latitude,
-  current_longitude,
-  last_location_update,
   created_at
 ) ON vm_riders TO anon, authenticated;

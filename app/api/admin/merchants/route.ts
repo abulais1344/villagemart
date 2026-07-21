@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/auth-helpers';
 
@@ -27,6 +28,10 @@ export async function POST(request: NextRequest) {
   const payload = await request.json();
   if (!payload.store_name) {
     return NextResponse.json({ error: 'store_name is required' }, { status: 400 });
+  }
+
+  if (payload.portal_password) {
+    payload.portal_password = await bcrypt.hash(payload.portal_password, 10);
   }
 
   const { data, error } = await supabase
