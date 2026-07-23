@@ -5,6 +5,8 @@ export async function POST() {
   response.cookies.set('merchant_session', '', {
     path: '/',
     httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
     maxAge: 0,
   });
   return response;

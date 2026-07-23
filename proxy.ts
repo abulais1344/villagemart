@@ -57,6 +57,7 @@ export async function proxy(request: NextRequest) {
       res.cookies.set('merchant_session', merchantSession.value, {
         path: '/',
         httpOnly: true,
+        secure: true,
         sameSite: 'lax',
         maxAge: SLIDING_MAX_AGE,
       });

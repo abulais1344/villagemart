@@ -25,8 +25,9 @@ export async function POST(request: NextRequest) {
   response.cookies.set('merchant_session', merchant.id, {
     path: '/',
     httpOnly: true,
+    secure: true,
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 90, // 90 days; sliding refresh via middleware
+    maxAge: 60 * 60 * 24 * 90, // 90 days; sliding refresh via proxy
   });
 
   return response;
