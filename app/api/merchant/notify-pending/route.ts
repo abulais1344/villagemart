@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
             notification: {
               channelId: 'new_orders',
               sound: 'new_order_sound',
-              notificationPriority: 'PRIORITY_MAX',
+              priority: 'max',
               visibility: 'public',
               vibrateTimingsMillis: [0, 200, 100, 200, 100, 200, 100, 500],
             },
