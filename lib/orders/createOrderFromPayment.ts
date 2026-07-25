@@ -376,20 +376,54 @@ export async function createOrderFromPayment(
     } catch (err) { console.error('[createOrderFromPayment] merchant WhatsApp failed:', err); }
   })();
 
-  // Merchant push notification
+  // Merchant push notification — Web Push (browser/PWA) + FCM (Capacitor Android)
   ;(async () => {
     try {
       if (!merchantId) return;
-      webpush.setVapidDetails(process.env.VAPID_EMAIL!, process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!);
-      const { data: merchant } = await supabase.from('merchants').select('push_subscription').eq('id', merchantId).single();
-      if (!merchant?.push_subscription) return;
+      const { data: merchant } = await supabase
+        .from('merchants')
+        .select('push_subscription, fcm_token')
+        .eq('id', merchantId)
+        .single();
+
       const shortId = order.id.slice(-6).toUpperCase();
       const itemCount = data.items.reduce((s, i) => s + i.quantity, 0);
       const payout = Math.round(serverSubtotal * (1 - commissionRatePct / 100));
-      webpush.sendNotification(
-        merchant.push_subscription as webpush.PushSubscription,
-        JSON.stringify({ title: '🛍️ New Order!', body: `Order #${shortId} • Payout ₹${payout} • ${itemCount} item${itemCount !== 1 ? 's' : ''}` })
-      ).catch((err: unknown) => console.error('[createOrderFromPayment] merchant push failed:', err));
+      const title = '🛍️ New Order!';
+      const body = `Order #${shortId} • Payout ₹${payout} • ${itemCount} item${itemCount !== 1 ? 's' : ''}`;
+
+      // Web Push — browser and PWA users
+      if (merchant?.push_subscription) {
+        webpush.setVapidDetails(process.env.VAPID_EMAIL!, process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!);
+        webpush
+          .sendNotification(
+            merchant.push_subscription as webpush.PushSubscription,
+            JSON.stringify({ title, body }),
+            { urgency: 'high', TTL: 300 },
+          )
+          .catch((err: unknown) => console.error('[createOrderFromPayment] merchant web-push failed:', err));
+      }
+
+      // FCM — Capacitor Android app; high-priority wakes the device even when fully closed
+      if (merchant?.fcm_token) {
+        const { getMessaging } = await import('@/lib/firebase/admin');
+        getMessaging()
+          .send({
+            token: merchant.fcm_token,
+            notification: { title, body },
+            android: {
+              priority: 'high',
+              notification: {
+                channelId: 'new_orders',
+                sound: 'new_order_sound',
+                notificationPriority: 'PRIORITY_MAX',
+                visibility: 'PUBLIC',
+                vibrateTimingsMillis: [0, 200, 100, 200, 100, 200, 100, 500],
+              },
+            },
+          })
+          .catch((err: unknown) => console.error('[createOrderFromPayment] merchant FCM failed:', err));
+      }
     } catch (err) { console.error('[createOrderFromPayment] merchant push error:', err); }
   })();
 

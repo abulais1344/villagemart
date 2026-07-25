@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
+import { getMessaging } from '@/lib/firebase/admin';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,7 +41,7 @@ export async function GET(req: NextRequest) {
 
   const { data: pendingOrders, error } = await supabase
     .from('orders')
-    .select('id, total_amount, subtotal, commission_amount, customer_name, created_at, notified_pending_at, merchants(store_name, push_subscription, phone)')
+    .select('id, total_amount, subtotal, commission_amount, customer_name, created_at, notified_pending_at, merchants(store_name, push_subscription, fcm_token, phone)')
     .eq('status', 'pending')
     .lt('created_at', oneMinuteAgo);
 
@@ -59,17 +60,37 @@ export async function GET(req: NextRequest) {
     const ageMinutes = Math.floor(ageMs / 60_000);
     const orderId    = order.id.slice(-6).toUpperCase();
 
-    // Repeat push notification to merchant
+    // Repeat push notification to merchant — Web Push + FCM
+    const title = `⚠️ Order Waiting ${ageMinutes}min!`;
+    const body  = `Order #${orderId} • Payout ₹${Math.round((order.subtotal ?? 0) - (order.commission_amount ?? 0))} • Please accept!`;
+
     if (merchant?.push_subscription && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
       webpush
         .sendNotification(
           merchant.push_subscription,
-          JSON.stringify({
-            title: `⚠️ Order Waiting ${ageMinutes}min!`,
-            body:  `Order #${orderId} • Payout ₹${Math.round((order.subtotal ?? 0) - (order.commission_amount ?? 0))} • Please accept!`,
-          })
+          JSON.stringify({ title, body }),
+          { urgency: 'high', TTL: 300 },
         )
-        .catch(err => console.error('Repeat push failed:', err.message));
+        .catch(err => console.error('Repeat web-push failed:', err.message));
+    }
+
+    if (merchant?.fcm_token) {
+      getMessaging()
+        .send({
+          token: merchant.fcm_token,
+          notification: { title, body },
+          android: {
+            priority: 'high',
+            notification: {
+              channelId: 'new_orders',
+              sound: 'new_order_sound',
+              notificationPriority: 'PRIORITY_MAX',
+              visibility: 'PUBLIC',
+              vibrateTimingsMillis: [0, 200, 100, 200, 100, 200, 100, 500],
+            },
+          },
+        })
+        .catch(err => console.error('Repeat FCM failed:', (err as any).message));
     }
 
     // Admin WhatsApp alert after 3 minutes — deduplicated: only if never sent or last sent >30 min ago

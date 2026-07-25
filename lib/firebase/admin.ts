@@ -1,5 +1,6 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { getMessaging } from 'firebase-admin/messaging';
 
 if (!getApps().length) {
   initializeApp({
@@ -12,4 +13,4 @@ if (!getApps().length) {
   });
 }
 
-export { getAuth };
+export { getAuth, getMessaging };

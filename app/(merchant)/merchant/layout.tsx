@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createServiceClient } from '@/lib/supabase/server';
 import { MerchantProvider } from './MerchantProvider';
 import { MerchantNav } from '@/components/merchant/MerchantNav';
+import { MerchantPushSetup } from '@/components/merchant/MerchantPushSetup';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default async function MerchantPortalLayout({ children }: { children: Rea
 
   return (
     <MerchantProvider merchant={merchant}>
+      <MerchantPushSetup />
       <div className="min-h-screen bg-gray-50 pb-20">
         {children}
         <MerchantNav />

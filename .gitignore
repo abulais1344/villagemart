@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 memory/
+merchant-release.jks
+android-release.properties
+android/gradle.properties
