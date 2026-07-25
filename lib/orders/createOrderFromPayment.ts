@@ -417,7 +417,7 @@ export async function createOrderFromPayment(
                 channelId: 'new_orders',
                 sound: 'new_order_sound',
                 notificationPriority: 'PRIORITY_MAX',
-                visibility: 'PUBLIC',
+                visibility: 'public',
                 vibrateTimingsMillis: [0, 200, 100, 200, 100, 200, 100, 500],
               },
             },
