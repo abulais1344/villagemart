@@ -1,6 +1,0 @@
-# Copy this to android/gradle.properties and fill in real values.
-# KEEP THE .jks FILE AND THIS FILE OUT OF GIT.
-MERCHANT_STORE_FILE=/absolute/path/to/merchant-release.jks
-MERCHANT_STORE_PASSWORD=changeme
-MERCHANT_KEY_ALIAS=merchant
-MERCHANT_KEY_PASSWORD=changeme

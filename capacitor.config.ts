@@ -7,7 +7,7 @@ const config: CapacitorConfig = {
   webDir: 'public',
   server: {
     // The WebView loads the live Vercel deployment — no local bundling needed
-    url: 'https://villagemart.in/merchant-login',
+    url: 'https://zupr.in/merchant-login',
     cleartext: false,
   },
   android: {
