@@ -1,3 +1,39 @@
+// Returns each admin number as a digits-only string (no leading +).
+// Reads ADMIN_WHATSAPP_NUMBERS (comma-separated, e.g. "918856931402,918446222893")
+// and falls back to the legacy single-value ADMIN_WHATSAPP_NUMBER.
+function adminNumbers(): string[] {
+  const raw = process.env.ADMIN_WHATSAPP_NUMBERS ?? process.env.ADMIN_WHATSAPP_NUMBER ?? '';
+  return raw
+    .split(',')
+    .map(n => n.trim().replace(/^\+/, ''))
+    .filter(Boolean);
+}
+
+// Sends `body` to every configured admin number in parallel.
+// Fire-and-forget safe — all errors are logged but never thrown.
+export async function sendAdminWhatsApp(body: string): Promise<void> {
+  const numbers = adminNumbers();
+  if (!numbers.length) return;
+
+  const { TWILIO_ACCOUNT_SID: sid, TWILIO_AUTH_TOKEN: tok, TWILIO_WHATSAPP_FROM: from } = process.env;
+  if (!sid || !tok || !from) return;
+
+  await Promise.all(
+    numbers.map(phone =>
+      fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Basic ' + btoa(`${sid}:${tok}`),
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({ From: from, To: `whatsapp:+${phone}`, Body: body }),
+      })
+        .then(res => { if (!res.ok) console.error(`[whatsapp] admin send to ${phone} failed:`, res.status); })
+        .catch(err => console.error(`[whatsapp] admin send to ${phone} error:`, err))
+    )
+  );
+}
+
 export const statusMessages: Record<string, (name: string, orderShortId: string, storeName?: string, total?: number) => string> = {
   pending: (name, id) =>
     `🛒 Hi ${name}! Your order #${id} has been placed on Zupr. We'll confirm it shortly!\n\n_Zupr - Ardhapur_ 🏠`,

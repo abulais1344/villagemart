@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendAdminWhatsApp } from '@/lib/whatsapp';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -127,15 +128,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
   }
 
-  // Fire-and-forget: WhatsApp notification to admin
+  // Fire-and-forget: WhatsApp notification to all admins
   ;(async () => {
     try {
-      const adminPhone = process.env.ADMIN_WHATSAPP_NUMBER;
-      const accountSid = process.env.TWILIO_ACCOUNT_SID;
-      const authToken  = process.env.TWILIO_AUTH_TOKEN;
-      const from       = process.env.TWILIO_WHATSAPP_FROM;
-      if (!adminPhone || !accountSid || !authToken || !from) return;
-
       const shortId = order.id.slice(-6).toUpperCase();
       const itemLines = verifiedItems
         .map(i => `  • ${i.name} ×${i.quantity} — ₹${i.unit_price * i.quantity}`)
@@ -156,17 +151,7 @@ export async function POST(request: NextRequest) {
         `Admin: https://zupr.in/admin/parcel-orders`,
       ].join('\n');
 
-      await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: 'Basic ' + btoa(`${accountSid}:${authToken}`),
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({ From: from, To: `whatsapp:+${adminPhone}`, Body: msgBody }),
-        }
-      );
+      await sendAdminWhatsApp(msgBody);
     } catch (err) {
       console.error('[parcel/create-order] admin WhatsApp failed:', err);
     }

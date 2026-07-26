@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { sendWhatsAppNotification } from '@/lib/whatsapp';
+import { sendWhatsAppNotification, sendAdminWhatsApp } from '@/lib/whatsapp';
 import { sendAdminOrderEmail } from '@/lib/email';
 import webpush from 'web-push';
 
@@ -256,8 +256,6 @@ export async function createOrderFromPayment(
   // Admin WhatsApp
   ;(async () => {
     try {
-      const adminPhone = process.env.ADMIN_WHATSAPP_NUMBER;
-      if (!adminPhone) return;
       let storeName = 'Zupr';
       if (merchantId) {
         const { data: m } = await supabase.from('merchants').select('store_name').eq('id', merchantId).single();
@@ -275,12 +273,7 @@ export async function createOrderFromPayment(
         `Address: ${addrParts}`,
         '', 'View: https://zupr.in/admin-login',
       ].join('\n');
-      const { TWILIO_ACCOUNT_SID: sid, TWILIO_AUTH_TOKEN: tok, TWILIO_WHATSAPP_FROM: from } = process.env;
-      await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-        method: 'POST',
-        headers: { Authorization: 'Basic ' + btoa(`${sid}:${tok}`), 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ From: from!, To: `whatsapp:+${adminPhone}`, Body: body }),
-      });
+      await sendAdminWhatsApp(body);
     } catch (err) { console.error('[createOrderFromPayment] admin WhatsApp failed:', err); }
   })();
 

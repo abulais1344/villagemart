@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import webpush from 'web-push';
 import { getMessaging } from '@/lib/firebase/admin';
+import { sendAdminWhatsApp } from '@/lib/whatsapp';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -98,29 +99,15 @@ export async function GET(req: NextRequest) {
     const wasDue = ageMs > 180_000;
     const cooldownPassed = !notifiedAt || notifiedAt < thirtyMinutesAgo;
 
-    if (
-      wasDue &&
-      cooldownPassed &&
-      process.env.TWILIO_ACCOUNT_SID &&
-      process.env.TWILIO_AUTH_TOKEN &&
-      process.env.ADMIN_WHATSAPP_NUMBER
-    ) {
+    if (wasDue && cooldownPassed) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const twilio = require('twilio')(
-          process.env.TWILIO_ACCOUNT_SID,
-          process.env.TWILIO_AUTH_TOKEN
+        await sendAdminWhatsApp(
+          `⚠️ URGENT: Order #${orderId} from ${merchant?.store_name ?? 'unknown store'} ` +
+          `has been pending for ${ageMinutes} minutes!\n` +
+          `Customer: ${order.customer_name ?? 'unknown'}\n` +
+          `Amount: ₹${order.total_amount}\n` +
+          `Please contact merchant immediately!`
         );
-        await twilio.messages.create({
-          from: process.env.TWILIO_WHATSAPP_FROM,
-          to:   `whatsapp:+${process.env.ADMIN_WHATSAPP_NUMBER}`,
-          body:
-            `⚠️ URGENT: Order #${orderId} from ${merchant?.store_name ?? 'unknown store'} ` +
-            `has been pending for ${ageMinutes} minutes!\n` +
-            `Customer: ${order.customer_name ?? 'unknown'}\n` +
-            `Amount: ₹${order.total_amount}\n` +
-            `Please contact merchant immediately!`,
-        });
         // Mark notified so we don't spam again for 30 minutes
         await supabase
           .from('orders')
