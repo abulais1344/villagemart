@@ -2,6 +2,7 @@ package com.villagemart.merchant;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Window;
@@ -24,11 +25,16 @@ import java.nio.charset.StandardCharsets;
  * Shows order details and two large buttons (Accept / Reject) that POST to
  * https://www.zupr.in/api/merchant/order-action using the HMAC-signed token
  * embedded in the FCM data payload.
+ *
+ * Audio: plays new_order_sound.mp3 on a looping MediaPlayer for the duration
+ * the screen is showing — stopped the moment Accept/Reject is tapped, or when
+ * the activity is destroyed for any reason.
  */
 public class OrderAlertActivity extends Activity {
 
     private String acceptToken;
     private String rejectToken;
+    private MediaPlayer mediaPlayer;
     private static final String ACTION_URL = "https://www.zupr.in/api/merchant/order-action";
 
     @Override
@@ -54,6 +60,10 @@ public class OrderAlertActivity extends Activity {
 
         setContentView(R.layout.activity_order_alert);
 
+        // Start looping ringtone immediately — mirrors incoming-call behaviour.
+        // Stopped in stopRingtone(), which is called on button tap and onDestroy.
+        startRingtone();
+
         Intent intent = getIntent();
         String shortId      = intent.getStringExtra("shortId");
         String customerName = intent.getStringExtra("customerName");
@@ -77,16 +87,44 @@ public class OrderAlertActivity extends Activity {
         Button btnReject = findViewById(R.id.btnReject);
 
         btnAccept.setOnClickListener(v -> {
+            stopRingtone();
             btnAccept.setEnabled(false);
             btnReject.setEnabled(false);
             sendAction("accept", acceptToken);
         });
         btnReject.setOnClickListener(v -> {
+            stopRingtone();
             btnAccept.setEnabled(false);
             btnReject.setEnabled(false);
             sendAction("reject", rejectToken);
         });
     }
+
+    // ── Ringtone helpers ──────────────────────────────────────────────────────
+
+    private void startRingtone() {
+        try {
+            mediaPlayer = MediaPlayer.create(this, R.raw.new_order_sound);
+            if (mediaPlayer != null) {
+                mediaPlayer.setLooping(true);
+                mediaPlayer.start();
+            }
+        } catch (Exception e) {
+            // Non-fatal — visual alert and buttons still work without audio
+        }
+    }
+
+    private void stopRingtone() {
+        if (mediaPlayer != null) {
+            try {
+                if (mediaPlayer.isPlaying()) mediaPlayer.stop();
+                mediaPlayer.release();
+            } catch (Exception ignored) {}
+            mediaPlayer = null;
+        }
+    }
+
+    // ── Network action ────────────────────────────────────────────────────────
 
     private void sendAction(String action, String token) {
         new Thread(() -> {
@@ -134,6 +172,17 @@ public class OrderAlertActivity extends Activity {
         NotificationManagerCompat.from(this).cancel(MerchantMessagingService.NOTIF_ID_ORDER);
         finish();
     }
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+    @Override
+    protected void onDestroy() {
+        // Covers back-button, timeout, system kill — no sound leaks past screen close
+        stopRingtone();
+        super.onDestroy();
+    }
+
+    // ── Utilities ─────────────────────────────────────────────────────────────
 
     private static String safeStr(String v) { return v != null ? v : ""; }
     private static String safeStr(String v, String def) {

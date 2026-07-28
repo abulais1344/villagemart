@@ -418,7 +418,9 @@ export async function createOrderFromPayment(
               address: data.customer.address ?? '',
               landmark: data.customer.landmark ?? '',
               itemsSummary,
-              payout: String(payout),
+              // toFixed(2): exact decimal payout matching the web dashboard's earn() formula.
+              // String(payout) used above is Math.round() and loses the cents (e.g. 13.95 → "14").
+              payout: (serverSubtotal * (1 - commissionRatePct / 100)).toFixed(2),
               acceptToken: generateOrderActionToken(order.id, 'accept'),
               rejectToken: generateOrderActionToken(order.id, 'reject'),
             },
