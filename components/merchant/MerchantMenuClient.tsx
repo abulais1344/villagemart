@@ -82,6 +82,9 @@ export function MerchantMenuClient({ initialMenu }: Props) {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPress = useRef(false);
   const touchHandled = useRef(false);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const touchMoved = useRef(false);
 
   async function loadMenu() {
     setLoading(true);
@@ -111,7 +114,10 @@ export function MerchantMenuClient({ initialMenu }: Props) {
     }
   }
 
-  function handleTouchStart(product: any) {
+  function handleTouchStart(product: any, e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    touchMoved.current = false;
     isLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
       isLongPress.current = true;
@@ -121,17 +127,21 @@ export function MerchantMenuClient({ initialMenu }: Props) {
 
   function handleTouchEnd(product: any) {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    if (!isLongPress.current) {
+    if (!isLongPress.current && !touchMoved.current) {
       touchHandled.current = true;
       openForm(product);
       setTimeout(() => { touchHandled.current = false; }, 400);
     }
     isLongPress.current = false;
+    touchMoved.current = false;
   }
 
-  function handleTouchMove() {
+  function handleTouchMove(e: React.TouchEvent) {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     isLongPress.current = false;
+    const dx = Math.abs(e.touches[0].clientX - touchStartX.current);
+    const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
+    if (dx > 10 || dy > 10) touchMoved.current = true;
   }
 
   function openForm(product: any | null) {
@@ -330,9 +340,9 @@ export function MerchantMenuClient({ initialMenu }: Props) {
               <div
                 key={product.id}
                 className="bg-white rounded-2xl p-4 border border-gray-100 mb-3 flex items-center justify-between gap-3 select-none cursor-pointer"
-                onTouchStart={() => handleTouchStart(product)}
+                onTouchStart={e => handleTouchStart(product, e)}
                 onTouchEnd={() => handleTouchEnd(product)}
-                onTouchMove={handleTouchMove}
+                onTouchMove={e => handleTouchMove(e)}
                 onClick={() => { if (!touchHandled.current) openForm(product); }}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
