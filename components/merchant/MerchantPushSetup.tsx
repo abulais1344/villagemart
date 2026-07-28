@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 // Runs inside the Capacitor Android WebView only.
 // In a regular browser Capacitor.isNativePlatform() returns false → exits immediately.
@@ -15,13 +17,9 @@ export function MerchantPushSetup() {
 
     (async () => {
       try {
-        const { Capacitor } = await import('@capacitor/core');
-
         console.log('[MerchantPushSetup] platform:', Capacitor.getPlatform(), '| isNative:', Capacitor.isNativePlatform());
 
         if (!Capacitor.isNativePlatform()) return;
-
-        const { PushNotifications } = await import('@capacitor/push-notifications');
 
         // Register the token listener BEFORE calling register() — the 'registration'
         // event can fire immediately after register() returns, so adding the listener
