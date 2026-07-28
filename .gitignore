@@ -41,5 +41,11 @@ yarn-error.log*
 next-env.d.ts
 memory/
 merchant-release.jks
+rider-release.jks
 android-release.properties
 android/gradle.properties
+rider-android/gradle.properties
+rider-android/app/build/
+rider-android/build/
+rider-android/.gradle/
+rider-android/capacitor-cordova-android-plugins/build/

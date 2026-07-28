@@ -1,0 +1,25 @@
+{
+	"appId": "com.villagemart.rider",
+	"appName": "Zupr Rider",
+	"webDir": "public",
+	"server": {
+		"url": "https://www.zupr.in/rider-login",
+		"cleartext": false,
+		"allowNavigation": [
+			"zupr.in",
+			"www.zupr.in"
+		]
+	},
+	"android": {
+		"backgroundColor": "#7C3AED"
+	},
+	"plugins": {
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		}
+	}
+}
