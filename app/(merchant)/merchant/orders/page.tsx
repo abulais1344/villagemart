@@ -273,7 +273,7 @@ export default function MerchantOrdersPage() {
             <button
               onClick={async () => {
                 stopAlarm();
-                await updateStatus(newOrderAlert, 'preparing');
+                await updateStatus(newOrderAlert, 'ready');
               }}
               className="flex-1 bg-green-500 hover:bg-green-600 text-white font-black text-xl py-5 rounded-2xl shadow-lg active:scale-95 transition-transform"
             >
@@ -460,7 +460,7 @@ export default function MerchantOrdersPage() {
                 {order.status === 'pending' && (
                   <div className="flex gap-2">
                     <button
-                      onClick={() => { stopAlarm(); updateStatus(order, 'preparing'); }}
+                      onClick={() => { stopAlarm(); updateStatus(order, 'ready'); }}
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-xl py-2.5 text-sm font-semibold"
                     >
                       ✅ Accept Order

@@ -24,7 +24,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { orderId, action } = result;
-  const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+  // 'ready' matches the merchant portal's tab vocabulary and triggers rider notification.
+  // 'cancelled' matches the web Reject button — both surfaces now produce identical results.
+  const newStatus = action === 'accept' ? 'ready' : 'cancelled';
 
   const { data, error } = await supabase
     .from('orders')
