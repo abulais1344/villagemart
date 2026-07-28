@@ -1,159 +1,29 @@
-'use client';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { createServiceClient } from '@/lib/supabase/server';
+import { MerchantLoginForm } from './MerchantLoginForm';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+/**
+ * Server component so we can read the merchant_session cookie before rendering.
+ * If the cookie is present and valid, redirect straight to the dashboard —
+ * this is what makes the Capacitor app stay logged in after an app kill,
+ * since capacitor.config.ts always opens https://www.zupr.in/merchant-login.
+ */
+export default async function MerchantLoginPage() {
+  const cookieStore = await cookies();
+  const merchantId  = cookieStore.get('merchant_session')?.value;
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+  if (merchantId) {
+    const supabase = await createServiceClient();
+    const { data: merchant } = await supabase
+      .from('merchants')
+      .select('id, status')
+      .eq('id', merchantId)
+      .eq('status', 'approved')
+      .single();
 
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-export default function MerchantLoginPage() {
-  const router = useRouter();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  async function subscribeToPush() {
-    console.log('[Push] starting...');
-    console.log('[Push] subscribeToPush called');
-    try {
-      if (!('serviceWorker' in navigator)) {
-        console.log('[Push] serviceWorker not supported');
-        return;
-      }
-      if (!('PushManager' in window)) {
-        console.log('[Push] PushManager not supported');
-        return;
-      }
-
-      if (!VAPID_PUBLIC_KEY) {
-        console.error('[Push] VAPID_PUBLIC_KEY is empty!');
-        return;
-      }
-      console.log('[Push] VAPID key exists:', true);
-      console.log('[Push] VAPID key value:', VAPID_PUBLIC_KEY.substring(0, 20) + '...');
-
-      console.log('[Push] waiting for SW ready...');
-      const registration = await navigator.serviceWorker.ready;
-      console.log('[Push] SW ready:', registration);
-
-      let subscription = await registration.pushManager.getSubscription();
-      console.log('[Push] existing subscription:', subscription);
-
-      if (!subscription) {
-        console.log('[Push] no existing subscription, requesting permission...');
-        const permission = await Notification.requestPermission();
-        console.log('[Push] permission result:', permission);
-        if (permission !== 'granted') {
-          console.log('[Push] permission denied, aborting');
-          return;
-        }
-
-        console.log('[Push] subscribing with VAPID key...');
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-        });
-        console.log('[Push] new subscription created:', subscription);
-      }
-
-      console.log('[Push] saving subscription to server...');
-      const res = await fetch('/api/merchant/push-subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription }),
-      });
-      console.log('[Push] server response status:', res.status);
-      const data = await res.json();
-      console.log('[Push] server response body:', data);
-    } catch (err) {
-      console.error('[Push] subscription failed:', err);
-    }
+    if (merchant) redirect('/merchant/dashboard');
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    const res = await fetch('/api/merchant/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-
-    const data = await res.json();
-    setLoading(false);
-
-    if (data.success) {
-      subscribeToPush();
-      window.location.href = '/merchant/dashboard';
-    } else {
-      setError(data.error || 'Login failed');
-    }
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#7C3AED] mb-4">
-              <span className="text-white font-bold text-2xl">Z</span>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">Zupr</h1>
-            <p className="text-sm text-gray-500 mt-1">Merchant Portal</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                required
-                placeholder="e.g. shimladhaba"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED] focus:border-transparent"
-              />
-            </div>
-
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2 text-center">{error}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-[#7C3AED] hover:bg-[#6D28D9] disabled:opacity-60 text-white font-semibold rounded-xl text-sm transition-colors"
-            >
-              {loading ? 'Logging in…' : 'Login'}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
+  return <MerchantLoginForm />;
 }

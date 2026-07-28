@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMerchant } from '../MerchantProvider';
 import { MerchantHeader } from '@/components/merchant/MerchantHeader';
+import { OrderCardSkeleton } from '@/components/ui/Skeleton';
 
 const STATUS_TABS = [
   { key: 'all',              label: 'All'         },
@@ -167,6 +168,10 @@ export default function MerchantOrdersPage() {
   // ── Order polling (unchanged 30s interval) ──────────────────────────────────
 
   useEffect(() => {
+    // Show skeleton immediately on tab change — don't leave stale orders visible
+    setLoading(true);
+    setOrders([]);
+    setParcelOrders([]);
     loadOrders();
     const interval = setInterval(loadOrders, 30_000);
     return () => clearInterval(interval);
@@ -376,9 +381,7 @@ export default function MerchantOrdersPage() {
       <main className="px-4 py-4">
         {loading ? (
           <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-36 bg-gray-100 rounded-2xl animate-pulse" />
-            ))}
+            {[...Array(3)].map((_, i) => <OrderCardSkeleton key={i} />)}
           </div>
         ) : displayOrders.length === 0 ? (
           <div className="text-center py-16">

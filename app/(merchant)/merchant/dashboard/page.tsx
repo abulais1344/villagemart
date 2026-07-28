@@ -259,13 +259,46 @@ export default function MerchantDashboard() {
 
         {loading ? (
           <>
+            {/* Stat card skeletons — match 2×2 grid with emoji / value / label */}
             <div className="grid grid-cols-2 gap-3">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />
+                <div key={i} className="bg-gray-50 rounded-2xl p-4 space-y-2">
+                  <div className="h-7 w-7 bg-gray-200 rounded-full animate-pulse" />
+                  <div className="h-7 w-14 bg-gray-200 rounded-lg animate-pulse" />
+                  <div className="h-3 w-20 bg-gray-200 rounded animate-pulse" />
+                </div>
               ))}
             </div>
-            <div className="h-40 bg-gray-100 rounded-2xl animate-pulse" />
-            <div className="h-56 bg-gray-100 rounded-2xl animate-pulse" />
+            {/* Income overview skeleton — card with 4 label/amount rows */}
+            <div className="bg-white rounded-2xl shadow-sm p-4 space-y-1">
+              <div className="h-4 w-32 bg-gray-200 rounded animate-pulse mb-3" />
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex justify-between items-center py-2.5 border-b border-gray-100 last:border-0">
+                  <div className="h-3 w-20 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+                </div>
+              ))}
+            </div>
+            {/* Recent orders skeleton — card with 3 order rows */}
+            <div className="bg-white rounded-2xl shadow-sm p-4 space-y-1">
+              <div className="h-4 w-28 bg-gray-200 rounded animate-pulse mb-3" />
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex justify-between items-start py-3 border-b border-gray-100 last:border-0">
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex gap-2">
+                      <div className="h-3 w-20 bg-gray-200 rounded animate-pulse" />
+                      <div className="h-3 w-12 bg-gray-200 rounded-full animate-pulse" />
+                    </div>
+                    <div className="h-3.5 w-28 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-2.5 w-24 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                  <div className="shrink-0 text-right space-y-1">
+                    <div className="h-4 w-14 bg-gray-200 rounded animate-pulse" />
+                    <div className="h-2.5 w-10 bg-gray-200 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </>
         ) : (
           <>
