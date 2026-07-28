@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
   response.cookies.set('rider_session', rider.id, {
     path: '/',
     httpOnly: true,
+    secure: true,
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 90, // 90 days; sliding refresh via middleware
   });

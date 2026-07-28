@@ -71,13 +71,31 @@ export async function POST(request: NextRequest) {
         data: { url: '/rider/orders' },
       });
 
-      // Send to every registered device; a dead subscription never blocks the others
+      // Send to every registered device; 410 Gone means the subscription expired —
+      // remove it so it stops failing on future notifications.
       await Promise.allSettled(
         subscriptions.map(sub =>
           webpush
             .sendNotification(sub as webpush.PushSubscription, payload)
-            .catch(err => {
-              console.error(`[notify-rider] push to ${sub.endpoint} failed:`, err?.statusCode ?? err);
+            .catch(async (err: any) => {
+              if (err?.statusCode === 410) {
+                try {
+                  const { data: current } = await supabase
+                    .from('vm_riders').select('push_subscription').eq('id', riderId).single();
+                  const existing: any[] = Array.isArray(current?.push_subscription)
+                    ? current.push_subscription
+                    : current?.push_subscription ? [current.push_subscription] : [];
+                  const cleaned = existing.filter((s: any) => s?.endpoint !== sub.endpoint);
+                  await supabase.from('vm_riders')
+                    .update({ push_subscription: cleaned.length ? cleaned : null })
+                    .eq('id', riderId);
+                  console.log(`[notify-rider] removed stale push sub for rider ${riderId}`);
+                } catch (cleanupErr) {
+                  console.error(`[notify-rider] stale sub cleanup failed:`, cleanupErr);
+                }
+              } else {
+                console.error(`[notify-rider] push to ${sub.endpoint} failed:`, err?.statusCode ?? err);
+              }
             })
         )
       );

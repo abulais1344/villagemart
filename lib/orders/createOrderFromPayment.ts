@@ -246,11 +246,73 @@ export async function createOrderFromPayment(
 
   // ── Fire-and-forget side effects ───────────────────────────────────────────
 
-  // Rider auto-assign
+  // Rider auto-assign + immediate full-detail notification to the assigned rider
   ;(async () => {
     try {
-      const { data: rider } = await supabase.from('vm_riders').select('id').eq('is_active', true).limit(1).single();
-      if (rider) await supabase.from('orders').update({ rider_id: rider.id }).eq('id', order.id);
+      const { data: rider } = await supabase
+        .from('vm_riders')
+        .select('id, fcm_token, push_subscription')
+        .eq('is_active', true)
+        .limit(1)
+        .single();
+      if (!rider) return;
+
+      await supabase.from('orders').update({ rider_id: rider.id }).eq('id', order.id);
+
+      const shortId    = order.id.slice(-6).toUpperCase();
+      const itemCount  = data.items.reduce((s, i) => s + i.quantity, 0);
+      let storeName    = 'Restaurant';
+      if (merchantId) {
+        const { data: m } = await supabase.from('merchants').select('store_name').eq('id', merchantId).single();
+        if (m?.store_name) storeName = m.store_name;
+      }
+
+      // FCM — full-screen alert on the rider's Android app (data-only so
+      // RiderMessagingService.onMessageReceived fires even when app is killed)
+      if (rider.fcm_token) {
+        const { getMessaging } = await import('@/lib/firebase/admin');
+        getMessaging()
+          .send({
+            token: rider.fcm_token,
+            data: {
+              type:       'new_order_assigned',
+              orderId:    order.id,
+              shortId,
+              storeName,
+              itemCount:  String(itemCount),
+            },
+            android: { priority: 'high' },
+          })
+          .catch((err: unknown) => console.error('[createOrderFromPayment] rider FCM failed:', err));
+      }
+
+      // Web push fallback — for riders still on the PWA (no Android app installed)
+      if (rider.push_subscription) {
+        webpush.setVapidDetails(
+          process.env.VAPID_EMAIL!,
+          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+          process.env.VAPID_PRIVATE_KEY!,
+        );
+        const subs: any[] = Array.isArray(rider.push_subscription)
+          ? rider.push_subscription
+          : [rider.push_subscription];
+        await Promise.allSettled(
+          subs.map(sub =>
+            webpush
+              .sendNotification(
+                sub as webpush.PushSubscription,
+                JSON.stringify({
+                  title: '🛵 New order assigned!',
+                  body:  `#${shortId} · ${storeName} · ${itemCount} item${itemCount !== 1 ? 's' : ''}`,
+                  data:  { url: `/rider/delivery/${order.id}` },
+                }),
+              )
+              .catch(err =>
+                console.error('[createOrderFromPayment] rider web-push failed:', err?.statusCode ?? err),
+              ),
+          ),
+        );
+      }
     } catch (err) { console.error('[createOrderFromPayment] rider auto-assign failed:', err); }
   })();
 
@@ -431,23 +493,28 @@ export async function createOrderFromPayment(
     } catch (err) { console.error('[createOrderFromPayment] merchant push error:', err); }
   })();
 
-  // All-active-riders push — lightweight heads-up at order placement
-  // (full detail: restaurant + items + address + contact goes later, at assignment time via notify-rider)
+  // All-active-riders web push — lightweight heads-up so unassigned riders
+  // see the order hit the dashboard. The assigned rider already got a full-detail
+  // FCM/web-push above in the auto-assign block.
+  // Dead subscriptions (410 Gone) are removed from vm_riders.push_subscription
+  // so they stop failing on every future order.
   ;(async () => {
     try {
       const { data: activeRiders } = await supabase
         .from('vm_riders')
-        .select('push_subscription')
+        .select('id, push_subscription')
         .eq('is_active', true);
 
       if (!activeRiders?.length) return;
 
-      const subs = activeRiders.flatMap(rider => {
+      // Keep riderId paired with each sub so we can remove stale ones by rider
+      const riderSubs = activeRiders.flatMap(rider => {
         const raw = rider.push_subscription;
         if (!raw) return [];
-        return Array.isArray(raw) ? raw : [raw];
+        const arr: any[] = Array.isArray(raw) ? raw : [raw];
+        return arr.map(sub => ({ riderId: rider.id as string, sub }));
       });
-      if (!subs.length) return;
+      if (!riderSubs.length) return;
 
       let storeName = 'Zupr';
       if (merchantId) {
@@ -469,12 +536,31 @@ export async function createOrderFromPayment(
       );
 
       await Promise.allSettled(
-        subs.map(sub =>
+        riderSubs.map(({ riderId, sub }) =>
           webpush
             .sendNotification(sub as webpush.PushSubscription, payload)
-            .catch(err =>
-              console.error('[createOrderFromPayment] rider push failed:', err?.statusCode ?? err),
-            ),
+            .catch(async (err: any) => {
+              if (err?.statusCode === 410) {
+                // Subscription expired or unregistered — remove this endpoint so
+                // it doesn't keep failing on every order.
+                try {
+                  const { data: current } = await supabase
+                    .from('vm_riders').select('push_subscription').eq('id', riderId).single();
+                  const existing: any[] = Array.isArray(current?.push_subscription)
+                    ? current.push_subscription
+                    : current?.push_subscription ? [current.push_subscription] : [];
+                  const cleaned = existing.filter((s: any) => s?.endpoint !== sub.endpoint);
+                  await supabase.from('vm_riders')
+                    .update({ push_subscription: cleaned.length ? cleaned : null })
+                    .eq('id', riderId);
+                  console.log(`[createOrderFromPayment] removed stale push sub for rider ${riderId}`);
+                } catch (cleanupErr) {
+                  console.error('[createOrderFromPayment] stale sub cleanup failed:', cleanupErr);
+                }
+              } else {
+                console.error('[createOrderFromPayment] rider push failed:', err?.statusCode ?? err);
+              }
+            }),
         ),
       );
     } catch (err) { console.error('[createOrderFromPayment] all-riders push failed:', err); }
