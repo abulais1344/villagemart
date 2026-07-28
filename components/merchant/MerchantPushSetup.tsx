@@ -72,6 +72,21 @@ export function MerchantPushSetup() {
         console.log('[MerchantPushSetup] registering with FCM');
         await PushNotifications.register();
 
+        // Android 14+ (API 34+) requires USE_FULL_SCREEN_INTENT to be granted in
+        // Settings > Apps > Zupr Merchant > Special app access > Alarms & reminders.
+        // Without it the full-screen lock-screen alert won't fire, but heads-up
+        // notifications with inline Accept/Reject buttons still work.
+        const androidVersion = parseInt(
+          (navigator.userAgent.match(/Android (\d+)/) ?? [])[1] ?? '0', 10,
+        );
+        if (androidVersion >= 14) {
+          console.warn(
+            '[MerchantPushSetup] Android 14+ detected. If full-screen order alerts ' +
+            'are not appearing on the lock screen, go to: ' +
+            'Settings → Apps → Zupr Merchant → Special app access → Alarms & reminders → Allow.',
+          );
+        }
+
       } catch (err) {
         // Surface the full error — a silent catch here was what made tonight's
         // debugging so painful. Any failure in this flow must leave a log trail.

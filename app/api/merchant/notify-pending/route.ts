@@ -79,17 +79,14 @@ export async function GET(req: NextRequest) {
       getMessaging()
         .send({
           token: merchant.fcm_token,
-          notification: { title, body },
-          android: {
-            priority: 'high',
-            notification: {
-              channelId: 'new_orders',
-              sound: 'new_order_sound',
-              priority: 'max',
-              visibility: 'public',
-              vibrateTimingsMillis: [0, 200, 100, 200, 100, 200, 100, 500],
-            },
+          data: {
+            type: 'order_reminder',
+            orderId: order.id,
+            shortId: orderId,
+            ageMinutes: String(ageMinutes),
+            payout: String(Math.round((order.subtotal ?? 0) - (order.commission_amount ?? 0))),
           },
+          android: { priority: 'high' },
         })
         .catch(err => console.error('Repeat FCM failed:', (err as any).message));
     }

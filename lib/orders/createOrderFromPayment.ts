@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendWhatsAppNotification, sendAdminWhatsApp } from '@/lib/whatsapp';
 import { sendAdminOrderEmail } from '@/lib/email';
+import { generateOrderActionToken } from './orderActionToken';
 import webpush from 'web-push';
 
 const supabase = createClient(
@@ -397,23 +398,31 @@ export async function createOrderFromPayment(
           .catch((err: unknown) => console.error('[createOrderFromPayment] merchant web-push failed:', err));
       }
 
-      // FCM — Capacitor Android app; high-priority wakes the device even when fully closed
+      // FCM — data-only so MerchantMessagingService.onMessageReceived always fires,
+      // even when the app is killed (notification payloads bypass onMessageReceived).
       if (merchant?.fcm_token) {
         const { getMessaging } = await import('@/lib/firebase/admin');
+        const itemsSummary = data.items
+          .map(i => `${i.quantity}× ${dbNameMap[i.id] ?? i.id}`)
+          .join(', ');
         getMessaging()
           .send({
             token: merchant.fcm_token,
-            notification: { title, body },
-            android: {
-              priority: 'high',
-              notification: {
-                channelId: 'new_orders',
-                sound: 'new_order_sound',
-                priority: 'max',
-                visibility: 'public',
-                vibrateTimingsMillis: [0, 200, 100, 200, 100, 200, 100, 500],
-              },
+            data: {
+              type: 'new_order',
+              orderId: order.id,
+              shortId,
+              customerName: data.customer.name,
+              customerPhone: data.customer.phone ?? '',
+              area: data.customer.area ?? '',
+              address: data.customer.address ?? '',
+              landmark: data.customer.landmark ?? '',
+              itemsSummary,
+              payout: String(payout),
+              acceptToken: generateOrderActionToken(order.id, 'accept'),
+              rejectToken: generateOrderActionToken(order.id, 'reject'),
             },
+            android: { priority: 'high' },
           })
           .catch((err: unknown) => console.error('[createOrderFromPayment] merchant FCM failed:', err));
       }
