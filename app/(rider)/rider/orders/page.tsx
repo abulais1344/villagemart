@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useRider } from '../RiderProvider';
 import toast from 'react-hot-toast';
 
@@ -59,6 +60,14 @@ export default function RiderOrdersPage() {
   useEffect(() => {
     if (notifChecked.current) return;
     notifChecked.current = true;
+
+    // On native Android, FCM handles registration automatically via RiderPushSetup.
+    // Web push (VAPID/PushManager) doesn't apply — hide the banner immediately.
+    if (Capacitor.isNativePlatform()) {
+      setNotifSubscribed(true);
+      return;
+    }
+
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     navigator.serviceWorker.ready.then(reg => {
       reg.pushManager.getSubscription().then(sub => {
