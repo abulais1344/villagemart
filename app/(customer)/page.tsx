@@ -14,7 +14,7 @@ export default async function HomePage() {
   const supabase = await createClient();
 
   // Fetch everything flat — no SQL joins to avoid schema cache issues
-  const [catResult, featuredResult, ownResult, merchantsResult, foodResult] = await Promise.all([
+  const [catResult, featuredResult, ownResult, merchantsResult, foodResult, bakeryResult] = await Promise.all([
     supabase
       .from('categories')
       .select('id, name, slug, emoji')
@@ -46,6 +46,12 @@ export default async function HomePage() {
       .eq('status', 'approved')
       .eq('is_food', true)
       .limit(10),
+    supabase
+      .from('merchants')
+      .select('*')
+      .eq('status', 'approved')
+      .eq('merchant_type', 'bakery')
+      .limit(8),
   ]);
 
   if (catResult.error) console.error('[home] categories:', catResult.error.message);
@@ -53,12 +59,14 @@ export default async function HomePage() {
   if (ownResult.error) console.error('[home] ownProducts:', ownResult.error.message);
   if (merchantsResult.error) console.error('[home] merchants:', merchantsResult.error.message);
   if (foodResult.error) console.error('[home] food:', foodResult.error.message);
+  if (bakeryResult.error) console.error('[home] bakeries:', bakeryResult.error.message);
 
   const categories = (catResult.data ?? []) as Category[];
   const featured: Product[] = featuredResult.data ?? [];
   const ownProducts: Product[] = ownResult.data ?? [];
   const merchants: Merchant[] = merchantsResult.data ?? [];
   const foodMerchants: Merchant[] = foodResult.data ?? [];
+  const bakeryMerchants: Merchant[] = bakeryResult.data ?? [];
 
   return (
     <HomePageClient
@@ -67,6 +75,7 @@ export default async function HomePage() {
       featuredProducts={featured}
       merchants={merchants}
       foodMerchants={foodMerchants}
+      bakeryMerchants={bakeryMerchants}
     />
   );
 }
