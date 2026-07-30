@@ -30,6 +30,12 @@ export function AdminHeader({ title }: AdminHeaderProps) {
         </div>
       </div>
       <div className="flex items-center gap-1">
+        <button
+          onClick={() => window.location.reload()}
+          className="text-xs text-white font-medium px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
+        >
+          Refresh
+        </button>
         <button className="p-2 rounded-xl hover:bg-purple-700 transition-colors">
           <Bell className="w-5 h-5 text-white" />
         </button>
