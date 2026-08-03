@@ -37,6 +37,7 @@ export default async function StoresPage() {
     .from('merchants')
     .select('id, store_name, cuisine_type, avg_delivery_time, cover_image_url, logo_url, area')
     .eq('status', 'approved')
+    .neq('merchant_type', 'bakery')
     .order('store_name');
 
   const list = merchants ?? [];
