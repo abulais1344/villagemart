@@ -23,6 +23,7 @@ interface HomePageClientProps {
   merchants: Merchant[];
   foodMerchants: Merchant[];
   bakeryMerchants: Merchant[];
+  vegetablesMerchants: Merchant[];
 }
 
 // Pastel colour palette — cycles by index so any new category gets a colour
@@ -45,6 +46,7 @@ export function HomePageClient({
   merchants,
   foodMerchants,
   bakeryMerchants,
+  vegetablesMerchants,
 }: HomePageClientProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -270,6 +272,15 @@ export function HomePageClient({
           subtitle="Cakes, pastries, puffs & more"
           merchants={bakeryMerchants}
           seeAllHref="/stores/bakeries"
+          mounted={mounted}
+        />
+
+        {/* 4c. Fresh Fruits & Vegetables — horizontal carousel */}
+        <MerchantCarouselRow
+          title="🥦 Fresh Fruits & Vegetables"
+          subtitle="Farm-fresh produce delivered"
+          merchants={vegetablesMerchants}
+          seeAllHref="/stores/vegetables"
           mounted={mounted}
         />
 
