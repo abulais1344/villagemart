@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { formatDateTime } from '@/lib/utils/format';
 
@@ -15,20 +14,14 @@ interface LogEntry {
 }
 
 export default function AccessLogPage() {
-  const supabase = createClient();
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from('admin_access_log')
-      .select('id, path, method, ip, user_agent, created_at')
-      .order('created_at', { ascending: false })
-      .limit(200)
-      .then(({ data }) => {
-        setEntries((data as LogEntry[]) ?? []);
-        setLoading(false);
-      });
+    fetch('/api/admin/access-log')
+      .then(r => r.json())
+      .then(d => setEntries(d.entries ?? []))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
