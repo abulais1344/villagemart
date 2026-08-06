@@ -44,7 +44,8 @@ export default async function HomePage() {
       .from('merchants')
       .select('*')
       .eq('status', 'approved')
-      .or('is_food.eq.true,merchant_type.eq.vegetables')
+      .eq('is_food', true)
+      .not('merchant_type', 'in', '("bakery","vegetables")')
       .limit(10),
     supabase
       .from('merchants')
