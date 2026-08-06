@@ -17,7 +17,7 @@ interface SendResult {
 interface BroadcastEvent {
   id: number;
   created_at: string;
-  metadata: { total: number; succeeded: number; failed: number; broadcast_id?: string };
+  metadata: { total: number; succeeded: number; failed: number; broadcast_id?: string; title?: string; body?: string };
 }
 
 interface TrackingCounts {
@@ -32,6 +32,8 @@ export default function CustomerPushPage() {
   const [sending, setSending] = useState(false);
   const [lastResult, setLastResult] = useState<SendResult | null>(null);
   const [tracking, setTracking] = useState<Record<string, TrackingCounts>>({});
+  const [msgTitle, setMsgTitle] = useState('Zupr');
+  const [msgBody, setMsgBody] = useState('Order before 10 PM for quick delivery!');
 
   async function loadData() {
     const [countRes, historyRes, trackingRes] = await Promise.all([
@@ -75,7 +77,11 @@ export default function CustomerPushPage() {
     setSending(true);
     setLastResult(null);
     try {
-      const res = await fetch('/api/admin/send-customer-push', { method: 'POST' });
+      const res = await fetch('/api/admin/send-customer-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: msgTitle, body: msgBody }),
+      });
       const data = await res.json();
       if (!res.ok) {
         toast.error(data.error ?? 'Send failed');
@@ -113,16 +119,34 @@ export default function CustomerPushPage() {
 
         {/* Send button + result */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
-          <div>
-            <p className="text-sm font-bold text-gray-900 mb-0.5">Send re-engagement push</p>
-            <p className="text-xs text-gray-500">
-              "Order before 10 PM for quick delivery!" · links to homepage
-            </p>
+          <p className="text-sm font-bold text-gray-900">Send re-engagement push</p>
+
+          <div className="space-y-2">
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Title</label>
+              <input
+                type="text"
+                value={msgTitle}
+                onChange={e => setMsgTitle(e.target.value)}
+                maxLength={80}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Body</label>
+              <input
+                type="text"
+                value={msgBody}
+                onChange={e => setMsgBody(e.target.value)}
+                maxLength={200}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
+              />
+            </div>
           </div>
 
           <Button
             onClick={handleSend}
-            disabled={sending || subscriberCount === 0}
+            disabled={sending || subscriberCount === 0 || !msgTitle.trim() || !msgBody.trim()}
             className="w-full"
           >
             {sending ? 'Sending…' : '📣 Send to all subscribers'}
@@ -164,7 +188,10 @@ export default function CustomerPushPage() {
                 const sent = evt.metadata.succeeded;
                 return (
                   <li key={evt.id} className="text-sm">
-                    <p className="text-xs text-gray-400 mb-1">{formatDateTime(evt.created_at)}</p>
+                    <p className="text-xs text-gray-400 mb-0.5">{formatDateTime(evt.created_at)}</p>
+                    {evt.metadata.body && (
+                      <p className="text-xs text-gray-500 italic mb-1 truncate">"{evt.metadata.body}"</p>
+                    )}
                     <div className="flex items-center gap-3 flex-wrap">
                       <span className="font-medium text-gray-900">
                         Sent {sent}/{evt.metadata.total}

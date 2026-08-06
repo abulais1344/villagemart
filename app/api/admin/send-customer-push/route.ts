@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/auth-helpers';
 import webpush from 'web-push';
@@ -8,10 +8,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const TITLE = 'Zupr';
-const BODY = 'Order before 10 PM for quick delivery!';
+const DEFAULT_TITLE = 'Zupr';
+const DEFAULT_BODY = 'Order before 10 PM for quick delivery!';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
+  const title: string = body.title?.trim() || DEFAULT_TITLE;
+  const msgBody: string = body.body?.trim() || DEFAULT_BODY;
   const auth = await requireAdmin();
   if (!auth.ok) return auth.response;
 
@@ -52,8 +55,8 @@ export async function POST() {
     (users ?? []).map(async (user) => {
       const sub = user.push_subscription as webpush.PushSubscription;
       const payload = JSON.stringify({
-        title: TITLE,
-        body: BODY,
+        title,
+        body: msgBody,
         url: '/',
         broadcast_id: broadcastId,
         customer_id: user.id,
@@ -86,7 +89,7 @@ export async function POST() {
   // Log to vm_events so the admin UI can show broadcast history
   const { error: logError } = await supabase.from('vm_events').insert({
     event_type: 'admin_push_broadcast',
-    metadata: { total, succeeded, failed, broadcast_id: broadcastId },
+    metadata: { total, succeeded, failed, broadcast_id: broadcastId, title, body: msgBody },
   });
   if (logError) console.error('[send-customer-push] event log failed:', logError.message);
 
