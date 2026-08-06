@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v35';
+const CACHE_VERSION = 'v36';
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', () => self.clients.claim())
@@ -33,7 +33,7 @@ self.addEventListener('push', function(event) {
     tag: 'new-order',
     requireInteraction: true,
     vibrate: [200, 100, 200, 100, 200],
-    data: { url: '/merchant-login' },
+    data: { url: data.url || '/' },
     actions: [
       { action: 'open', title: '👀 View Order' }
     ]

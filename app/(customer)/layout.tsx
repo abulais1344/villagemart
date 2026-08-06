@@ -1,5 +1,6 @@
 import { BottomNav } from '@/components/customer/BottomNav';
 import { FloatingCartBar } from '@/components/customer/FloatingCartBar';
+import { CustomerPushSetup } from '@/components/customer/CustomerPushSetup';
 
 export default function CustomerLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,6 +8,7 @@ export default function CustomerLayout({ children }: { children: React.ReactNode
       {children}
       <FloatingCartBar />
       <BottomNav />
+      <CustomerPushSetup />
     </div>
   );
 }
