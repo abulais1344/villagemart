@@ -58,7 +58,9 @@ function MerchantCarouselCard({ merchant, mounted }: { merchant: Merchant; mount
         </div>
         <div className="flex items-center gap-2">
           {statusPill}
-          <span className="text-[10px] text-gray-500">🕐 {deliveryRange(merchant.avg_delivery_time)}</span>
+          {merchant.merchant_type !== 'vegetables' && (
+            <span className="text-[10px] text-gray-500">🕐 {deliveryRange(merchant.avg_delivery_time)}</span>
+          )}
         </div>
       </div>
     </>
