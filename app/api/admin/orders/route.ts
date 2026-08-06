@@ -9,7 +9,7 @@ const supabase = createClient(
 );
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
   const status = request.nextUrl.searchParams.get('status');
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
   const { orderId, status } = await request.json();

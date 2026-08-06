@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -15,12 +15,23 @@ type AuthError = { ok: false; response: NextResponse };
  */
 const ADMIN_PASSWORD = process.env.ADMIN_DEV_PASSWORD || 'villagemart@2024';
 
-export async function requireAdmin(): Promise<AuthError | { ok: true }> {
+export async function requireAdmin(req?: NextRequest): Promise<AuthError | { ok: true }> {
   const cookieStore = await cookies();
   const adminCookie = cookieStore.get('admin_dev');
 
   if (!adminCookie?.value || adminCookie.value !== ADMIN_PASSWORD) {
     return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+
+  if (req) {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
+    const ua = req.headers.get('user-agent') ?? null;
+    const path = new URL(req.url).pathname;
+    void (async () => {
+      await supabase.from('admin_access_log').insert({
+        path, method: req.method, ip, user_agent: ua,
+      });
+    })();
   }
 
   return { ok: true };

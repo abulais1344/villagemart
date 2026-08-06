@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v34';
+const CACHE_VERSION = 'v37';
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', () => self.clients.claim())
@@ -33,33 +33,57 @@ self.addEventListener('push', function(event) {
     tag: 'new-order',
     requireInteraction: true,
     vibrate: [200, 100, 200, 100, 200],
-    data: { url: '/merchant-login' },
+    data: { url: data.url || '/', broadcast_id: data.broadcast_id, customer_id: data.customer_id },
     actions: [
       { action: 'open', title: '👀 View Order' }
     ]
   };
 
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
+  const notifPromise = self.registration.showNotification(title, options);
+
+  const logPromise = data.broadcast_id
+    ? fetch('/api/events/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'push_received',
+          customer_id: data.customer_id ?? null,
+          metadata: { broadcast_id: data.broadcast_id },
+        }),
+      }).catch(() => {})
+    : Promise.resolve();
+
+  event.waitUntil(Promise.all([notifPromise, logPromise]));
 });
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
-  event.waitUntil(
-    clients.matchAll({ type: 'window' }).then(function(clientList) {
-      // Focus any existing PWA window and navigate it to the target URL.
-      // In standalone mode there's typically only one window.
-      for (const client of clientList) {
-        if ('focus' in client) {
-          client.navigate(url);
-          return client.focus();
-        }
+  const { url, broadcast_id, customer_id } = event.notification.data || {};
+  const targetUrl = url || '/';
+
+  const logPromise = broadcast_id
+    ? fetch('/api/events/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_type: 'push_clicked',
+          customer_id: customer_id ?? null,
+          metadata: { broadcast_id },
+        }),
+      }).catch(() => {})
+    : Promise.resolve();
+
+  const navPromise = clients.matchAll({ type: 'window' }).then(function(clientList) {
+    for (const client of clientList) {
+      if ('focus' in client) {
+        client.navigate(targetUrl);
+        return client.focus();
       }
-      if (clients.openWindow) {
-        return clients.openWindow(url);
-      }
-    })
-  );
+    }
+    if (clients.openWindow) {
+      return clients.openWindow(targetUrl);
+    }
+  });
+
+  event.waitUntil(Promise.all([logPromise, navPromise]));
 });

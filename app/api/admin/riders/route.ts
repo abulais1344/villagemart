@@ -11,7 +11,7 @@ const supabase = createClient(
 // GET /api/admin/riders            — list all riders with delivery counts
 // GET /api/admin/riders?riderId=X  — order history for one rider
 export async function GET(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
   const riderId = request.nextUrl.searchParams.get('riderId');
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/riders — create rider
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
   const { name, phone, portal_username, portal_password, vehicle_type, notes } = await request.json();
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
 
 // PATCH /api/admin/riders?id=X — update rider
 export async function PATCH(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
   const id = request.nextUrl.searchParams.get('id');
@@ -114,7 +114,7 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE /api/admin/riders?id=X — delete rider
 export async function DELETE(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
   const id = request.nextUrl.searchParams.get('id');

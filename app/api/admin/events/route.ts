@@ -8,7 +8,7 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);

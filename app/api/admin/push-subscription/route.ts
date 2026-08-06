@@ -8,7 +8,7 @@ const supabase = createClient(
 );
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
   const { subscription } = await request.json();

@@ -13,6 +13,7 @@ import type { Product } from '@/types';
 import toast from 'react-hot-toast';
 import { PWAInstallBanner } from './PWAInstallBanner';
 import { logEvent } from '@/lib/events';
+import { firebaseAuth } from '@/lib/firebase/client';
 
 function isNonVeg(product: Product): boolean {
   return product.is_veg === false;
@@ -70,7 +71,12 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    logEvent({ event_type: 'store_visit', merchant_id: merchant.id });
+    logEvent({
+      event_type: 'store_visit',
+      merchant_id: merchant.id,
+      customer_id: firebaseAuth.currentUser?.uid ?? null,
+      metadata: { merchant_name: merchant.store_name, merchant_type: merchant.merchant_type },
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function closeSheet() {
@@ -194,7 +200,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
       return;
     }
     addItem(product);
-    logEvent({ event_type: 'add_to_cart', merchant_id: product.merchant_id, metadata: { product_id: product.id, product_name: product.name } });
+    logEvent({ event_type: 'add_to_cart', merchant_id: product.merchant_id, customer_id: firebaseAuth.currentUser?.uid ?? null, metadata: { product_id: product.id, product_name: product.name } });
   }
 
   // Combined filter + search, bestsellers first
@@ -632,7 +638,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
                 onClick={() => {
                   clearCart();
                   addItem(conflictProduct);
-                  logEvent({ event_type: 'add_to_cart', merchant_id: conflictProduct.merchant_id, metadata: { product_id: conflictProduct.id, product_name: conflictProduct.name } });
+                  logEvent({ event_type: 'add_to_cart', merchant_id: conflictProduct.merchant_id, customer_id: firebaseAuth.currentUser?.uid ?? null, metadata: { product_id: conflictProduct.id, product_name: conflictProduct.name } });
                   setConflictProduct(null);
                 }}
                 className="flex-1 bg-purple-600 text-white rounded-xl py-2.5 text-sm font-semibold"

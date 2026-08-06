@@ -1,0 +1,238 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { AdminHeader } from '@/components/admin/AdminHeader';
+import { Button } from '@/components/ui/Button';
+import { formatDateTime } from '@/lib/utils/format';
+import toast from 'react-hot-toast';
+
+interface SendResult {
+  total: number;
+  succeeded: number;
+  failed: number;
+  failures: { userId: string; status: number | string }[];
+}
+
+interface BroadcastEvent {
+  id: number;
+  created_at: string;
+  metadata: { total: number; succeeded: number; failed: number; broadcast_id?: string; title?: string; body?: string };
+}
+
+interface TrackingCounts {
+  received: number;
+  clicked: number;
+}
+
+export default function CustomerPushPage() {
+  const supabase = createClient();
+  const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
+  const [history, setHistory] = useState<BroadcastEvent[]>([]);
+  const [sending, setSending] = useState(false);
+  const [lastResult, setLastResult] = useState<SendResult | null>(null);
+  const [tracking, setTracking] = useState<Record<string, TrackingCounts>>({});
+  const [msgTitle, setMsgTitle] = useState('Zupr');
+  const [msgBody, setMsgBody] = useState('Order before 10 PM for quick delivery!');
+
+  async function loadData() {
+    const [countRes, historyRes, trackingRes] = await Promise.all([
+      supabase
+        .from('vm_users')
+        .select('id', { count: 'exact', head: true })
+        .not('push_subscription', 'is', null),
+      supabase
+        .from('vm_events')
+        .select('id, created_at, metadata')
+        .eq('event_type', 'admin_push_broadcast')
+        .order('created_at', { ascending: false })
+        .limit(10),
+      supabase
+        .from('vm_events')
+        .select('event_type, metadata')
+        .in('event_type', ['push_received', 'push_clicked'])
+        .order('created_at', { ascending: false })
+        .limit(2000),
+    ]);
+
+    if (countRes.count !== null) setSubscriberCount(countRes.count);
+    if (historyRes.data) setHistory(historyRes.data as BroadcastEvent[]);
+
+    if (trackingRes.data) {
+      const map: Record<string, TrackingCounts> = {};
+      for (const evt of trackingRes.data) {
+        const bid = evt.metadata?.broadcast_id as string | undefined;
+        if (!bid) continue;
+        if (!map[bid]) map[bid] = { received: 0, clicked: 0 };
+        if (evt.event_type === 'push_received') map[bid].received++;
+        if (evt.event_type === 'push_clicked') map[bid].clicked++;
+      }
+      setTracking(map);
+    }
+  }
+
+  useEffect(() => { loadData(); }, []);
+
+  async function handleSend() {
+    setSending(true);
+    setLastResult(null);
+    try {
+      const res = await fetch('/api/admin/send-customer-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: msgTitle, body: msgBody }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? 'Send failed');
+        return;
+      }
+      setLastResult(data);
+      toast.success(`Sent to ${data.succeeded} of ${data.total} subscriber(s)`);
+      await loadData(); // refresh count + history
+    } catch (err) {
+      toast.error('Network error — check console');
+      console.error(err);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-24">
+      <AdminHeader title="Customer Push" />
+
+      <div className="max-w-xl mx-auto px-4 pt-6 space-y-6">
+
+        {/* Subscriber count */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+            Active subscribers
+          </p>
+          <p className="text-4xl font-black text-[#7C3AED]">
+            {subscriberCount === null ? '—' : subscriberCount}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            vm_users with push_subscription IS NOT NULL
+          </p>
+        </div>
+
+        {/* Send button + result */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
+          <p className="text-sm font-bold text-gray-900">Send re-engagement push</p>
+
+          <div className="space-y-2">
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Title</label>
+              <input
+                type="text"
+                value={msgTitle}
+                onChange={e => setMsgTitle(e.target.value)}
+                maxLength={80}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Body</label>
+              <input
+                type="text"
+                value={msgBody}
+                onChange={e => setMsgBody(e.target.value)}
+                maxLength={200}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]"
+              />
+            </div>
+          </div>
+
+          <Button
+            onClick={handleSend}
+            disabled={sending || subscriberCount === 0 || !msgTitle.trim() || !msgBody.trim()}
+            className="w-full"
+          >
+            {sending ? 'Sending…' : '📣 Send to all subscribers'}
+          </Button>
+
+          {lastResult && (
+            <div className={`rounded-xl px-4 py-3 text-sm ${
+              lastResult.failed === 0
+                ? 'bg-green-50 text-green-800'
+                : lastResult.succeeded === 0
+                ? 'bg-red-50 text-red-800'
+                : 'bg-orange-50 text-orange-800'
+            }`}>
+              <p className="font-semibold mb-1">
+                {lastResult.succeeded} / {lastResult.total} delivered
+                {lastResult.failed > 0 && ` · ${lastResult.failed} failed`}
+              </p>
+              {lastResult.failures.length > 0 && (
+                <ul className="text-xs space-y-0.5 opacity-80">
+                  {lastResult.failures.map((f, i) => (
+                    <li key={i}>…{f.userId.slice(-8)} — HTTP {f.status}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Broadcast history */}
+        {history.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              Past broadcasts
+            </p>
+            <ul className="space-y-4">
+              {history.map(evt => {
+                const bid = evt.metadata?.broadcast_id;
+                const t = bid ? (tracking[bid] ?? { received: 0, clicked: 0 }) : null;
+                const sent = evt.metadata.succeeded;
+                return (
+                  <li key={evt.id} className="text-sm">
+                    <p className="text-xs text-gray-400 mb-0.5">{formatDateTime(evt.created_at)}</p>
+                    {evt.metadata.body && (
+                      <p className="text-xs text-gray-500 italic mb-1 truncate">"{evt.metadata.body}"</p>
+                    )}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-medium text-gray-900">
+                        Sent {sent}/{evt.metadata.total}
+                        {evt.metadata.failed > 0 && (
+                          <span className="text-red-500 ml-1">· {evt.metadata.failed} failed</span>
+                        )}
+                      </span>
+                      {t !== null && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-blue-700 font-medium">
+                            Received {t.received}
+                            {sent > 0 && (
+                              <span className="text-blue-400 font-normal ml-0.5">
+                                ({Math.round((t.received / sent) * 100)}%)
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-[#7C3AED] font-medium">
+                            Clicked {t.clicked}
+                            {t.received > 0 && (
+                              <span className="text-purple-400 font-normal ml-0.5">
+                                ({Math.round((t.clicked / t.received) * 100)}%)
+                              </span>
+                            )}
+                          </span>
+                        </>
+                      )}
+                      {!bid && (
+                        <span className="text-gray-300 text-xs">(pre-tracking)</span>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
