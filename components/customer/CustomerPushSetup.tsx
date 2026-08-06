@@ -14,25 +14,37 @@ function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
 
 export function CustomerPushSetup() {
   useEffect(() => {
-    // Browser push APIs not available (e.g. in-app browser, older Safari)
+    // Guard 1: Browser push APIs not available (e.g. in-app browser, iOS <16.4, older Safari)
     if (
       !('Notification' in window) ||
       !('serviceWorker' in navigator) ||
       !('PushManager' in window)
     ) return;
 
-    // User explicitly blocked notifications — never re-prompt
+    // Guard 2: iOS requires the PWA to be installed (home-screen standalone mode).
+    // In a regular Safari tab on iOS 16.4+, requestPermission() throws or auto-denies,
+    // which would burn the one-shot flag before the user ever installs the PWA.
+    // Android and desktop have no such restriction — always proceed there.
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true;
+    if (isIOS && !isStandalone) return; // silent exit — do NOT set vm_push_prompted
+
+    // Guard 3: User explicitly blocked notifications — never re-prompt
     if (Notification.permission === 'denied') return;
 
-    // Already prompted once but user dismissed without deciding — don't ask again this session
+    // Guard 4: Already prompted and got a real answer — don't ask again
     if (Notification.permission === 'default' && localStorage.getItem('vm_push_prompted')) return;
 
     (async () => {
       try {
         let permission = Notification.permission;
         if (permission === 'default') {
-          localStorage.setItem('vm_push_prompted', '1');
           permission = await Notification.requestPermission();
+          // Write flag AFTER resolution so a thrown error (iOS regular-tab, etc.)
+          // doesn't permanently block a future legitimate installed-PWA session
+          localStorage.setItem('vm_push_prompted', '1');
         }
         if (permission !== 'granted') return;
 
