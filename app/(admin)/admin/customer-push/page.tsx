@@ -17,7 +17,12 @@ interface SendResult {
 interface BroadcastEvent {
   id: number;
   created_at: string;
-  metadata: { total: number; succeeded: number; failed: number };
+  metadata: { total: number; succeeded: number; failed: number; broadcast_id?: string };
+}
+
+interface TrackingCounts {
+  received: number;
+  clicked: number;
 }
 
 export default function CustomerPushPage() {
@@ -26,9 +31,10 @@ export default function CustomerPushPage() {
   const [history, setHistory] = useState<BroadcastEvent[]>([]);
   const [sending, setSending] = useState(false);
   const [lastResult, setLastResult] = useState<SendResult | null>(null);
+  const [tracking, setTracking] = useState<Record<string, TrackingCounts>>({});
 
   async function loadData() {
-    const [countRes, historyRes] = await Promise.all([
+    const [countRes, historyRes, trackingRes] = await Promise.all([
       supabase
         .from('vm_users')
         .select('id', { count: 'exact', head: true })
@@ -39,9 +45,28 @@ export default function CustomerPushPage() {
         .eq('event_type', 'admin_push_broadcast')
         .order('created_at', { ascending: false })
         .limit(10),
+      supabase
+        .from('vm_events')
+        .select('event_type, metadata')
+        .in('event_type', ['push_received', 'push_clicked'])
+        .order('created_at', { ascending: false })
+        .limit(2000),
     ]);
+
     if (countRes.count !== null) setSubscriberCount(countRes.count);
     if (historyRes.data) setHistory(historyRes.data as BroadcastEvent[]);
+
+    if (trackingRes.data) {
+      const map: Record<string, TrackingCounts> = {};
+      for (const evt of trackingRes.data) {
+        const bid = evt.metadata?.broadcast_id as string | undefined;
+        if (!bid) continue;
+        if (!map[bid]) map[bid] = { received: 0, clicked: 0 };
+        if (evt.event_type === 'push_received') map[bid].received++;
+        if (evt.event_type === 'push_clicked') map[bid].clicked++;
+      }
+      setTracking(map);
+    }
   }
 
   useEffect(() => { loadData(); }, []);
@@ -132,20 +157,50 @@ export default function CustomerPushPage() {
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
               Past broadcasts
             </p>
-            <ul className="space-y-2">
-              {history.map(evt => (
-                <li key={evt.id} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 text-xs">
-                    {formatDateTime(evt.created_at)}
-                  </span>
-                  <span className="font-medium text-gray-900">
-                    {evt.metadata.succeeded}/{evt.metadata.total} delivered
-                    {evt.metadata.failed > 0 && (
-                      <span className="text-red-500 ml-1">· {evt.metadata.failed} failed</span>
-                    )}
-                  </span>
-                </li>
-              ))}
+            <ul className="space-y-4">
+              {history.map(evt => {
+                const bid = evt.metadata?.broadcast_id;
+                const t = bid ? (tracking[bid] ?? { received: 0, clicked: 0 }) : null;
+                const sent = evt.metadata.succeeded;
+                return (
+                  <li key={evt.id} className="text-sm">
+                    <p className="text-xs text-gray-400 mb-1">{formatDateTime(evt.created_at)}</p>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-medium text-gray-900">
+                        Sent {sent}/{evt.metadata.total}
+                        {evt.metadata.failed > 0 && (
+                          <span className="text-red-500 ml-1">· {evt.metadata.failed} failed</span>
+                        )}
+                      </span>
+                      {t !== null && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-blue-700 font-medium">
+                            Received {t.received}
+                            {sent > 0 && (
+                              <span className="text-blue-400 font-normal ml-0.5">
+                                ({Math.round((t.received / sent) * 100)}%)
+                              </span>
+                            )}
+                          </span>
+                          <span className="text-gray-300">·</span>
+                          <span className="text-[#7C3AED] font-medium">
+                            Clicked {t.clicked}
+                            {t.received > 0 && (
+                              <span className="text-purple-400 font-normal ml-0.5">
+                                ({Math.round((t.clicked / t.received) * 100)}%)
+                              </span>
+                            )}
+                          </span>
+                        </>
+                      )}
+                      {!bid && (
+                        <span className="text-gray-300 text-xs">(pre-tracking)</span>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

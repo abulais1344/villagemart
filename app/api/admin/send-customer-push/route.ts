@@ -8,11 +8,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const PAYLOAD = JSON.stringify({
-  title: 'Zupr',
-  body: 'Order before 10 PM for quick delivery!',
-  url: '/',
-});
+const TITLE = 'Zupr';
+const BODY = 'Order before 10 PM for quick delivery!';
 
 export async function POST() {
   const auth = await requireAdmin();
@@ -45,6 +42,8 @@ export async function POST() {
   const total = users?.length ?? 0;
   console.log(`[send-customer-push] sending to ${total} subscriber(s)`);
 
+  const broadcastId = crypto.randomUUID();
+
   let succeeded = 0;
   let failed = 0;
   const failures: { userId: string; status: number | string }[] = [];
@@ -52,8 +51,15 @@ export async function POST() {
   await Promise.allSettled(
     (users ?? []).map(async (user) => {
       const sub = user.push_subscription as webpush.PushSubscription;
+      const payload = JSON.stringify({
+        title: TITLE,
+        body: BODY,
+        url: '/',
+        broadcast_id: broadcastId,
+        customer_id: user.id,
+      });
       try {
-        await webpush.sendNotification(sub, PAYLOAD);
+        await webpush.sendNotification(sub, payload);
         console.log(`[send-customer-push] ✓ sent to user ${user.id}`);
         succeeded++;
       } catch (err: any) {
@@ -80,7 +86,7 @@ export async function POST() {
   // Log to vm_events so the admin UI can show broadcast history
   const { error: logError } = await supabase.from('vm_events').insert({
     event_type: 'admin_push_broadcast',
-    metadata: { total, succeeded, failed },
+    metadata: { total, succeeded, failed, broadcast_id: broadcastId },
   });
   if (logError) console.error('[send-customer-push] event log failed:', logError.message);
 
