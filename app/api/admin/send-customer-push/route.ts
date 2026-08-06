@@ -76,5 +76,13 @@ export async function POST() {
 
   const summary = { total, succeeded, failed, failures };
   console.log('[send-customer-push] summary:', summary);
+
+  // Log to vm_events so the admin UI can show broadcast history
+  const { error: logError } = await supabase.from('vm_events').insert({
+    event_type: 'admin_push_broadcast',
+    metadata: { total, succeeded, failed },
+  });
+  if (logError) console.error('[send-customer-push] event log failed:', logError.message);
+
   return NextResponse.json(summary);
 }
