@@ -8,8 +8,8 @@ const supabase = createClient(
 );
 
 // GET: list merchants with parcel_service_enabled = true
-export async function GET() {
-  const auth = await requireAdmin();
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
 
   const { data, error } = await supabase
@@ -24,7 +24,7 @@ export async function GET() {
 
 // PATCH: update parcel_delivery_charge and/or parcel_order_cutoff_time for a merchant
 export async function PATCH(request: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
   const { merchantId, parcel_delivery_charge, parcel_order_cutoff_time } = await request.json();

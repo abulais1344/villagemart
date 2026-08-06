@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const title: string = body.title?.trim() || DEFAULT_TITLE;
   const msgBody: string = body.body?.trim() || DEFAULT_BODY;
-  const auth = await requireAdmin();
+  const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
 
   if (
