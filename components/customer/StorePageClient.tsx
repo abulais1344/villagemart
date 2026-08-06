@@ -404,8 +404,12 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
       {/* ── 2. Info bar ── */}
       <div className="bg-white px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2.5 text-sm text-gray-500 flex-wrap">
-          <span>⏱ {deliveryTime}</span>
-          <span className="text-gray-200">|</span>
+          {merchant.merchant_type !== 'vegetables' && (
+            <>
+              <span>⏱ {deliveryTime}</span>
+              <span className="text-gray-200">|</span>
+            </>
+          )}
           <span>🛵 Free delivery</span>
           <span className="text-gray-200">|</span>
           <span>⭐ 4.2</span>
