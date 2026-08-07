@@ -85,6 +85,7 @@ export interface Order {
   customer_name: string | null;
   customer_phone: string | null;
   merchant_id: string | null;
+  rider_id: string | null;
   delivery_type: DeliveryType;
   status: OrderStatus;
   address_id: string;

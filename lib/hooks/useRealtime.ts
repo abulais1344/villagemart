@@ -58,6 +58,34 @@ export function useRiderDeliveries(riderId: string, onAssigned: (delivery: unkno
   }, [riderId]);
 }
 
+// Customer: live rider GPS position while order is out_for_delivery
+export function useRiderLocation(
+  riderId: string | null,
+  onUpdate: (lat: number, lng: number) => void,
+) {
+  const supabase = createClient();
+  const callbackRef = useRef(onUpdate);
+  callbackRef.current = onUpdate;
+
+  useEffect(() => {
+    if (!riderId) return;
+    const channel = supabase
+      .channel(`rider-location-${riderId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'vm_riders', filter: `id=eq.${riderId}` },
+        (payload) => {
+          const { current_lat, current_lng } = payload.new as any;
+          if (typeof current_lat === 'number' && typeof current_lng === 'number') {
+            callbackRef.current(current_lat, current_lng);
+          }
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [riderId]);
+}
+
 // Admin: live order count
 export function useAdminOrderRealtime(onUpdate: () => void) {
   const supabase = createClient();

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useRider } from '../RiderProvider';
+import { useLocationPing } from '@/lib/hooks/useLocationPing';
 import toast from 'react-hot-toast';
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
@@ -42,7 +43,9 @@ export default function RiderOrdersPage() {
   const [acting, setActing] = useState<string | null>(null);
   const [notifSubscribed, setNotifSubscribed] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
+  const [locationPermission, setLocationPermission] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
   const notifChecked = useRef(false);
+  const locationPermissionChecked = useRef(false);
 
   async function loadOrders() {
     setRefreshing(true);
@@ -75,6 +78,53 @@ export default function RiderOrdersPage() {
       });
     });
   }, []);
+
+  // Check geolocation permission state once an out_for_delivery order appears.
+  // Uses the permissions API to read current state — never triggers the OS dialog here.
+  useEffect(() => {
+    const hasDelivery = orders.some(o => o.status === 'out_for_delivery');
+    if (!hasDelivery) return;
+    if (locationPermissionChecked.current) return;
+    locationPermissionChecked.current = true;
+
+    if (!navigator.permissions) {
+      setLocationPermission('prompt');
+      return;
+    }
+    navigator.permissions
+      .query({ name: 'geolocation' as PermissionName })
+      .then(result => {
+        setLocationPermission(result.state as 'granted' | 'denied' | 'prompt');
+        result.addEventListener('change', () =>
+          setLocationPermission(result.state as 'granted' | 'denied' | 'prompt'),
+        );
+      })
+      .catch(() => setLocationPermission('prompt'));
+  }, [orders]);
+
+  // Called directly from button onClick so iOS treats it as a user gesture.
+  // Never call getCurrentPosition inside useEffect — iOS silently ignores it.
+  function handleEnableLocation() {
+    if (!navigator.geolocation) {
+      setLocationPermission('denied');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setLocationPermission('granted');
+        fetch('/api/rider/update-location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        }).catch(() => {});
+      },
+      err => {
+        if (err.code === 1) setLocationPermission('denied');
+        // POSITION_UNAVAILABLE (2) or TIMEOUT (3): leave as 'prompt' so rider can retry
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+    );
+  }
 
   async function handleEnableNotifications() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -131,6 +181,10 @@ export default function RiderOrdersPage() {
 
   const active = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
   const history = orders.filter(o => o.status === 'delivered' || o.status === 'cancelled');
+  const hasActiveDelivery = active.some(o => o.status === 'out_for_delivery');
+
+  // Send GPS pings while any active order is out_for_delivery
+  useLocationPing(active.some(o => o.status === 'out_for_delivery'));
 
   return (
     <>
@@ -171,6 +225,34 @@ export default function RiderOrdersPage() {
             {notifLoading ? 'Enabling…' : 'Enable'}
           </button>
         </div>
+      )}
+
+      {/* Location permission banner — only when there's an out_for_delivery order */}
+      {hasActiveDelivery && locationPermission !== 'granted' && locationPermission !== 'unknown' && (
+        locationPermission === 'denied' ? (
+          <div className="bg-red-50 border-b border-red-200 px-4 py-3 flex items-start gap-3">
+            <span className="text-lg leading-none mt-0.5">📍</span>
+            <div>
+              <p className="text-sm font-semibold text-red-700">Location access blocked</p>
+              <p className="text-xs text-red-600 mt-0.5">
+                Enable location in your browser or phone settings so customers can track your delivery
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-bold">📍 Enable Location Sharing</p>
+              <p className="text-xs opacity-90 mt-0.5">So customers can track your delivery in real time</p>
+            </div>
+            <button
+              onClick={handleEnableLocation}
+              className="shrink-0 bg-white text-blue-600 font-semibold text-xs rounded-lg px-3 py-1.5"
+            >
+              Enable
+            </button>
+          </div>
+        )
       )}
 
       <div className="px-4 py-4 space-y-6">
