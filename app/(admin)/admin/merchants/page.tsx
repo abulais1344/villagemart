@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { MerchantFormModal } from '@/components/admin/MerchantFormModal';
@@ -14,14 +13,11 @@ export default function AdminMerchantsPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [editingMerchant, setEditingMerchant] = useState<any>(null);
-  const supabase = createClient();
 
   async function loadMerchants() {
-    const { data } = await supabase
-      .from('merchants')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setMerchants(data ?? []);
+    const res = await fetch('/api/admin/merchants');
+    const data = await res.json();
+    setMerchants(data.merchants ?? []);
     setLoading(false);
   }
 
@@ -29,7 +25,11 @@ export default function AdminMerchantsPage() {
 
   async function handleStatusToggle(merchant: any) {
     const newStatus = merchant.status === 'approved' ? 'suspended' : 'approved';
-    await supabase.from('merchants').update({ status: newStatus }).eq('id', merchant.id);
+    await fetch(`/api/admin/merchants/${merchant.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
     loadMerchants();
   }
 
