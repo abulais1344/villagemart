@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { ProductDetailClient } from '@/components/customer/ProductDetailClient';
 import type { Product } from '@/types';
 
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   // Fetch product server-side
   const { data: rawProduct, error: prodError } = await supabase

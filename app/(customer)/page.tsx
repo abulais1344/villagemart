@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { HomePageClient } from '@/components/customer/HomePageClient';
 import type { Category, Product, Merchant } from '@/types';
 
@@ -11,7 +11,7 @@ export const metadata = {
 };
 
 export default async function HomePage() {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   // Fetch everything flat — no SQL joins to avoid schema cache issues
   const [catResult, featuredResult, ownResult, merchantsResult, foodResult] = await Promise.all([

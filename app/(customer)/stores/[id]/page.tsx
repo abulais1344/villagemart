@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import { StorePageClient } from '@/components/customer/StorePageClient';
 import type { Product } from '@/types';
@@ -7,7 +7,7 @@ export const revalidate = 60;
 
 export default async function StoreDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   const { data: merchant } = await supabase
     .from('merchants')
