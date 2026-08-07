@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Phone, RotateCcw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { OrderTracker } from '@/components/customer/OrderTracker';
-import { useOrderRealtime } from '@/lib/hooks/useRealtime';
+import { useOrderRealtime, useRiderLocation } from '@/lib/hooks/useRealtime';
+import { RiderLiveMap } from '@/components/customer/RiderLiveMap';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -19,19 +20,42 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
   const { addItem } = useCartStore();
   const supabase = createClient();
 
   useEffect(() => {
     supabase
       .from('orders')
-      .select('*, order_items(*), merchant:merchants(store_name, phone)')
+      .select('*, order_items(*), merchant:merchants(store_name, phone, latitude, longitude)')
       .eq('id', id)
       .single()
-      .then(({ data }) => { setOrder(data as Order); setLoading(false); });
+      .then(({ data }) => {
+        setOrder(data as Order);
+        setLoading(false);
+        // Seed rider location from DB on load so the map isn't blank
+        if (data?.status === 'out_for_delivery' && data?.rider_id) {
+          supabase
+            .from('vm_riders')
+            .select('current_lat, current_lng')
+            .eq('id', data.rider_id)
+            .single()
+            .then(({ data: loc }) => {
+              if (loc?.current_lat != null && loc?.current_lng != null) {
+                setRiderLocation({ lat: loc.current_lat, lng: loc.current_lng });
+              }
+            });
+        }
+      });
   }, [id]);
 
   useOrderRealtime(id, (updated) => setOrder(prev => ({ ...prev, ...updated } as Order)));
+
+  // Subscribe to rider location updates via Realtime — only while out_for_delivery
+  useRiderLocation(
+    order?.status === 'out_for_delivery' ? (order?.rider_id ?? null) : null,
+    (lat, lng) => setRiderLocation({ lat, lng }),
+  );
 
   const handleReorder = () => {
     if (!order?.order_items) return;
@@ -75,6 +99,35 @@ export default function OrderDetailPage() {
           <h2 className="text-sm font-semibold text-[#1A1A1A] mb-4">Order Status</h2>
           <OrderTracker status={order.status} />
         </div>
+
+        {/* Live rider map — shown only while order is out_for_delivery */}
+        {order.status === 'out_for_delivery' && (
+          <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4">
+            <h2 className="text-sm font-semibold text-[#1A1A1A] mb-3">🛵 Live Tracking</h2>
+            <RiderLiveMap
+              riderLat={riderLocation?.lat ?? null}
+              riderLng={riderLocation?.lng ?? null}
+              merchantLat={(order.merchant as any)?.latitude ?? null}
+              merchantLng={(order.merchant as any)?.longitude ?? null}
+              deliveryLat={(order.delivery_address as any)?.lat ?? null}
+              deliveryLng={(order.delivery_address as any)?.lng ?? null}
+            />
+            <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-purple-600 inline-block" />
+                Rider
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />
+                Restaurant
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
+                Your address
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Items */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4">

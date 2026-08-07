@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useRider } from '../RiderProvider';
+import { useLocationPing } from '@/lib/hooks/useLocationPing';
 import toast from 'react-hot-toast';
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
@@ -131,6 +132,9 @@ export default function RiderOrdersPage() {
 
   const active = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
   const history = orders.filter(o => o.status === 'delivered' || o.status === 'cancelled');
+
+  // Send GPS pings while any active order is out_for_delivery
+  useLocationPing(active.some(o => o.status === 'out_for_delivery'));
 
   return (
     <>
