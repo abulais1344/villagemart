@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -153,32 +153,57 @@ export default function OrdersPage() {
   const [phone, setPhone] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const phoneRef = useRef<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem('vm_customer');
     if (!raw) { setLoading(false); return; }
     const customer = JSON.parse(raw);
     setPhone(customer.phone ?? null);
+    phoneRef.current = customer.phone ?? null;
     if (customer.phone) fetchOrders(customer.phone);
     else setLoading(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Re-fetch orders every 15 s while any order is actively out_for_delivery.
+  // This is the order-status live-update mechanism: no Supabase Realtime needed
+  // (which would require a Supabase Auth session the app doesn't have — it uses
+  // Firebase Phone Auth). When the rider marks delivered, the next fetch resolves
+  // with status='delivered', setOrders fires, and the location poll stops.
+  const hasActiveDeliveryRef = useRef(false);
+  hasActiveDeliveryRef.current = orders.some(o => o.status === 'out_for_delivery');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (hasActiveDeliveryRef.current && phoneRef.current) {
+        console.log('[order-status] re-fetching orders (active delivery in progress)');
+        fetchOrders(phoneRef.current);
+      }
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, []); // stable — reads state via refs, never needs to restart
+
+  // Derive the expanded order's key fields as stable primitives for the
+  // location effect's dependency array. This avoids restarting the location
+  // interval on every fetchOrders call (which replaces the orders array reference).
+  const expandedOrder = orders.find(o => o.id === expandedId);
+  const expandedStatus = expandedOrder?.status ?? null;
+  const expandedRiderId = expandedOrder?.rider_id ?? null;
+
   // Poll rider location when an out_for_delivery order card is expanded.
   useEffect(() => {
-    const expandedOrder = orders.find(o => o.id === expandedId);
-    console.log('[rider-location] effect fired — expandedId:', expandedId, '| status:', expandedOrder?.status, '| rider_id:', expandedOrder?.rider_id);
+    console.log('[rider-location] effect fired — expandedId:', expandedId, '| status:', expandedStatus, '| rider_id:', expandedRiderId);
 
-    if (!expandedOrder || expandedOrder.status !== 'out_for_delivery' || !expandedOrder.rider_id) {
+    if (!expandedId || expandedStatus !== 'out_for_delivery' || !expandedRiderId) {
       console.log('[rider-location] guard failed — not an active delivery or no rider assigned');
       setRiderLocation(null);
       return;
     }
 
-    const orderId = expandedOrder.id;
-    console.log('[rider-location] guard passed — starting poll for order', orderId);
+    console.log('[rider-location] guard passed — starting poll for order', expandedId);
 
     async function fetchLocation() {
-      console.log('[rider-location] polling tick for order', orderId);
+      console.log('[rider-location] polling tick for order', expandedId);
       try {
         const idToken = await firebaseAuth.currentUser?.getIdToken();
         console.log('[rider-location] idToken present:', !!idToken, '| firebase uid:', firebaseAuth.currentUser?.uid ?? null);
@@ -186,7 +211,7 @@ export default function OrdersPage() {
         const res = await fetch('/api/customer/rider-location', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId, idToken }),
+          body: JSON.stringify({ orderId: expandedId, idToken }),
         });
         console.log('[rider-location] response status:', res.status);
         if (!res.ok) return;
@@ -203,10 +228,10 @@ export default function OrdersPage() {
     fetchLocation();
     const interval = setInterval(fetchLocation, 10_000);
     return () => {
-      console.log('[rider-location] cleaning up interval for order', orderId);
+      console.log('[rider-location] cleaning up interval — expandedId:', expandedId, 'status now:', expandedStatus);
       clearInterval(interval);
     };
-  }, [expandedId, orders]);
+  }, [expandedId, expandedStatus, expandedRiderId]);
 
   function goToLogin() {
     localStorage.setItem('login_redirect', '/orders');
