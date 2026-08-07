@@ -8,6 +8,8 @@ import {
   Clock, CheckCircle2, XCircle, Truck,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/format';
+import { firebaseAuth } from '@/lib/firebase/client';
+import { RiderLiveMap } from '@/components/customer/RiderLiveMap';
 
 // ── types ──────────────────────────────────────────────────────────────────
 interface Snapshot {
@@ -38,7 +40,8 @@ interface Order {
   customer_name: string;
   customer_phone: string;
   merchant_name: string | null;
-  delivery_address: { name?: string; phone?: string; address?: string; landmark?: string; area?: string } | null;
+  rider_id: string | null;
+  delivery_address: { name?: string; phone?: string; address?: string; landmark?: string; area?: string; lat?: number; lng?: number } | null;
   items: OrderItem[];
 }
 
@@ -149,6 +152,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem('vm_customer');
@@ -158,6 +162,51 @@ export default function OrdersPage() {
     if (customer.phone) fetchOrders(customer.phone);
     else setLoading(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Poll rider location when an out_for_delivery order card is expanded.
+  useEffect(() => {
+    const expandedOrder = orders.find(o => o.id === expandedId);
+    console.log('[rider-location] effect fired — expandedId:', expandedId, '| status:', expandedOrder?.status, '| rider_id:', expandedOrder?.rider_id);
+
+    if (!expandedOrder || expandedOrder.status !== 'out_for_delivery' || !expandedOrder.rider_id) {
+      console.log('[rider-location] guard failed — not an active delivery or no rider assigned');
+      setRiderLocation(null);
+      return;
+    }
+
+    const orderId = expandedOrder.id;
+    console.log('[rider-location] guard passed — starting poll for order', orderId);
+
+    async function fetchLocation() {
+      console.log('[rider-location] polling tick for order', orderId);
+      try {
+        const idToken = await firebaseAuth.currentUser?.getIdToken();
+        console.log('[rider-location] idToken present:', !!idToken, '| firebase uid:', firebaseAuth.currentUser?.uid ?? null);
+        if (!idToken) return;
+        const res = await fetch('/api/customer/rider-location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, idToken }),
+        });
+        console.log('[rider-location] response status:', res.status);
+        if (!res.ok) return;
+        const data = await res.json();
+        console.log('[rider-location] response data:', data);
+        if (typeof data.lat === 'number' && typeof data.lng === 'number') {
+          setRiderLocation({ lat: data.lat, lng: data.lng });
+        }
+      } catch (err) {
+        console.error('[rider-location] fetch error:', err);
+      }
+    }
+
+    fetchLocation();
+    const interval = setInterval(fetchLocation, 10_000);
+    return () => {
+      console.log('[rider-location] cleaning up interval for order', orderId);
+      clearInterval(interval);
+    };
+  }, [expandedId, orders]);
 
   function goToLogin() {
     localStorage.setItem('login_redirect', '/orders');
@@ -306,6 +355,25 @@ export default function OrdersPage() {
                     <p className="text-xs font-semibold text-[#6B7280] mb-2.5 uppercase tracking-wide">Track Order</p>
                     <OrderTimeline status={order.status} />
                   </div>
+
+                  {/* Live rider map — only while out_for_delivery */}
+                  {order.status === 'out_for_delivery' && (
+                    <div>
+                      <p className="text-xs font-semibold text-[#6B7280] mb-2.5 uppercase tracking-wide">🛵 Live Tracking</p>
+                      <RiderLiveMap
+                        riderLat={riderLocation?.lat ?? null}
+                        riderLng={riderLocation?.lng ?? null}
+                        deliveryLat={order.delivery_address?.lat ?? null}
+                        deliveryLng={order.delivery_address?.lng ?? null}
+                      />
+                      {riderLocation && (
+                        <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
+                          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block" />Rider</span>
+                          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" />Your address</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Items */}
                   <div>
