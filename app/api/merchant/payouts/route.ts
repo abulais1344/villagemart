@@ -23,6 +23,7 @@ export async function GET() {
       .select('subtotal, commission_amount, created_at')
       .eq('merchant_id', merchantId)
       .neq('status', 'cancelled')
+      .neq('status', 'refunded')
       .gte('created_at', cutoffISO)
       .order('created_at', { ascending: false }),
     supabase
