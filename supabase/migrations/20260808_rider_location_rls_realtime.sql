@@ -37,7 +37,7 @@ BEGIN
     id IN (
       SELECT rider_id
       FROM orders
-      WHERE customer_id = auth.uid()
+      WHERE customer_id = auth.uid()::text
         AND status = 'out_for_delivery'
         AND rider_id IS NOT NULL
     )
