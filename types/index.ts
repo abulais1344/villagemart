@@ -140,7 +140,7 @@ export interface Merchant {
   logo_url: string | null;
   banner_url: string | null;
   status: MerchantStatus;
-  commission_rate: number;
+  commission_rate?: number;
   is_open: boolean;
   opening_time: string | null;
   closing_time: string | null;
