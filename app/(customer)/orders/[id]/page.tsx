@@ -40,7 +40,8 @@ export default function OrderDetailPage() {
             .select('current_lat, current_lng')
             .eq('id', data.rider_id)
             .single()
-            .then(({ data: loc }) => {
+            .then(({ data: loc, error: locErr }) => {
+              if (locErr) console.error('[order] vm_riders seed failed:', locErr.message);
               if (loc?.current_lat != null && loc?.current_lng != null) {
                 setRiderLocation({ lat: loc.current_lat, lng: loc.current_lng });
               }

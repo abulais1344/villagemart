@@ -80,7 +80,12 @@ export default function RiderOrdersPage() {
   }, []);
 
   // Check geolocation permission state once an out_for_delivery order appears.
-  // Uses the permissions API to read current state — never triggers the OS dialog here.
+  // Uses the permissions API read-only — never triggers the OS dialog here.
+  // iOS quirk: navigator.permissions.query() can return 'denied' even when
+  // getCurrentPosition() actually succeeds (e.g. Settings was toggled mid-session
+  // or iOS's permission tiers don't map cleanly to the three Permissions API states).
+  // So we only trust 'granted' from the API; everything else shows the blue Enable
+  // button. 'denied' state is only ever set by handleEnableLocation()'s error code 1.
   useEffect(() => {
     const hasDelivery = orders.some(o => o.status === 'out_for_delivery');
     if (!hasDelivery) return;
@@ -94,10 +99,11 @@ export default function RiderOrdersPage() {
     navigator.permissions
       .query({ name: 'geolocation' as PermissionName })
       .then(result => {
-        setLocationPermission(result.state as 'granted' | 'denied' | 'prompt');
-        result.addEventListener('change', () =>
-          setLocationPermission(result.state as 'granted' | 'denied' | 'prompt'),
-        );
+        setLocationPermission(result.state === 'granted' ? 'granted' : 'prompt');
+        // Only listen for the transition TO granted (e.g. rider enables in Settings)
+        result.addEventListener('change', () => {
+          if (result.state === 'granted') setLocationPermission('granted');
+        });
       })
       .catch(() => setLocationPermission('prompt'));
   }, [orders]);
