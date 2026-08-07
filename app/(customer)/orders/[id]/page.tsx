@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Phone, RotateCcw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { OrderTracker } from '@/components/customer/OrderTracker';
-import { useOrderRealtime, useRiderLocation } from '@/lib/hooks/useRealtime';
+import { useOrderRealtime } from '@/lib/hooks/useRealtime';
+import { firebaseAuth } from '@/lib/firebase/client';
 import { RiderLiveMap } from '@/components/customer/RiderLiveMap';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -33,30 +34,41 @@ export default function OrderDetailPage() {
       .then(({ data }) => {
         setOrder(data as Order);
         setLoading(false);
-        // Seed rider location from DB on load so the map isn't blank
-        if (data?.status === 'out_for_delivery' && data?.rider_id) {
-          supabase
-            .from('vm_riders')
-            .select('current_lat, current_lng')
-            .eq('id', data.rider_id)
-            .single()
-            .then(({ data: loc, error: locErr }) => {
-              if (locErr) console.error('[order] vm_riders seed failed:', locErr.message);
-              if (loc?.current_lat != null && loc?.current_lng != null) {
-                setRiderLocation({ lat: loc.current_lat, lng: loc.current_lng });
-              }
-            });
-        }
       });
   }, [id]);
 
   useOrderRealtime(id, (updated) => setOrder(prev => ({ ...prev, ...updated } as Order)));
 
-  // Subscribe to rider location updates via Realtime — only while out_for_delivery
-  useRiderLocation(
-    order?.status === 'out_for_delivery' ? (order?.rider_id ?? null) : null,
-    (lat, lng) => setRiderLocation({ lat, lng }),
-  );
+  // Poll rider location via the service-role-backed API route every 10 s.
+  // Direct vm_riders queries and Realtime subscriptions both fail for customer
+  // requests because the app uses Firebase Auth (not Supabase Auth), so every
+  // browser request hits Supabase as the anon role and RLS blocks all vm_riders rows.
+  useEffect(() => {
+    if (order?.status !== 'out_for_delivery' || !order?.rider_id) return;
+
+    async function fetchLocation() {
+      try {
+        const idToken = await firebaseAuth.currentUser?.getIdToken();
+        if (!idToken) return;
+        const res = await fetch('/api/customer/rider-location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: id, idToken }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (typeof data.lat === 'number' && typeof data.lng === 'number') {
+          setRiderLocation({ lat: data.lat, lng: data.lng });
+        }
+      } catch {
+        // network error — will retry on next interval
+      }
+    }
+
+    fetchLocation(); // immediate first fetch
+    const interval = setInterval(fetchLocation, 10_000);
+    return () => clearInterval(interval);
+  }, [order?.status, order?.rider_id, id]);
 
   const handleReorder = () => {
     if (!order?.order_items) return;
