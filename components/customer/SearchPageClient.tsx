@@ -65,7 +65,7 @@ export function SearchPageClient({ initialQuery }: Props) {
       } catch {}
       const [pRes, mRes] = await Promise.all([
         supabase.from('vm_products').select('*, category:categories(*)').eq('is_active', true).is('merchant_id', null).limit(12),
-        supabase.from('merchants').select('*').eq('status', 'approved').limit(4),
+        supabase.from('merchants').select('id, store_name, logo_url, banner_url, is_open, opening_time, closing_time, admin_override, avg_delivery_time, min_order_amount, status').eq('status', 'approved').limit(4),
       ]);
       const shuffled = (pRes.data ?? []).sort(() => Math.random() - 0.5).slice(0, 4) as Product[];
       setPopularProducts(shuffled);
@@ -95,7 +95,7 @@ export function SearchPageClient({ initialQuery }: Props) {
         .limit(30),
       supabase
         .from('merchants')
-        .select('*')
+        .select('id, store_name, logo_url, banner_url, is_open, opening_time, closing_time, admin_override, avg_delivery_time, min_order_amount, status')
         .ilike('store_name', `%${resolvedQuery}%`)
         .eq('status', 'approved')
         .limit(10),
@@ -104,7 +104,7 @@ export function SearchPageClient({ initialQuery }: Props) {
     let fetched = pResult.data ?? [];
     if (inStockOnly) fetched = fetched.filter(p => p.stock_status !== 'out_of_stock');
     setProducts(fetched);
-    setStores(sResult.data ?? []);
+    setStores((sResult.data ?? []) as Merchant[]);
 
     // Batch-fetch merchant info for all unique merchant_ids in the results
     const merchantIds = [...new Set(fetched.map((p: any) => p.merchant_id).filter(Boolean))];
