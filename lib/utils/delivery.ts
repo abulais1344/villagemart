@@ -1,5 +1,10 @@
 import type { DeliveryCharge } from '@/types';
 
+export function deliveryRange(avg: number | null): string {
+  if (!avg) return '30–40 min';
+  return `${Math.max(avg - 5, 5)}–${avg} min`;
+}
+
 // Haversine formula to calculate distance between two lat/lng points in km
 export function calculateDistance(
   lat1: number,

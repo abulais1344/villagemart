@@ -8,6 +8,7 @@ import Image from 'next/image';
 import { useCartStore } from '@/store/cartStore';
 import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
 import { formatCurrency, formatTime12hr } from '@/lib/utils/format';
+import { deliveryRange } from '@/lib/utils/delivery';
 import { SUPPORT_WHATSAPP_URL } from '@/lib/constants';
 import { isWithinDeliveryZone } from '@/lib/delivery-zone';
 import { isRestaurantOpen } from '@/lib/utils/restaurant';
@@ -62,6 +63,8 @@ export default function CheckoutPage() {
   const [deliveryChargeAmount, setDeliveryChargeAmount] = useState<number>(20);
   const paymentSucceeded = useRef(false);
   const parcelSucceeded = useRef(false);
+
+  const [merchantAvgDelivery, setMerchantAvgDelivery] = useState<number | null>(null);
 
   // Parcel order state
   const [merchantParcelEnabled, setMerchantParcelEnabled] = useState(false);
@@ -137,7 +140,7 @@ export default function CheckoutPage() {
     if (merchantId) {
       fetch(`/api/customer/merchant-status?id=${merchantId}`)
         .then(r => r.json())
-        .then((data: { opening_time?: string; closing_time?: string; is_open?: boolean | null; admin_override?: boolean | null; store_name?: string; logo_url?: string | null; parcel_service_enabled?: boolean; parcel_delivery_charge?: number; parcel_order_cutoff_time?: string | null }) => {
+        .then((data: { opening_time?: string; closing_time?: string; is_open?: boolean | null; admin_override?: boolean | null; store_name?: string; logo_url?: string | null; avg_delivery_time?: number | null; parcel_service_enabled?: boolean; parcel_delivery_charge?: number; parcel_order_cutoff_time?: string | null }) => {
           const isClosed = !isRestaurantOpen(
             data.opening_time ?? null,
             data.closing_time ?? null,
@@ -148,6 +151,7 @@ export default function CheckoutPage() {
           if (isClosed) logEvent({ event_type: 'checkout_blocked', reason: 'restaurant_closed', customer_id: c.id ?? c.phone ?? null, merchant_id: merchantId ?? null });
           setMerchantName(data.store_name ?? null);
           setMerchantLogoUrl(data.logo_url ?? null);
+          setMerchantAvgDelivery(data.avg_delivery_time ?? null);
           setMerchantParcelEnabled(data.parcel_service_enabled ?? false);
           setMerchantParcelCharge(data.parcel_delivery_charge ?? 150);
           setMerchantParcelCutoff(data.parcel_order_cutoff_time ?? null);
@@ -385,7 +389,7 @@ export default function CheckoutPage() {
         {/* Delivery badge */}
         <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-3 py-2">
           <span className="text-base">🛵</span>
-          <p className="text-sm font-semibold text-green-700">Estimated delivery: 30–45 min</p>
+          <p className="text-sm font-semibold text-green-700">Estimated delivery: {deliveryRange(merchantAvgDelivery)}</p>
         </div>
 
         {/* Merchant */}

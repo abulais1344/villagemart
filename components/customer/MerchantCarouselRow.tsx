@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { isRestaurantOpen } from '@/lib/utils/restaurant';
+import { deliveryRange } from '@/lib/utils/delivery';
 import type { Merchant } from '@/types';
 
 function getCuisineTags(cuisineType: string | null): string[] {
@@ -9,9 +10,6 @@ function getCuisineTags(cuisineType: string | null): string[] {
   return tags.length > 0 ? tags.slice(0, 2) : ['🍽️ Meals'];
 }
 
-function deliveryRange(avg: number): string {
-  return `${Math.max(avg - 5, 5)}-${avg} min`;
-}
 
 function MerchantCarouselCard({ merchant, mounted }: { merchant: Merchant; mounted: boolean }) {
   const m = merchant as any;

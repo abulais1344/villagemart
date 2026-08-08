@@ -1,14 +1,11 @@
 import { createServiceClient } from '@/lib/supabase/server';
+import { deliveryRange } from '@/lib/utils/delivery';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
 
 export const revalidate = 60;
 
-function deliveryRange(avg: number | null): string {
-  if (!avg) return '30–40 min';
-  return `${Math.max(avg - 5, 5)}–${avg} min`;
-}
 
 export default async function BakeriesPage() {
   const supabase = await createServiceClient();

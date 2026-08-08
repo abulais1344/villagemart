@@ -9,6 +9,7 @@ import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency, formatTime12hr } from '@/lib/utils/format';
 import { isRestaurantOpen } from '@/lib/utils/restaurant';
+import { deliveryRange } from '@/lib/utils/delivery';
 import type { Product } from '@/types';
 import toast from 'react-hot-toast';
 import { PWAInstallBanner } from './PWAInstallBanner';
@@ -243,9 +244,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
 
   const getQty = (id: string) => items.find(i => i.product.id === id)?.quantity ?? 0;
 
-  const deliveryTime = merchant.avg_delivery_time
-    ? `${Math.max(merchant.avg_delivery_time - 5, 5)}-${merchant.avg_delivery_time} min`
-    : '30-40 min';
+  const deliveryTime = deliveryRange(merchant.avg_delivery_time);
 
   const cuisineTags = getCuisineTags(merchant.cuisine_type ?? null);
   const isOpen = isRestaurantOpen(

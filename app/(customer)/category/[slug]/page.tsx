@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { deliveryRange } from '@/lib/utils/delivery';
 
 export const revalidate = 60;
 import { notFound } from 'next/navigation';
@@ -106,11 +107,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
                     <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">{tag}</span>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {merchant.avg_delivery_time
-                    ? `${Math.max(merchant.avg_delivery_time - 5, 5)}-${merchant.avg_delivery_time} min`
-                    : '30-40 min'}
-                </p>
+                <p className="text-xs text-gray-500 mt-1">{deliveryRange(merchant.avg_delivery_time)}</p>
               </Link>
             ))}
           </div>

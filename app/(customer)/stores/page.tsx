@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server';
+import { deliveryRange } from '@/lib/utils/delivery';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
@@ -25,10 +26,6 @@ function getCuisineTags(cuisineType: string | null): string[] {
   return tags.length > 0 ? tags : ['🍽️ Meals'];
 }
 
-function deliveryRange(avg: number | null): string {
-  if (!avg) return '30-40 min';
-  return `${Math.max(avg - 5, 5)}-${avg} min`;
-}
 
 export default async function StoresPage() {
   const supabase = await createServiceClient();
