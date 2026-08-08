@@ -52,9 +52,13 @@ function MerchantCarouselCard({ merchant, mounted }: { merchant: Merchant; mount
       <div className="p-2.5">
         <p className="font-semibold text-sm text-gray-900 truncate mb-1">{merchant.store_name}</p>
         <div className="flex flex-wrap gap-1 mb-2">
-          {getCuisineTags(m.cuisine_type).map(tag => (
-            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700">{tag}</span>
-          ))}
+          {m.merchant_type === 'vegetables' ? (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700">🥬 Fresh Produce</span>
+          ) : (
+            getCuisineTags(m.cuisine_type).map(tag => (
+              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700">{tag}</span>
+            ))
+          )}
         </div>
         <div className="flex items-center gap-2">
           {statusPill}
