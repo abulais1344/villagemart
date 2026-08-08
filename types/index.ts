@@ -145,6 +145,7 @@ export interface Merchant {
   opening_time: string | null;
   closing_time: string | null;
   admin_override?: boolean | null;
+  merchant_type: string | null;
   avg_delivery_time: number;
   min_order_amount: number;
   created_at: string;

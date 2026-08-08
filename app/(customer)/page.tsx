@@ -17,7 +17,7 @@ export default async function HomePage() {
   const supabase = await createServiceClient();
 
   // Fetch everything flat — no SQL joins to avoid schema cache issues
-  const [catResult, featuredResult, ownResult, merchantsResult, foodResult] = await Promise.all([
+  const [catResult, featuredResult, ownResult, merchantsResult, foodResult, bakeryResult, vegetablesResult] = await Promise.all([
     supabase
       .from('categories')
       .select('id, name, slug, emoji')
@@ -47,8 +47,21 @@ export default async function HomePage() {
       .from('merchants')
       .select(MERCHANT_PUBLIC_COLS)
       .eq('status', 'approved')
-      .or('is_food.eq.true,merchant_type.eq.vegetables')
+      .eq('is_food', true)
+      .not('merchant_type', 'in', '("bakery","vegetables")')
       .limit(10),
+    supabase
+      .from('merchants')
+      .select('*')
+      .eq('status', 'approved')
+      .eq('merchant_type', 'bakery')
+      .limit(8),
+    supabase
+      .from('merchants')
+      .select('*')
+      .eq('status', 'approved')
+      .eq('merchant_type', 'vegetables')
+      .limit(8),
   ]);
 
   if (catResult.error) console.error('[home] categories:', catResult.error.message);
@@ -56,12 +69,16 @@ export default async function HomePage() {
   if (ownResult.error) console.error('[home] ownProducts:', ownResult.error.message);
   if (merchantsResult.error) console.error('[home] merchants:', merchantsResult.error.message);
   if (foodResult.error) console.error('[home] food:', foodResult.error.message);
+  if (bakeryResult.error) console.error('[home] bakeries:', bakeryResult.error.message);
+  if (vegetablesResult.error) console.error('[home] vegetables:', vegetablesResult.error.message);
 
   const categories = (catResult.data ?? []) as Category[];
   const featured: Product[] = featuredResult.data ?? [];
   const ownProducts: Product[] = ownResult.data ?? [];
   const merchants: Merchant[] = merchantsResult.data ?? [];
   const foodMerchants: Merchant[] = foodResult.data ?? [];
+  const bakeryMerchants: Merchant[] = bakeryResult.data ?? [];
+  const vegetablesMerchants: Merchant[] = vegetablesResult.data ?? [];
 
   return (
     <HomePageClient
@@ -70,6 +87,8 @@ export default async function HomePage() {
       featuredProducts={featured}
       merchants={merchants}
       foodMerchants={foodMerchants}
+      bakeryMerchants={bakeryMerchants}
+      vegetablesMerchants={vegetablesMerchants}
     />
   );
 }

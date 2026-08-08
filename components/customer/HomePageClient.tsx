@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Search, Bell, ShoppingCart, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { createClient } from '@/lib/supabase/client';
 import { ProductCard } from './ProductCard';
-import { formatCurrency } from '@/lib/utils/format';
+import { MerchantCarouselRow } from './MerchantCarouselRow';
 import type { Category, Product, Merchant } from '@/types';
 import type { Customer, AddressData } from '@/lib/customer';
 import { AddressManager } from './AddressManager';
@@ -23,6 +22,8 @@ interface HomePageClientProps {
   featuredProducts: Product[];
   merchants: Merchant[];
   foodMerchants: Merchant[];
+  bakeryMerchants: Merchant[];
+  vegetablesMerchants: Merchant[];
 }
 
 // Pastel colour palette — cycles by index so any new category gets a colour
@@ -31,16 +32,6 @@ const CATEGORY_COLORS = [
   '#FEF3C7','#F3F4F6','#FCE7F3','#DBEAFE',
   '#D1FAE5','#FFF7ED','#E0F2FE','#F0FDF4',
 ];
-
-function getCuisineTags(cuisineType: string | null): string[] {
-  if (!cuisineType) return ['🍽️ Meals'];
-  const tags = cuisineType.split(',').map(t => t.trim()).filter(Boolean);
-  return tags.length > 0 ? tags.slice(0, 3) : ['🍽️ Meals'];
-}
-
-function deliveryRange(avg: number): string {
-  return `${Math.max(avg - 5, 5)}-${avg} min`;
-}
 
 const SEARCH_PLACEHOLDERS = [
   'रेस्टॉरंट, जेवण शोधा...',
@@ -54,6 +45,8 @@ export function HomePageClient({
   featuredProducts,
   merchants,
   foodMerchants,
+  bakeryMerchants,
+  vegetablesMerchants,
 }: HomePageClientProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -264,125 +257,32 @@ export function HomePageClient({
           </div>
         </div>
 
-        {/* 4. Food Near You */}
-        {foodMerchants.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h2 className="text-base font-bold text-gray-900">🍛 Food Near You</h2>
-                <p className="text-xs text-gray-500">Dhabas, home cooks & restaurants</p>
-              </div>
-              <Link href="/stores" className="text-xs font-medium text-purple-600">See all →</Link>
-            </div>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {foodMerchants.length} restaurant{foodMerchants.length !== 1 ? 's' : ''} open
-            </p>
-            <div className="flex flex-col gap-3 mt-2">
-              {sortedFoodMerchants.map((merchant, index) => {
-                const comingSoon = !!(merchant as any).coming_soon;
-                const open = comingSoon ? false : (!mounted || isRestaurantOpen(
-                  (merchant as any).opening_time,
-                  (merchant as any).closing_time,
-                  (merchant as any).is_open,
-                  (merchant as any).admin_override,
-                ));
-                const cardContent = (
-                  <>
-                    {/* Cover image */}
-                    {(merchant as any).cover_image_url ? (
-                      <div className="relative w-full h-44 bg-gray-100">
-                        <Image
-                          src={(merchant as any).cover_image_url}
-                          alt={merchant.store_name}
-                          fill
-                          className="object-cover"
-                          sizes="100vw"
-                          priority={index === 0}
-                        />
-                        {comingSoon ? (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm bg-orange-500/90 px-3 py-1 rounded-full">
-                              Coming Soon
-                            </span>
-                          </div>
-                        ) : !open && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm bg-black/60 px-3 py-1 rounded-full">
-                              Closed
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="relative w-full h-44 bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] flex items-center justify-center">
-                        <span className="text-6xl font-bold text-white/30">{merchant.store_name.charAt(0).toUpperCase()}</span>
-                        {comingSoon ? (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm bg-orange-500/90 px-3 py-1 rounded-full">
-                              Coming Soon
-                            </span>
-                          </div>
-                        ) : !open && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm bg-black/60 px-3 py-1 rounded-full">
-                              Closed
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {/* Card body */}
-                    <div className="p-3">
-                      {/* Row 1: name + rating badge */}
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <p className="font-semibold text-base text-gray-900 truncate">{merchant.store_name}</p>
-                        {(merchant as any).rating && (
-                          <span className="shrink-0 bg-green-600 text-white text-xs px-2 py-0.5 rounded-lg font-medium">
-                            ⭐ {(merchant as any).rating}
-                          </span>
-                        )}
-                      </div>
-                      {/* Row 2: cuisine tags */}
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {getCuisineTags((merchant as any).cuisine_type).map((tag) => (
-                          <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                      {/* Row 3: status pill + delivery time + free delivery */}
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <div className="flex items-center gap-2">
-                          {comingSoon ? (
-                            <span className="text-[10px] font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">● Coming Soon</span>
-                          ) : open ? (
-                            <span className="text-[10px] font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">● Open</span>
-                          ) : (
-                            <span className="text-[10px] font-medium text-red-500 bg-red-50 px-2 py-0.5 rounded-full">● Closed</span>
-                          )}
-                          <span>🕐 {deliveryRange(merchant.avg_delivery_time)}</span>
-                        </div>
-                        {freeDeliveryThreshold != null && (
-                          <span>Free delivery above ₹{freeDeliveryThreshold}</span>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                );
-                return comingSoon ? (
-                  <div key={merchant.id} className="w-full bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden opacity-80 cursor-default select-none">
-                    {cardContent}
-                  </div>
-                ) : (
-                  <Link key={merchant.id} href={`/stores/${merchant.id}`}
-                    className="w-full bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-                    {cardContent}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        {/* 4. Food Near You — horizontal carousel */}
+        <MerchantCarouselRow
+          title="🍛 Food Near You"
+          subtitle="Dhabas, home cooks & restaurants"
+          merchants={sortedFoodMerchants}
+          seeAllHref="/stores"
+          mounted={mounted}
+        />
+
+        {/* 4b. Fresh Fruits & Vegetables — horizontal carousel */}
+        <MerchantCarouselRow
+          title="🥦 Fresh Fruits & Vegetables"
+          subtitle="Farm-fresh produce delivered"
+          merchants={vegetablesMerchants}
+          seeAllHref="/stores/vegetables"
+          mounted={mounted}
+        />
+
+        {/* 4c. Bakeries & Sweets — horizontal carousel */}
+        <MerchantCarouselRow
+          title="🎂 Bakeries & Sweets"
+          subtitle="Cakes, pastries, puffs & more"
+          merchants={bakeryMerchants}
+          seeAllHref="/stores/bakeries"
+          mounted={mounted}
+        />
 
         {/* 4. Everyday Essentials — dynamic from DB */}
         {categories.length > 0 && (
