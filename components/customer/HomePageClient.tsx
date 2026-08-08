@@ -248,7 +248,7 @@ export function HomePageClient({
         <div className="bg-[#F5F0FF] rounded-xl px-4 py-2.5">
           <div className="flex items-center justify-between text-xs">
             <div>
-              <span className="font-bold text-primary-600">⚡ 30 min delivery</span>
+              <span className="font-bold text-primary-600">⚡ Fast Delivery</span>
               <span className="text-[#6B7280] ml-2">Order before 10 PM</span>
             </div>
             {freeDeliveryThreshold != null && (
