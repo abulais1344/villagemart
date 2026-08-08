@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
@@ -31,7 +31,7 @@ function deliveryRange(avg: number | null): string {
 }
 
 export default async function StoresPage() {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   const { data: merchants } = await supabase
     .from('merchants')
