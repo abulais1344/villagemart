@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -8,6 +8,8 @@ import {
   Clock, CheckCircle2, XCircle, Truck,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils/format';
+import { firebaseAuth } from '@/lib/firebase/client';
+import { RiderLiveMap } from '@/components/customer/RiderLiveMap';
 
 // ── types ──────────────────────────────────────────────────────────────────
 interface Snapshot {
@@ -38,7 +40,8 @@ interface Order {
   customer_name: string;
   customer_phone: string;
   merchant_name: string | null;
-  delivery_address: { name?: string; phone?: string; address?: string; landmark?: string; area?: string } | null;
+  rider_id: string | null;
+  delivery_address: { name?: string; phone?: string; address?: string; landmark?: string; area?: string; lat?: number; lng?: number } | null;
   items: OrderItem[];
 }
 
@@ -149,15 +152,86 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const phoneRef = useRef<string | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem('vm_customer');
     if (!raw) { setLoading(false); return; }
     const customer = JSON.parse(raw);
     setPhone(customer.phone ?? null);
+    phoneRef.current = customer.phone ?? null;
     if (customer.phone) fetchOrders(customer.phone);
     else setLoading(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-fetch orders every 15 s while any order is actively out_for_delivery.
+  // This is the order-status live-update mechanism: no Supabase Realtime needed
+  // (which would require a Supabase Auth session the app doesn't have — it uses
+  // Firebase Phone Auth). When the rider marks delivered, the next fetch resolves
+  // with status='delivered', setOrders fires, and the location poll stops.
+  const hasActiveDeliveryRef = useRef(false);
+  hasActiveDeliveryRef.current = orders.some(o => o.status === 'out_for_delivery');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (hasActiveDeliveryRef.current && phoneRef.current) {
+        console.log('[order-status] re-fetching orders (active delivery in progress)');
+        fetchOrders(phoneRef.current);
+      }
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, []); // stable — reads state via refs, never needs to restart
+
+  // Derive the expanded order's key fields as stable primitives for the
+  // location effect's dependency array. This avoids restarting the location
+  // interval on every fetchOrders call (which replaces the orders array reference).
+  const expandedOrder = orders.find(o => o.id === expandedId);
+  const expandedStatus = expandedOrder?.status ?? null;
+  const expandedRiderId = expandedOrder?.rider_id ?? null;
+
+  // Poll rider location when an out_for_delivery order card is expanded.
+  useEffect(() => {
+    console.log('[rider-location] effect fired — expandedId:', expandedId, '| status:', expandedStatus, '| rider_id:', expandedRiderId);
+
+    if (!expandedId || expandedStatus !== 'out_for_delivery' || !expandedRiderId) {
+      console.log('[rider-location] guard failed — not an active delivery or no rider assigned');
+      setRiderLocation(null);
+      return;
+    }
+
+    console.log('[rider-location] guard passed — starting poll for order', expandedId);
+
+    async function fetchLocation() {
+      console.log('[rider-location] polling tick for order', expandedId);
+      try {
+        const idToken = await firebaseAuth.currentUser?.getIdToken();
+        console.log('[rider-location] idToken present:', !!idToken, '| firebase uid:', firebaseAuth.currentUser?.uid ?? null);
+        if (!idToken) return;
+        const res = await fetch('/api/customer/rider-location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: expandedId, idToken }),
+        });
+        console.log('[rider-location] response status:', res.status);
+        if (!res.ok) return;
+        const data = await res.json();
+        console.log('[rider-location] response data:', data);
+        if (typeof data.lat === 'number' && typeof data.lng === 'number') {
+          setRiderLocation({ lat: data.lat, lng: data.lng });
+        }
+      } catch (err) {
+        console.error('[rider-location] fetch error:', err);
+      }
+    }
+
+    fetchLocation();
+    const interval = setInterval(fetchLocation, 10_000);
+    return () => {
+      console.log('[rider-location] cleaning up interval — expandedId:', expandedId, 'status now:', expandedStatus);
+      clearInterval(interval);
+    };
+  }, [expandedId, expandedStatus, expandedRiderId]);
 
   function goToLogin() {
     localStorage.setItem('login_redirect', '/orders');
@@ -306,6 +380,25 @@ export default function OrdersPage() {
                     <p className="text-xs font-semibold text-[#6B7280] mb-2.5 uppercase tracking-wide">Track Order</p>
                     <OrderTimeline status={order.status} />
                   </div>
+
+                  {/* Live rider map — only while out_for_delivery */}
+                  {order.status === 'out_for_delivery' && (
+                    <div>
+                      <p className="text-xs font-semibold text-[#6B7280] mb-2.5 uppercase tracking-wide">🛵 Live Tracking</p>
+                      <RiderLiveMap
+                        riderLat={riderLocation?.lat ?? null}
+                        riderLng={riderLocation?.lng ?? null}
+                        deliveryLat={order.delivery_address?.lat ?? null}
+                        deliveryLng={order.delivery_address?.lng ?? null}
+                      />
+                      {riderLocation && (
+                        <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
+                          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-purple-600 inline-block" />Rider</span>
+                          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" />Your address</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Items */}
                   <div>

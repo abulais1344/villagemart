@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/server';
 import { HomePageClient } from '@/components/customer/HomePageClient';
 import type { Category, Product, Merchant } from '@/types';
 
@@ -10,8 +10,11 @@ export const metadata = {
     'Order groceries, dairy, vegetables and daily essentials online in Ardhapur. Same day delivery. Bas order karo. Zupr karo.',
 };
 
+// Excludes portal_username, portal_password, push_subscription, commission_rate
+const MERCHANT_PUBLIC_COLS = 'id, user_id, store_name, description, category_id, phone, email, address, city, pincode, latitude, longitude, logo_url, banner_url, cover_image_url, status, is_open, opening_time, closing_time, admin_override, avg_delivery_time, min_order_amount, cuisine_type, area, is_food, coming_soon, merchant_type, parcel_service_enabled, parcel_delivery_charge, parcel_order_cutoff_time, created_at, updated_at';
+
 export default async function HomePage() {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   // Fetch everything flat — no SQL joins to avoid schema cache issues
   const [catResult, featuredResult, ownResult, merchantsResult, foodResult, bakeryResult, vegetablesResult] = await Promise.all([
@@ -37,12 +40,12 @@ export default async function HomePage() {
       .limit(8),
     supabase
       .from('merchants')
-      .select('*')
+      .select(MERCHANT_PUBLIC_COLS)
       .eq('status', 'approved')
       .limit(8),
     supabase
       .from('merchants')
-      .select('*')
+      .select(MERCHANT_PUBLIC_COLS)
       .eq('status', 'approved')
       .eq('is_food', true)
       .not('merchant_type', 'in', '("bakery","vegetables")')

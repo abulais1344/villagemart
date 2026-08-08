@@ -85,6 +85,7 @@ export interface Order {
   customer_name: string | null;
   customer_phone: string | null;
   merchant_id: string | null;
+  rider_id: string | null;
   delivery_type: DeliveryType;
   status: OrderStatus;
   address_id: string;
@@ -139,7 +140,7 @@ export interface Merchant {
   logo_url: string | null;
   banner_url: string | null;
   status: MerchantStatus;
-  commission_rate: number;
+  commission_rate?: number;
   is_open: boolean;
   opening_time: string | null;
   closing_time: string | null;
