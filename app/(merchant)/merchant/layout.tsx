@@ -27,7 +27,7 @@ export default async function MerchantPortalLayout({ children }: { children: Rea
     .eq('id', merchantId)
     .single();
 
-  if (!merchant || merchant.status !== 'approved') redirect('/merchant-login');
+  if (!merchant || merchant.status === 'rejected' || merchant.status === 'suspended') redirect('/merchant-login');
 
   return (
     <MerchantProvider merchant={merchant}>

@@ -14,11 +14,14 @@ export async function POST(request: NextRequest) {
     .from('merchants')
     .select('id, store_name, status, portal_password')
     .eq('portal_username', username)
-    .eq('status', 'approved')
     .single();
 
   if (!merchant || !(await bcrypt.compare(password, merchant.portal_password))) {
     return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 });
+  }
+
+  if (merchant.status === 'rejected' || merchant.status === 'suspended') {
+    return NextResponse.json({ error: 'Your account is not active — contact support' }, { status: 403 });
   }
 
   const response = NextResponse.json({ success: true });

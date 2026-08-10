@@ -52,9 +52,9 @@ export async function requireMerchant(): Promise<AuthError | { ok: true; merchan
 
   const { data: merchant } = await supabase
     .from('merchants')
-    .select('id')
+    .select('id, status')
     .eq('id', merchantId)
-    .eq('status', 'approved')
+    .not('status', 'in', '("rejected","suspended")')
     .single();
 
   if (!merchant) {
