@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -18,11 +17,11 @@ export default function AdminDeliveryChargesPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ min_km: '0', max_km: '2', charge: '20', free_delivery_above: '' });
-  const supabase = createClient();
 
   const load = async () => {
-    const { data } = await supabase.from('delivery_charges').select('*').order('min_km');
-    setSlabs(data ?? []);
+    const res = await fetch('/api/admin/delivery-charges');
+    const body = await res.json().catch(() => ({ slabs: [] }));
+    setSlabs(body.slabs ?? []);
     setLoading(false);
   };
 
@@ -30,26 +29,40 @@ export default function AdminDeliveryChargesPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    await supabase.from('delivery_charges').insert({
-      min_km: parseFloat(form.min_km),
-      max_km: parseFloat(form.max_km),
-      charge: parseFloat(form.charge),
-      free_delivery_above: form.free_delivery_above ? parseFloat(form.free_delivery_above) : null,
-      is_active: true,
+    const res = await fetch('/api/admin/delivery-charges', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        min_km: parseFloat(form.min_km),
+        max_km: parseFloat(form.max_km),
+        charge: parseFloat(form.charge),
+        free_delivery_above: form.free_delivery_above ? parseFloat(form.free_delivery_above) : null,
+      }),
     });
-    toast.success('Delivery slab added');
     setSaving(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error(`Failed to add slab: ${body.error ?? res.statusText}`);
+      return;
+    }
+    toast.success('Delivery slab added');
     setShowForm(false);
+    setForm({ min_km: '0', max_km: '2', charge: '20', free_delivery_above: '' });
     load();
   };
 
   const toggleSlab = async (slab: DeliveryCharge) => {
-    await supabase.from('delivery_charges').update({ is_active: !slab.is_active }).eq('id', slab.id);
+    await fetch(`/api/admin/delivery-charges/${slab.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !slab.is_active }),
+    });
     load();
   };
 
   const deleteSlab = async (id: string) => {
-    await supabase.from('delivery_charges').delete().eq('id', id);
+    const res = await fetch(`/api/admin/delivery-charges/${id}`, { method: 'DELETE' });
+    if (!res.ok) { toast.error('Failed to delete slab'); return; }
     setSlabs(prev => prev.filter(s => s.id !== id));
     toast.success('Slab deleted');
   };
