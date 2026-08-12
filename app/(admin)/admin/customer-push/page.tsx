@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { Button } from '@/components/ui/Button';
 import { formatDateTime } from '@/lib/utils/format';
@@ -26,7 +25,6 @@ interface TrackingCounts {
 }
 
 export default function CustomerPushPage() {
-  const supabase = createClient();
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
   const [history, setHistory] = useState<BroadcastEvent[]>([]);
   const [sending, setSending] = useState(false);
@@ -36,39 +34,12 @@ export default function CustomerPushPage() {
   const [msgBody, setMsgBody] = useState('Order before 10 PM for quick delivery!');
 
   async function loadData() {
-    const [countRes, historyRes, trackingRes] = await Promise.all([
-      supabase
-        .from('vm_users')
-        .select('id', { count: 'exact', head: true })
-        .not('push_subscription', 'is', null),
-      supabase
-        .from('vm_events')
-        .select('id, created_at, metadata')
-        .eq('event_type', 'admin_push_broadcast')
-        .order('created_at', { ascending: false })
-        .limit(10),
-      supabase
-        .from('vm_events')
-        .select('event_type, metadata')
-        .in('event_type', ['push_received', 'push_clicked'])
-        .order('created_at', { ascending: false })
-        .limit(2000),
-    ]);
-
-    if (countRes.count !== null) setSubscriberCount(countRes.count);
-    if (historyRes.data) setHistory(historyRes.data as BroadcastEvent[]);
-
-    if (trackingRes.data) {
-      const map: Record<string, TrackingCounts> = {};
-      for (const evt of trackingRes.data) {
-        const bid = evt.metadata?.broadcast_id as string | undefined;
-        if (!bid) continue;
-        if (!map[bid]) map[bid] = { received: 0, clicked: 0 };
-        if (evt.event_type === 'push_received') map[bid].received++;
-        if (evt.event_type === 'push_clicked') map[bid].clicked++;
-      }
-      setTracking(map);
-    }
+    const res = await fetch('/api/admin/send-customer-push');
+    if (!res.ok) return;
+    const data = await res.json();
+    setSubscriberCount(data.subscriberCount ?? 0);
+    setHistory(data.history ?? []);
+    setTracking(data.tracking ?? {});
   }
 
   useEffect(() => { loadData(); }, []);

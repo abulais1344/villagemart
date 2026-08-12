@@ -11,6 +11,45 @@ const supabase = createClient(
 const DEFAULT_TITLE = 'Zupr';
 const DEFAULT_BODY = 'Order before 10 PM for quick delivery!';
 
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if (!auth.ok) return auth.response;
+
+  const [countRes, historyRes, trackingRes] = await Promise.all([
+    supabase
+      .from('vm_users')
+      .select('id', { count: 'exact', head: true })
+      .not('push_subscription', 'is', null),
+    supabase
+      .from('vm_events')
+      .select('id, created_at, metadata')
+      .eq('event_type', 'admin_push_broadcast')
+      .order('created_at', { ascending: false })
+      .limit(10),
+    supabase
+      .from('vm_events')
+      .select('event_type, metadata')
+      .in('event_type', ['push_received', 'push_clicked'])
+      .order('created_at', { ascending: false })
+      .limit(2000),
+  ]);
+
+  const tracking: Record<string, { received: number; clicked: number }> = {};
+  for (const evt of trackingRes.data ?? []) {
+    const bid = evt.metadata?.broadcast_id as string | undefined;
+    if (!bid) continue;
+    if (!tracking[bid]) tracking[bid] = { received: 0, clicked: 0 };
+    if (evt.event_type === 'push_received') tracking[bid].received++;
+    if (evt.event_type === 'push_clicked') tracking[bid].clicked++;
+  }
+
+  return NextResponse.json({
+    subscriberCount: countRes.count ?? 0,
+    history: historyRes.data ?? [],
+    tracking,
+  });
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const title: string = body.title?.trim() || DEFAULT_TITLE;
