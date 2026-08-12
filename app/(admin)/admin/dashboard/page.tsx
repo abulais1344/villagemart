@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { Users, Store, ShoppingBag, IndianRupee, Percent, Clock, Bike, Sprout } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useAdminOrderRealtime } from '@/lib/hooks/useRealtime';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { StatsGrid } from '@/components/admin/StatsGrid';
 import { LowStockAlert } from '@/components/admin/LowStockAlert';
@@ -73,8 +72,11 @@ export default function AdminDashboard() {
     setLoading(false);
   };
 
-  useEffect(() => { loadData(); }, []);
-  useAdminOrderRealtime(loadData);
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(loadData, 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleSeed = async () => {
     setSeeding(true);
