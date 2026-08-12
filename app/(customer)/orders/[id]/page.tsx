@@ -1,11 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Phone, RotateCcw } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { OrderTracker } from '@/components/customer/OrderTracker';
-import { useOrderRealtime } from '@/lib/hooks/useRealtime';
 import { firebaseAuth } from '@/lib/firebase/client';
 import { RiderLiveMap } from '@/components/customer/RiderLiveMap';
 import { Button } from '@/components/ui/Button';
@@ -21,26 +19,38 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [phone, setPhone] = useState<string | null>(null);
   const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
   const { addItem } = useCartStore();
-  const supabase = createClient();
 
   useEffect(() => {
-    supabase
-      .from('orders')
-      .select('*, order_items(*), merchant:merchants(store_name, phone, latitude, longitude)')
-      .eq('id', id)
-      .single()
-      .then(({ data, error }) => {
-        console.log('[order-detail] fetch result — error:', error?.message ?? null);
-        console.log('[order-detail] order keys:', data ? Object.keys(data) : null);
-        console.log('[order-detail] status:', (data as any)?.status, '| rider_id:', (data as any)?.rider_id);
-        setOrder(data as Order);
-        setLoading(false);
-      });
+    const raw = localStorage.getItem('vm_customer');
+    if (!raw) { setLoading(false); return; }
+    const p = JSON.parse(raw)?.phone ?? null;
+    if (p) setPhone(p);
+    else setLoading(false);
+  }, []);
+
+  const fetchOrder = useCallback(async (customerPhone: string) => {
+    const res = await fetch(`/api/customer/orders/${id}?phone=${customerPhone}`);
+    if (!res.ok) { setOrder(null); setLoading(false); return; }
+    const data = await res.json();
+    setOrder(data.order ?? null);
+    setLoading(false);
   }, [id]);
 
-  useOrderRealtime(id, (updated) => setOrder(prev => ({ ...prev, ...updated } as Order)));
+  useEffect(() => {
+    if (phone) fetchOrder(phone);
+  }, [phone, fetchOrder]);
+
+  // Poll every 15 s while the order is still active (replaces Supabase Realtime,
+  // which requires SELECT on orders — revoked as part of the security hardening).
+  const isActive = order ? !['delivered', 'cancelled'].includes(order.status) : false;
+  useEffect(() => {
+    if (!phone || !isActive) return;
+    const interval = setInterval(() => fetchOrder(phone), 15_000);
+    return () => clearInterval(interval);
+  }, [phone, isActive, fetchOrder]);
 
   // Poll rider location via the service-role-backed API route every 10 s.
   // Direct vm_riders queries and Realtime subscriptions both fail for customer
