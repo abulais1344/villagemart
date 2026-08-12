@@ -244,7 +244,12 @@ export default function AdminOrdersPage() {
   };
 
   const initiateRefund = async (order: Order) => {
-    await supabase.from('orders').update({ status: 'refunded', payment_status: 'refunded' }).eq('id', order.id);
+    const res = await fetch('/api/admin/orders', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: order.id, status: 'refunded', payment_status: 'refunded' }),
+    });
+    if (!res.ok) { toast.error('Failed to initiate refund'); return; }
     toast.success('Refund initiated');
     setSelected(null);
     loadOrders();

@@ -82,14 +82,17 @@ export async function PATCH(request: NextRequest) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
-  const { orderId, status } = await request.json();
+  const { orderId, status, payment_status } = await request.json();
   if (!orderId || !status) {
     return NextResponse.json({ error: 'Missing orderId or status' }, { status: 400 });
   }
 
+  const update: Record<string, string> = { status };
+  if (payment_status) update.payment_status = payment_status;
+
   const { error } = await supabase
     .from('orders')
-    .update({ status })
+    .update(update)
     .eq('id', orderId);
 
   if (error) {
