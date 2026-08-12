@@ -64,8 +64,37 @@ export async function POST(request: NextRequest) {
 
       case 'payment.failed': {
         const payment = event.payload.payment.entity;
-        await supabase.from('payments').update({ status: 'failed' }).eq('razorpay_order_id', payment.order_id);
-        await supabase.from('orders').update({ payment_status: 'failed', status: 'cancelled' }).eq('razorpay_order_id', payment.order_id);
+        const razorpay_payment_id: string = payment.id;
+        const razorpay_order_id: string   = payment.order_id;
+
+        // Update only the row for this specific payment attempt — not every payment on the order
+        await supabase
+          .from('payments')
+          .update({ status: 'failed' })
+          .eq('razorpay_payment_id', razorpay_payment_id);
+
+        // Only downgrade to cancelled if the order is still pending (no merchant/admin action yet).
+        // A stale or retried webhook for a failed attempt must never overwrite a later status.
+        const { data: order } = await supabase
+          .from('orders')
+          .select('id, status')
+          .eq('razorpay_order_id', razorpay_order_id)
+          .single();
+
+        if (!order) break;
+
+        if (order.status !== 'pending') {
+          console.warn(
+            `[webhook] payment.failed for ${razorpay_payment_id} ignored — order ${order.id} already has status '${order.status}'`,
+          );
+          break;
+        }
+
+        await supabase
+          .from('orders')
+          .update({ payment_status: 'failed', status: 'cancelled' })
+          .eq('id', order.id);
+
         break;
       }
 
