@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Bell, ShoppingCart, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
-import { createClient } from '@/lib/supabase/client';
 import { ProductCard } from './ProductCard';
 import { MerchantCarouselRow } from './MerchantCarouselRow';
 import type { Category, Product, Merchant } from '@/types';
@@ -110,13 +109,9 @@ export function HomePageClient({
 
   async function fetchUnread(phone: string) {
     try {
-      const supabase = createClient();
-      const { count } = await supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_phone', phone)
-        .eq('is_read', false);
-      setUnreadCount(count ?? 0);
+      const res = await fetch(`/api/customer/notifications?phone=${phone}&count=1`);
+      const data = await res.json();
+      setUnreadCount(data.unreadCount ?? 0);
     } catch {}
   }
 

@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { SearchBar } from './SearchBar';
-import { createClient } from '@/lib/supabase/client';
 
 interface HeaderProps {
   location?: string;
@@ -36,13 +35,9 @@ export function Header({ location = 'Ardhapur, Maharashtra' }: HeaderProps) {
       if (!raw) return;
       const { phone } = JSON.parse(raw);
       if (!phone) return;
-      const supabase = createClient();
-      const { count } = await supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_phone', phone)
-        .eq('is_read', false);
-      setUnreadCount(count ?? 0);
+      const res = await fetch(`/api/customer/notifications?phone=${phone}&count=1`);
+      const data = await res.json();
+      setUnreadCount(data.unreadCount ?? 0);
     } catch {}
   }
 

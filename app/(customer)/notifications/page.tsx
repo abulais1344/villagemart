@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bell, ChevronRight, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { relativeTime } from '@/lib/relative-time';
 
 interface Notification {
@@ -11,7 +10,6 @@ interface Notification {
   type: 'order_update' | 'promo';
   title: string;
   body: string;
-  order_id: string | null;
   is_read: boolean;
   created_at: string;
 }
@@ -60,25 +58,18 @@ export default function NotificationsPage() {
   }
 
   async function load(phone: string) {
-    const supabase = createClient();
-
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_phone', phone)
-      .order('created_at', { ascending: false });
-
-    const items = (data ?? []) as Notification[];
+    const res = await fetch(`/api/customer/notifications?phone=${phone}`);
+    const data = await res.json().catch(() => ({ notifications: [] }));
+    const items = (data.notifications ?? []) as Notification[];
     setNotifications(items);
     setLoading(false);
 
-    const hasUnread = items.some(n => !n.is_read);
-    if (hasUnread) {
-      await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_phone', phone)
-        .eq('is_read', false);
+    if (data.unreadCount > 0) {
+      await fetch('/api/customer/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
       window.dispatchEvent(new Event('notificationsRead'));
     }
   }
