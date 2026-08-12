@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -16,20 +15,23 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
-  const supabase = createClient();
 
   const loadUsers = async () => {
-    let q = supabase.from('vm_users').select('*').order('created_at', { ascending: false });
-    if (roleFilter !== 'all') q = q.eq('role', roleFilter);
-    const { data } = await q.limit(50);
-    setUsers(data ?? []);
+    const res = await fetch(`/api/admin/users?role=${roleFilter}`);
+    const body = await res.json().catch(() => ({ users: [] }));
+    setUsers(body.users ?? []);
     setLoading(false);
   };
 
   useEffect(() => { loadUsers(); }, [roleFilter]);
 
   const toggleActive = async (user: User) => {
-    await supabase.from('vm_users').update({ is_active: !user.is_active }).eq('id', user.id);
+    const res = await fetch(`/api/admin/users/${user.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !user.is_active }),
+    });
+    if (!res.ok) { toast.error('Failed to update user'); return; }
     setUsers(prev => prev.map(u => u.id === user.id ? { ...u, is_active: !u.is_active } : u));
     toast.success(user.is_active ? 'User deactivated' : 'User activated');
   };
