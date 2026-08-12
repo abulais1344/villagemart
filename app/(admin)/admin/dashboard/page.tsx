@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { Users, Store, ShoppingBag, IndianRupee, Percent, Clock, Bike, Sprout } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { StatsGrid } from '@/components/admin/StatsGrid';
 import { LowStockAlert } from '@/components/admin/LowStockAlert';
@@ -23,24 +22,20 @@ export default function AdminDashboard() {
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
-  const supabase = createClient();
 
   const loadData = async () => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
 
-    // Non-order counts (still from anon client — small tables)
-    const [users, merchants, riders] = await Promise.all([
-      supabase.from('vm_users').select('id', { count: 'exact', head: true }),
-      supabase.from('merchants').select('id', { count: 'exact', head: true }),
-      supabase.from('vm_riders').select('id', { count: 'exact', head: true }),
-    ]);
-
-    // All orders + delivered parcel orders via service role API (bypasses RLS)
-    const [res, parcelRes] = await Promise.all([
+    const [countsRes, res, parcelRes] = await Promise.all([
+      fetch('/api/admin/counts'),
       fetch('/api/admin/orders'),
       fetch('/api/admin/parcel-orders'),
     ]);
-    const [json, parcelJson] = await Promise.all([res.json(), parcelRes.json()]);
+    const [counts, json, parcelJson] = await Promise.all([
+      countsRes.json(),
+      res.json(),
+      parcelRes.json(),
+    ]);
     const allOrders: any[] = json.orders ?? [];
     const deliveredParcels: any[] = (parcelJson.orders ?? []).filter((o: any) => o.status === 'delivered');
 
@@ -57,9 +52,9 @@ export default function AdminDashboard() {
       + deliveredParcels.reduce((s: number, o: any) => s + (o.delivery_charge ?? 0), 0);
 
     setStats({
-      total_users: users.count ?? 0,
-      total_merchants: merchants.count ?? 0,
-      total_riders: riders.count ?? 0,
+      total_users: counts.users ?? 0,
+      total_merchants: counts.merchants ?? 0,
+      total_riders: counts.riders ?? 0,
       total_orders: allOrders.length + deliveredParcels.length,
       total_revenue: totalRev,
       commission_earned: commission,
