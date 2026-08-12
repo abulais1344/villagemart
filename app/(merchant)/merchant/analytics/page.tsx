@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { IndianRupee, ShoppingBag, TrendingUp, Package } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { IndianRupee, ShoppingBag, TrendingUp } from 'lucide-react';
 import { MerchantHeader } from '@/components/merchant/MerchantHeader';
 import { StatsCard } from '@/components/merchant/StatsCard';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -12,38 +10,25 @@ import { formatCurrency } from '@/lib/utils/format';
 interface TopProduct { name: string; quantity: number; revenue: number; }
 
 export default function MerchantAnalyticsPage() {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ totalOrders: 0, totalRevenue: 0, monthOrders: 0, monthRevenue: 0 });
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
-  const supabase = createClient();
 
   useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const { data: m } = await supabase.from('merchants').select('id').eq('user_id', user.id).single();
-      if (!m) { setLoading(false); return; }
-
-      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-
-      const [allOrders, monthOrders] = await Promise.all([
-        supabase.from('orders').select('subtotal, commission_amount').eq('merchant_id', m.id).neq('status', 'cancelled'),
-        supabase.from('orders').select('subtotal, commission_amount').eq('merchant_id', m.id).neq('status', 'cancelled').gte('created_at', monthStart.toISOString()),
-      ]);
-
-      const totalRev = allOrders.data?.reduce((s, o) => s + (o.subtotal ?? 0) - (o.commission_amount ?? 0), 0) ?? 0;
-      const monthRev = monthOrders.data?.reduce((s, o) => s + (o.subtotal ?? 0) - (o.commission_amount ?? 0), 0) ?? 0;
-
-      setStats({
-        totalOrders: allOrders.data?.length ?? 0,
-        totalRevenue: totalRev,
-        monthOrders: monthOrders.data?.length ?? 0,
-        monthRevenue: monthRev,
-      });
-      setLoading(false);
-    };
-    load();
-  }, [user]);
+    fetch('/api/merchant/analytics')
+      .then(r => r.json())
+      .then(data => {
+        setStats({
+          totalOrders: data.totalOrders ?? 0,
+          totalRevenue: data.totalRevenue ?? 0,
+          monthOrders: data.monthOrders ?? 0,
+          monthRevenue: data.monthRevenue ?? 0,
+        });
+        setTopProducts(data.topProducts ?? []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   if (loading) {
     return (
