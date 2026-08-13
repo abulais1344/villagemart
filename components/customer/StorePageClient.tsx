@@ -589,7 +589,8 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         ) : searchQuery.trim() ? (
           filtered.map(product => renderProduct(product))
         ) : (
-          Array.from(grouped.entries()).map(([cat, catProducts]) => {
+          categories.map(cat => {
+            const catProducts = grouped.get(cat) ?? [];
             const collapsed = collapsedSections.has(cat);
             return (
               <div key={cat} id={`section-${slugCat(cat)}`}>
