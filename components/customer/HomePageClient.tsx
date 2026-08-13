@@ -21,6 +21,7 @@ interface HomePageClientProps {
   featuredProducts: Product[];
   merchants: Merchant[];
   foodMerchants: Merchant[];
+  pharmacyMerchants: Merchant[];
   bakeryMerchants: Merchant[];
   vegetablesMerchants: Merchant[];
 }
@@ -44,6 +45,7 @@ export function HomePageClient({
   featuredProducts,
   merchants,
   foodMerchants,
+  pharmacyMerchants,
   bakeryMerchants,
   vegetablesMerchants,
 }: HomePageClientProps) {
@@ -261,7 +263,16 @@ export function HomePageClient({
           mounted={mounted}
         />
 
-        {/* 4b. Bakeries & Sweets — horizontal carousel */}
+        {/* 4b. Pharmacy & Health Essentials — horizontal carousel */}
+        <MerchantCarouselRow
+          title="💊 Pharmacy & Health Essentials"
+          subtitle="Medicines, health & wellness"
+          merchants={pharmacyMerchants}
+          seeAllHref="/stores/pharmacy"
+          mounted={mounted}
+        />
+
+        {/* 4d. Bakeries & Sweets — horizontal carousel */}
         <MerchantCarouselRow
           title="🎂 Bakeries & Sweets"
           subtitle="Cakes, pastries, puffs & more"
@@ -270,7 +281,7 @@ export function HomePageClient({
           mounted={mounted}
         />
 
-        {/* 4c. Fresh Fruits & Vegetables — horizontal carousel */}
+        {/* 4e. Fresh Fruits & Vegetables — horizontal carousel */}
         <MerchantCarouselRow
           title="🥦 Fresh Fruits & Vegetables"
           subtitle="Farm-fresh produce delivered"

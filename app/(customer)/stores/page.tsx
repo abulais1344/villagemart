@@ -34,7 +34,7 @@ export default async function StoresPage() {
     .from('merchants')
     .select('id, store_name, cuisine_type, avg_delivery_time, cover_image_url, logo_url, area')
     .eq('status', 'approved')
-    .not('merchant_type', 'in', '("bakery","vegetables")')
+    .not('merchant_type', 'in', '("bakery","vegetables","medical")')
     .order('store_name');
 
   const list = merchants ?? [];
