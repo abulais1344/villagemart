@@ -261,21 +261,21 @@ export function HomePageClient({
           mounted={mounted}
         />
 
-        {/* 4b. Fresh Fruits & Vegetables — horizontal carousel */}
-        <MerchantCarouselRow
-          title="🥦 Fresh Fruits & Vegetables"
-          subtitle="Farm-fresh produce delivered"
-          merchants={vegetablesMerchants}
-          seeAllHref="/stores/vegetables"
-          mounted={mounted}
-        />
-
-        {/* 4c. Bakeries & Sweets — horizontal carousel */}
+        {/* 4b. Bakeries & Sweets — horizontal carousel */}
         <MerchantCarouselRow
           title="🎂 Bakeries & Sweets"
           subtitle="Cakes, pastries, puffs & more"
           merchants={bakeryMerchants}
           seeAllHref="/stores/bakeries"
+          mounted={mounted}
+        />
+
+        {/* 4c. Fresh Fruits & Vegetables — horizontal carousel */}
+        <MerchantCarouselRow
+          title="🥦 Fresh Fruits & Vegetables"
+          subtitle="Farm-fresh produce delivered"
+          merchants={vegetablesMerchants}
+          seeAllHref="/stores/vegetables"
           mounted={mounted}
         />
 
