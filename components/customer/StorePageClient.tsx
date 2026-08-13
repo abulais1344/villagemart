@@ -224,6 +224,11 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     const cat = p.description?.trim();
     if (cat && !seenCats.has(cat)) { seenCats.add(cat); categories.push(cat); }
   }
+  // 'Sanitary Pads' always sorts last
+  if (categories.includes('Sanitary Pads')) {
+    categories.splice(categories.indexOf('Sanitary Pads'), 1);
+    categories.push('Sanitary Pads');
+  }
 
   const grouped = new Map<string, Product[]>();
   for (const p of filtered) {
@@ -254,11 +259,16 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     merchant.admin_override,
   );
   const isGrouped = !searchQuery.trim() && categories.length > 0;
-  // Popular Items: bestsellers only, image-first within that set
-  const popularItems = filtered
-    .filter(isBestseller)
-    .sort((a, b) => (hasImg(b) ? 1 : 0) - (hasImg(a) ? 1 : 0))
-    .slice(0, 8);
+  // Popular Items: bestsellers only, image-first within that set; 'Sanitary Pads' always last
+  const popularItems = (() => {
+    const items = filtered
+      .filter(isBestseller)
+      .sort((a, b) => (hasImg(b) ? 1 : 0) - (hasImg(a) ? 1 : 0))
+      .slice(0, 8);
+    const padIdx = items.findIndex(p => p.description?.trim() === 'Sanitary Pads');
+    if (padIdx !== -1) { items.push(...items.splice(padIdx, 1)); }
+    return items;
+  })();
 
   let bestsellerCount = 0;
   let productRenderIndex = 0;
