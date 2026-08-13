@@ -461,7 +461,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         <div className="bg-red-50 border-b border-red-100 px-4 py-3 flex items-center gap-2">
           <span className="text-red-500 text-lg">🔴</span>
           <div>
-            <p className="text-sm font-semibold text-red-600">Restaurant is currently closed</p>
+            <p className="text-sm font-semibold text-red-600">Store is currently closed</p>
             <p className="text-xs text-red-400">Opens at {merchant.opening_time ? formatTime12hr(merchant.opening_time) : '—'} · You can browse the menu</p>
           </div>
         </div>
