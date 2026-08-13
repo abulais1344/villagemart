@@ -390,13 +390,15 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
 
         <div className="absolute bottom-4 left-4 right-16 z-10">
           <h1 className="text-xl font-bold text-white leading-tight">{merchant.store_name}</h1>
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {cuisineTags.map(tag => (
-              <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
-                {tag}
-              </span>
-            ))}
-          </div>
+          {merchant.merchant_type !== 'medical' && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {cuisineTags.map(tag => (
+                <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -479,7 +481,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
       )}
 
       {/* ── Veg / Non-veg filter ── */}
-      {!merchant.coming_soon && merchant.merchant_type !== 'vegetables' && (
+      {!merchant.coming_soon && merchant.merchant_type !== 'vegetables' && merchant.merchant_type !== 'medical' && (
         <div className="bg-white px-4 py-2 flex gap-2 border-b border-gray-100">
           {(['all', 'veg', 'nonveg'] as Filter[]).map(f => (
             <button
@@ -557,7 +559,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
       {/* ── 4. Menu ── */}
       {!merchant.coming_soon && <div className="bg-white mt-2">
         <div className="px-4 py-3 border-b border-gray-100">
-          <h2 className="text-base font-bold text-gray-900">Menu ({filtered.length} items)</h2>
+          <h2 className="text-base font-bold text-gray-900">{merchant.merchant_type === 'medical' ? 'Products' : 'Menu'} ({filtered.length} items)</h2>
         </div>
 
         {filtered.length === 0 ? (
