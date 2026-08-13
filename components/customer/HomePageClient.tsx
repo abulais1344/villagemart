@@ -272,10 +272,10 @@ export function HomePageClient({
           mounted={mounted}
         />
 
-        {/* 4d. Bakeries & Sweets — horizontal carousel */}
+        {/* 4d. Bakery & Cafe — horizontal carousel */}
         <MerchantCarouselRow
-          title="🎂 Bakeries & Sweets"
-          subtitle="Cakes, pastries, puffs & more"
+          title="🍰 Bakery & Cafe"
+          subtitle="Cafes, desserts, pizza & more"
           merchants={bakeryMerchants}
           seeAllHref="/stores/bakeries"
           mounted={mounted}
