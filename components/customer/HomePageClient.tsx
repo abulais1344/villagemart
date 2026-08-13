@@ -61,6 +61,8 @@ export function HomePageClient({
   const [showAddHint, markAddSeen] = useFirstVisit('add_product');
   const [showCartHint, markCartSeen] = useFirstVisit('cart_icon');
   const [sortedFoodMerchants, setSortedFoodMerchants] = useState<Merchant[]>([...foodMerchants]);
+  const [sortedBakeryMerchants, setSortedBakeryMerchants] = useState<Merchant[]>([...bakeryMerchants]);
+  const [sortedVegetablesMerchants, setSortedVegetablesMerchants] = useState<Merchant[]>([...vegetablesMerchants]);
   const [activeOffers, setActiveOffers] = useState<Array<{
     id: string;
     title: string;
@@ -73,12 +75,15 @@ export function HomePageClient({
 
   useEffect(() => {
     setMounted(true);
-    setSortedFoodMerchants([...foodMerchants].sort((a, b) => {
+    const openFirstSort = (a: Merchant, b: Merchant) => {
       const aOpen = isRestaurantOpen((a as any).opening_time ?? null, (a as any).closing_time ?? null, (a as any).is_open, (a as any).admin_override);
       const bOpen = isRestaurantOpen((b as any).opening_time ?? null, (b as any).closing_time ?? null, (b as any).is_open, (b as any).admin_override);
       if (aOpen !== bOpen) return aOpen ? -1 : 1;
       return ((b as any).priority ?? 0) - ((a as any).priority ?? 0);
-    }));
+    };
+    setSortedFoodMerchants([...foodMerchants].sort(openFirstSort));
+    setSortedBakeryMerchants([...bakeryMerchants].sort(openFirstSort));
+    setSortedVegetablesMerchants([...vegetablesMerchants].sort(openFirstSort));
     let phone: string | null = null;
     try {
       const raw = localStorage.getItem('vm_customer');
@@ -276,7 +281,7 @@ export function HomePageClient({
         <MerchantCarouselRow
           title="🍰 Bakery & Cafe"
           subtitle="Cafes, desserts, pizza & more"
-          merchants={bakeryMerchants}
+          merchants={sortedBakeryMerchants}
           seeAllHref="/stores/bakeries"
           mounted={mounted}
         />
@@ -285,7 +290,7 @@ export function HomePageClient({
         <MerchantCarouselRow
           title="🥦 Fresh Fruits & Vegetables"
           subtitle="Farm-fresh produce delivered"
-          merchants={vegetablesMerchants}
+          merchants={sortedVegetablesMerchants}
           seeAllHref="/stores/vegetables"
           mounted={mounted}
         />
