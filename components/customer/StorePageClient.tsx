@@ -264,7 +264,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     const items = filtered
       .filter(isBestseller)
       .sort((a, b) => (hasImg(b) ? 1 : 0) - (hasImg(a) ? 1 : 0))
-      .slice(0, 8);
+      .slice(0, 15);
     const padIdx = items.findIndex(p => p.description?.trim() === 'Sanitary Pads');
     if (padIdx !== -1) { items.push(...items.splice(padIdx, 1)); }
     return items;
