@@ -491,7 +491,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
       )}
 
       {/* ── Veg / Non-veg filter ── */}
-      {!merchant.coming_soon && merchant.merchant_type !== 'vegetables' && merchant.merchant_type !== 'medical' && (
+      {!merchant.coming_soon && merchant.merchant_type !== 'vegetables' && merchant.merchant_type !== 'medical' && products.some(p => p.is_veg === false) && (
         <div className="bg-white px-4 py-2 flex gap-2 border-b border-gray-100">
           {(['all', 'veg', 'nonveg'] as Filter[]).map(f => (
             <button
