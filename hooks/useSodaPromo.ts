@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import type { Product } from '@/types';
 
@@ -23,15 +23,19 @@ function promoApplies(merchantType: string | null): boolean {
   return merchantType === 'restaurant' || merchantType === 'bakery';
 }
 
-// Module-level counter keyed by merchantId so it survives component remounts.
-// useRef resets on every mount, meaning a response from the previous mount's
-// fetch would have the same reqId=1 as the new mount's fetch and pass the guard.
+// Module-level state keyed by merchantId — survives component remounts.
+// useRef resets on every mount; module scope does not.
 const sodaPromoReqCounters = new Map<string, number>();
 function nextSodaPromoReqId(key: string): number {
   const next = (sodaPromoReqCounters.get(key) ?? 0) + 1;
   sodaPromoReqCounters.set(key, next);
   return next;
 }
+
+// Sticky eligibility per merchantId: true once full eligibility has been
+// confirmed at least once.  Keyed by merchantId so switching merchants
+// automatically starts fresh without any explicit reset needed.
+const eligibilityConfirmedMap = new Map<string, boolean>();
 
 // merchantType accepts three states:
 //   undefined  — not yet loaded (cart page before merchant-status resolves); skip all action
@@ -53,14 +57,6 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
     .reduce((s, i) => s + i.product.selling_price * i.quantity, 0);
   const currentPromoQty = items.find(i => i.product.is_promo_item)?.quantity ?? 0;
   const hasPromoItem = items.some(i => i.product.is_promo_item);
-
-  // Sticky eligibility: once full eligibility is confirmed for this merchantId,
-  // a later flicker to null/ineligible merchantType will NOT remove an already-
-  // earned promo.  Reset when merchantId itself changes (genuine new context).
-  const eligibilityConfirmed = useRef<boolean>(false);
-  useEffect(() => {
-    eligibilityConfirmed.current = false;
-  }, [merchantId]);
 
   useEffect(() => {
     if (!merchantId) return;
@@ -99,11 +95,11 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
       windowActive: isPromoWindowActive(config.startsAt, config.endsAt),
       hasPromoProduct: !!config.promoProduct,
       applicable: !!applicable,
-      eligibilityConfirmed: eligibilityConfirmed.current,
+      eligibilityConfirmed: !!(merchantId && eligibilityConfirmedMap.get(merchantId)),
     });
 
     if (!applicable) {
-      if (hasPromoItem && !eligibilityConfirmed.current) {
+      if (hasPromoItem && !(merchantId && eligibilityConfirmedMap.get(merchantId))) {
         // Eligibility was never confirmed for this merchant — safe to remove.
         console.log('[useSodaPromo] not applicable, no prior eligibility — removing promo');
         setPromoItem(null, 0);
@@ -115,8 +111,8 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
       return;
     }
 
-    // Full eligibility confirmed — lock in sticky flag for this merchant.
-    eligibilityConfirmed.current = true;
+    // Full eligibility confirmed — lock in module-scoped sticky flag for this merchant.
+    if (merchantId) eligibilityConfirmedMap.set(merchantId, true);
 
     // Determine earned qty from pre-computed eligible subtotal
     const sortedTiers = [...config.tiers].sort((a, b) => b.threshold - a.threshold);
