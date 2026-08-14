@@ -28,6 +28,8 @@ export async function POST(request: NextRequest) {
       max_km: payload.max_km,
       charge: payload.charge,
       free_delivery_above: payload.free_delivery_above ?? null,
+      starts_at: payload.starts_at ?? null,
+      ends_at: payload.ends_at ?? null,
       is_active: true,
     })
     .select()

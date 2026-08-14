@@ -66,6 +66,7 @@ export interface Product {
   is_featured: boolean;
   is_bestseller: boolean;
   is_veg: boolean;
+  is_promo_item?: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;

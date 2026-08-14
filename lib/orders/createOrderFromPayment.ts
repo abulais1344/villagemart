@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendWhatsAppNotification, sendAdminWhatsApp } from '@/lib/whatsapp';
 import { sendAdminOrderEmail } from '@/lib/email';
 import { generateOrderActionToken } from './orderActionToken';
+import { getActiveDeliverySlabs } from '@/lib/utils/getActiveDeliverySlabs';
 import webpush from 'web-push';
 
 const supabase = createClient(
@@ -64,10 +65,17 @@ export async function createOrderFromPayment(
 
   // ── Server-side price recompute ────────────────────────────────────────────
   const itemIds = data.items.map(i => i.id);
-  const { data: dbProducts, error: productsError } = await supabase
-    .from('vm_products')
-    .select('id, selling_price, name')
-    .in('id', itemIds);
+  const merchantTypeFetch = data.merchantId
+    ? supabase.from('merchants').select('merchant_type').eq('id', data.merchantId).single()
+    : Promise.resolve({ data: null as null });
+  const [productsRes, sodaRes, merchantTypeRes] = await Promise.all([
+    supabase.from('vm_products').select('id, selling_price, name, is_promo_item, merchant_id').in('id', itemIds),
+    supabase.from('admin_settings').select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at, iday_soda_is_active').eq('id', 1).single(),
+    merchantTypeFetch,
+  ]);
+  const { data: dbProducts, error: productsError } = productsRes;
+  const sodaSettings = sodaRes.data;
+  const merchantType = (merchantTypeRes.data as any)?.merchant_type ?? null;
 
   if (productsError || !dbProducts) {
     throw new Error(`[createOrderFromPayment] vm_products fetch failed: ${productsError?.message}`);
@@ -75,25 +83,53 @@ export async function createOrderFromPayment(
 
   const dbPriceMap: Record<string, number> = Object.fromEntries(dbProducts.map((p: any) => [p.id, p.selling_price]));
   const dbNameMap:  Record<string, string> = Object.fromEntries(dbProducts.map((p: any) => [p.id, p.name]));
+  const promoSet = new Set<string>(dbProducts.filter((p: any) => p.is_promo_item && p.merchant_id === data.merchantId).map((p: any) => p.id));
 
+  // Soda promo: determine earned qty (fresh date check, allow-list by merchant_type)
+  const sodaApplies = (merchantType === 'restaurant' || merchantType === 'bakery') && !!sodaSettings && sodaSettings.iday_soda_is_active !== false;
+  let earnedPromoQty = 0;
+  if (sodaApplies) {
+    const now = new Date().toISOString();
+    const s = sodaSettings!;
+    const promoActive =
+      (!s.iday_soda_starts_at || s.iday_soda_starts_at <= now) &&
+      (!s.iday_soda_ends_at   || s.iday_soda_ends_at   >= now);
+    if (promoActive) {
+      const eligibleSubtotal = data.items
+        .filter(i => !promoSet.has(i.id))
+        .reduce((acc, i) => acc + (dbPriceMap[i.id] ?? 0) * i.quantity, 0);
+      const sortedTiers = [
+        { threshold: s.iday_soda_threshold_2 ?? 0, qty: s.iday_soda_qty_2 ?? 0 },
+        { threshold: s.iday_soda_threshold_1 ?? 0, qty: s.iday_soda_qty_1 ?? 0 },
+      ].sort((a, b) => b.threshold - a.threshold);
+      for (const tier of sortedTiers) {
+        if (eligibleSubtotal >= tier.threshold) { earnedPromoQty = tier.qty; break; }
+      }
+    }
+  }
+
+  // Subtotal: promo items priced at ₹0 for earned qty, full price for any overage
   let serverSubtotal = 0;
+  let remainingEarned = earnedPromoQty;
   for (const item of data.items) {
-    serverSubtotal += (dbPriceMap[item.id] ?? 0) * item.quantity;
+    if (promoSet.has(item.id)) {
+      const freeUnits = Math.min(item.quantity, remainingEarned);
+      remainingEarned -= freeUnits;
+      serverSubtotal += (dbPriceMap[item.id] ?? 0) * (item.quantity - freeUnits);
+    } else {
+      serverSubtotal += (dbPriceMap[item.id] ?? 0) * item.quantity;
+    }
   }
 
   // ── Delivery charge ────────────────────────────────────────────────────────
-  const { data: deliverySlabs } = await supabase
-    .from('delivery_charges')
-    .select('free_delivery_above, charge')
-    .eq('is_active', true)
-    .not('free_delivery_above', 'is', null);
+  const deliverySlabs = await getActiveDeliverySlabs(supabase);
 
   let serverDeliveryCharge = 20;
-  if (deliverySlabs?.length) {
-    const threshold = Math.min(...(deliverySlabs as any[]).map((r: any) => r.free_delivery_above as number));
+  if (deliverySlabs.length) {
+    const threshold = Math.min(...deliverySlabs.map(r => r.free_delivery_above as number));
     serverDeliveryCharge = serverSubtotal >= threshold
       ? 0
-      : ((deliverySlabs as any[]).find((r: any) => r.free_delivery_above === threshold)?.charge ?? 20);
+      : (deliverySlabs.find(r => r.free_delivery_above === threshold)?.charge ?? 20);
   }
 
   // ── Offer / discount ───────────────────────────────────────────────────────
@@ -215,19 +251,30 @@ export async function createOrderFromPayment(
   }
 
   // ── Insert order items ─────────────────────────────────────────────────────
-  const orderItems = data.items.map(item => ({
-    order_id: order.id,
-    product_id: item.id,
-    product_snapshot: {
-      name: dbNameMap[item.id],
-      price: dbPriceMap[item.id],
-      image: null,
-      unit: 'piece',
-    },
-    quantity: item.quantity,
-    unit_price: dbPriceMap[item.id],
-    total_price: dbPriceMap[item.id] * item.quantity,
-  }));
+  let orderItemsEarned = earnedPromoQty;
+  const orderItems = data.items.map(item => {
+    const dbPrice = dbPriceMap[item.id] ?? 0;
+    if (promoSet.has(item.id)) {
+      const freeUnits = Math.min(item.quantity, orderItemsEarned);
+      orderItemsEarned -= freeUnits;
+      return {
+        order_id: order.id,
+        product_id: item.id,
+        product_snapshot: { name: dbNameMap[item.id], price: dbPrice, image: null, unit: 'piece' },
+        quantity: item.quantity,
+        unit_price: 0,
+        total_price: dbPrice * (item.quantity - freeUnits),
+      };
+    }
+    return {
+      order_id: order.id,
+      product_id: item.id,
+      product_snapshot: { name: dbNameMap[item.id], price: dbPrice, image: null, unit: 'piece' },
+      quantity: item.quantity,
+      unit_price: dbPrice,
+      total_price: dbPrice * item.quantity,
+    };
+  });
 
   const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
   if (itemsError) console.error('[createOrderFromPayment] order_items insert error:', itemsError);

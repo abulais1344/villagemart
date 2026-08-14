@@ -11,12 +11,34 @@ import { formatCurrency } from '@/lib/utils/format';
 import type { DeliveryCharge } from '@/types';
 import toast from 'react-hot-toast';
 
+// "YYYY-MM-DD" → ISO midnight IST (18:30 UTC previous day = start of day IST)
+function dateToStartISO(d: string) { return d ? `${d}T18:30:00Z` : null; }
+// "YYYY-MM-DD" → end-of-day IST (18:29:59 UTC same calendar day)
+function dateToEndISO(d: string)   { return d ? `${d}T18:29:59Z` : null; }
+function isoToDate(iso: string | null) { return iso ? iso.slice(0, 10) : ''; }
+
+function isSodaWindowNowActive(startsAt: string, endsAt: string): boolean {
+  const now = new Date().toISOString();
+  if (startsAt && (dateToStartISO(startsAt) ?? '') > now) return false;
+  if (endsAt   && (dateToEndISO(endsAt)     ?? '') < now) return false;
+  return true;
+}
+
+const emptyForm = { min_km: '0', max_km: '2', charge: '20', free_delivery_above: '', starts_at: '', ends_at: '' };
+
+const emptySoda = { iday_soda_threshold_1: '120', iday_soda_qty_1: '1', iday_soda_threshold_2: '240', iday_soda_qty_2: '2', iday_soda_starts_at: '', iday_soda_ends_at: '' };
+
 export default function AdminDeliveryChargesPage() {
   const [slabs, setSlabs] = useState<DeliveryCharge[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ min_km: '0', max_km: '2', charge: '20', free_delivery_above: '' });
+  const [form, setForm] = useState(emptyForm);
+
+  const [soda, setSoda] = useState(emptySoda);
+  const [sodaIsActive, setSodaIsActive] = useState(true);
+  const [sodaLoading, setSodaLoading] = useState(true);
+  const [sodaSaving, setSodaSaving] = useState(false);
 
   const load = async () => {
     const res = await fetch('/api/admin/delivery-charges');
@@ -25,7 +47,23 @@ export default function AdminDeliveryChargesPage() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  const loadSoda = async () => {
+    const res = await fetch('/api/admin/soda-settings');
+    if (!res.ok) { setSodaLoading(false); return; }
+    const data = await res.json();
+    setSoda({
+      iday_soda_threshold_1: String(data.iday_soda_threshold_1 ?? 120),
+      iday_soda_qty_1:       String(data.iday_soda_qty_1 ?? 1),
+      iday_soda_threshold_2: String(data.iday_soda_threshold_2 ?? 240),
+      iday_soda_qty_2:       String(data.iday_soda_qty_2 ?? 2),
+      iday_soda_starts_at:   isoToDate(data.iday_soda_starts_at ?? null),
+      iday_soda_ends_at:     isoToDate(data.iday_soda_ends_at ?? null),
+    });
+    setSodaIsActive(data.iday_soda_is_active ?? true);
+    setSodaLoading(false);
+  };
+
+  useEffect(() => { load(); loadSoda(); }, []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -37,6 +75,8 @@ export default function AdminDeliveryChargesPage() {
         max_km: parseFloat(form.max_km),
         charge: parseFloat(form.charge),
         free_delivery_above: form.free_delivery_above ? parseFloat(form.free_delivery_above) : null,
+        starts_at: dateToStartISO(form.starts_at),
+        ends_at:   dateToEndISO(form.ends_at),
       }),
     });
     setSaving(false);
@@ -47,8 +87,25 @@ export default function AdminDeliveryChargesPage() {
     }
     toast.success('Delivery slab added');
     setShowForm(false);
-    setForm({ min_km: '0', max_km: '2', charge: '20', free_delivery_above: '' });
+    setForm(emptyForm);
     load();
+  };
+
+  const handleSodaSave = async () => {
+    setSodaSaving(true);
+    const res = await fetch('/api/admin/soda-settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...soda,
+        iday_soda_starts_at: dateToStartISO(soda.iday_soda_starts_at),
+        iday_soda_ends_at:   dateToEndISO(soda.iday_soda_ends_at),
+        iday_soda_is_active: sodaIsActive,
+      }),
+    });
+    setSodaSaving(false);
+    if (!res.ok) { toast.error('Failed to save soda settings'); return; }
+    toast.success('Soda reward tiers saved');
   };
 
   const toggleSlab = async (slab: DeliveryCharge) => {
@@ -67,6 +124,9 @@ export default function AdminDeliveryChargesPage() {
     toast.success('Slab deleted');
   };
 
+  const sf = (key: keyof typeof soda) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setSoda(prev => ({ ...prev, [key]: e.target.value }));
+
   return (
     <>
       <AdminHeader title="Delivery Charges" />
@@ -79,7 +139,7 @@ export default function AdminDeliveryChargesPage() {
         </div>
 
         <div className="bg-primary-50 rounded-2xl p-4">
-          <p className="text-sm text-primary-700 font-medium">Configure distance-based delivery charges. Free delivery can be set based on order amount.</p>
+          <p className="text-sm text-primary-700 font-medium">Configure distance-based delivery charges. Free delivery can be set based on order amount and optional date range.</p>
         </div>
 
         {loading ? (
@@ -101,10 +161,57 @@ export default function AdminDeliveryChargesPage() {
                 {s.free_delivery_above && (
                   <p className="text-xs text-success mt-1">Free above {formatCurrency(s.free_delivery_above)}</p>
                 )}
+                {((s as any).starts_at || (s as any).ends_at) && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {(s as any).starts_at ? isoToDate((s as any).starts_at) : '—'} → {(s as any).ends_at ? isoToDate((s as any).ends_at) : '∞'}
+                  </p>
+                )}
               </div>
             ))}
           </div>
         )}
+
+        {/* ── Jeera Soda reward tiers ── */}
+        <div className="pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-[#1A1A1A]">🥤 Jeera Soda Reward Tiers</p>
+            {!sodaLoading && (
+              <button
+                onClick={() => setSodaIsActive(v => !v)}
+                className={`text-xs px-2 py-0.5 rounded-full font-medium ${sodaIsActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-[#6B7280]'}`}
+              >
+                {sodaIsActive ? 'Active' : 'Off'}
+              </button>
+            )}
+          </div>
+          {sodaLoading ? (
+            <Skeleton className="h-32" />
+          ) : (
+            <div className={`bg-white rounded-2xl border border-[#E5E7EB] p-4 space-y-3 ${!(sodaIsActive && isSodaWindowNowActive(soda.iday_soda_starts_at, soda.iday_soda_ends_at)) ? 'opacity-50' : ''}`}>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Tier 1 — Min order (₹)" type="number" value={soda.iday_soda_threshold_1} onChange={sf('iday_soda_threshold_1')} />
+                <Input label="Tier 1 — Qty" type="number" value={soda.iday_soda_qty_1} onChange={sf('iday_soda_qty_1')} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Tier 2 — Min order (₹)" type="number" value={soda.iday_soda_threshold_2} onChange={sf('iday_soda_threshold_2')} />
+                <Input label="Tier 2 — Qty" type="number" value={soda.iday_soda_qty_2} onChange={sf('iday_soda_qty_2')} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[#6B7280] mb-1">Active From</label>
+                  <input type="date" value={soda.iday_soda_starts_at} onChange={sf('iday_soda_starts_at')}
+                    className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#6B7280] mb-1">Active Until</label>
+                  <input type="date" value={soda.iday_soda_ends_at} onChange={sf('iday_soda_ends_at')}
+                    className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]" />
+                </div>
+              </div>
+              <Button fullWidth loading={sodaSaving} onClick={handleSodaSave}>Save Soda Tiers</Button>
+            </div>
+          )}
+        </div>
       </main>
 
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Delivery Slab">
@@ -116,6 +223,27 @@ export default function AdminDeliveryChargesPage() {
           <Input label="Charge (₹)" type="number" step="0.01" value={form.charge} onChange={e => setForm(f => ({ ...f, charge: e.target.value }))} />
           <Input label="Free Delivery Above (₹)" type="number" step="0.01" placeholder="Optional"
             value={form.free_delivery_above} onChange={e => setForm(f => ({ ...f, free_delivery_above: e.target.value }))} />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-[#6B7280] mb-1">Starts At</label>
+              <input
+                type="date"
+                value={form.starts_at}
+                onChange={e => setForm(f => ({ ...f, starts_at: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#6B7280] mb-1">Ends At</label>
+              <input
+                type="date"
+                value={form.ends_at}
+                onChange={e => setForm(f => ({ ...f, ends_at: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400">Leave dates blank for a permanently active slab.</p>
           <Button fullWidth loading={saving} onClick={handleSave}>Add Slab</Button>
         </div>
       </Modal>
