@@ -19,12 +19,19 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid items' }, { status: 400 });
     }
 
-    // Fetch actual product prices from DB — never trust client prices
+    // Fetch product prices, soda promo settings, and merchant in parallel — never trust client prices
     const productIds = (items as Array<{ id: string; quantity: number }>).map(i => i.id);
-    const { data: products, error: productError } = await supabase
-      .from('vm_products')
-      .select('id, selling_price')
-      .in('id', productIds);
+    const merchantFetch = merchantId
+      ? supabase.from('merchants').select('opening_time, closing_time, is_open, admin_override, merchant_type').eq('id', merchantId).single()
+      : Promise.resolve({ data: null as null, error: null });
+    const [productsRes, sodaRes, merchantRes] = await Promise.all([
+      supabase.from('vm_products').select('id, selling_price, is_promo_item').in('id', productIds),
+      supabase.from('admin_settings').select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at').eq('id', 1).single(),
+      merchantFetch,
+    ]);
+    const { data: products, error: productError } = productsRes;
+    const sodaSettings = sodaRes.data;
+    const merchantData = merchantRes.data as any;
 
     if (productError) {
       console.error(
@@ -38,6 +45,11 @@ export async function POST(request: NextRequest) {
     const priceMap: Record<string, number> = Object.fromEntries(
       (products as Array<{ id: string; selling_price: number }>).map(p => [p.id, p.selling_price])
     );
+    const promoSet = new Set<string>(
+      (products as Array<{ id: string; is_promo_item?: boolean }>)
+        .filter(p => p.is_promo_item)
+        .map(p => p.id)
+    );
 
     const missingIds = productIds.filter(id => priceMap[id] == null);
     if (missingIds.length > 0) {
@@ -45,30 +57,54 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: `Unknown product ids: ${missingIds.join(', ')}` }, { status: 400 });
     }
 
-    let subtotal = 0;
-    for (const item of items as Array<{ id: string; quantity: number }>) {
-      subtotal += priceMap[item.id] * item.quantity;
-    }
-
     // Server-side restaurant open check — blocks closed-restaurant orders even if the
     // client UI was bypassed or the restaurant closed mid-session after items were added
-    if (merchantId) {
-      const { data: merchant } = await supabase
-        .from('merchants')
-        .select('opening_time, closing_time, is_open, admin_override')
-        .eq('id', merchantId)
-        .single();
+    if (merchantId && merchantData && !isRestaurantOpen(
+      merchantData.opening_time ?? null,
+      merchantData.closing_time ?? null,
+      merchantData.is_open,
+      merchantData.admin_override,
+    )) {
+      return Response.json(
+        { error: 'This restaurant is currently closed. Please try again later.' },
+        { status: 409 },
+      );
+    }
 
-      if (merchant && !isRestaurantOpen(
-        merchant.opening_time ?? null,
-        merchant.closing_time ?? null,
-        merchant.is_open,
-        merchant.admin_override,
-      )) {
-        return Response.json(
-          { error: 'This restaurant is currently closed. Please try again later.' },
-          { status: 409 },
-        );
+    // Soda promo: determine earned qty (fresh date check, allow-list by merchant_type)
+    const merchantType = merchantData?.merchant_type ?? null;
+    const sodaApplies = (merchantType === 'restaurant' || merchantType === 'bakery') && !!sodaSettings;
+    let earnedPromoQty = 0;
+    if (sodaApplies) {
+      const now = new Date().toISOString();
+      const s = sodaSettings!;
+      const promoActive =
+        (!s.iday_soda_starts_at || s.iday_soda_starts_at <= now) &&
+        (!s.iday_soda_ends_at   || s.iday_soda_ends_at   >= now);
+      if (promoActive) {
+        const eligibleSubtotal = (items as Array<{ id: string; quantity: number }>)
+          .filter(i => !promoSet.has(i.id))
+          .reduce((acc, i) => acc + priceMap[i.id] * i.quantity, 0);
+        const sortedTiers = [
+          { threshold: s.iday_soda_threshold_2 ?? 0, qty: s.iday_soda_qty_2 ?? 0 },
+          { threshold: s.iday_soda_threshold_1 ?? 0, qty: s.iday_soda_qty_1 ?? 0 },
+        ].sort((a, b) => b.threshold - a.threshold);
+        for (const tier of sortedTiers) {
+          if (eligibleSubtotal >= tier.threshold) { earnedPromoQty = tier.qty; break; }
+        }
+      }
+    }
+
+    // Subtotal: promo items priced at ₹0 for earned qty, full price for any overage
+    let subtotal = 0;
+    let remainingEarned = earnedPromoQty;
+    for (const item of items as Array<{ id: string; quantity: number }>) {
+      if (promoSet.has(item.id)) {
+        const freeUnits = Math.min(item.quantity, remainingEarned);
+        remainingEarned -= freeUnits;
+        subtotal += priceMap[item.id] * (item.quantity - freeUnits);
+      } else {
+        subtotal += priceMap[item.id] * item.quantity;
       }
     }
 

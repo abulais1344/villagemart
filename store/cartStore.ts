@@ -14,6 +14,8 @@ interface CartState {
   getSubtotal: () => number;
   getItemCount: () => number;
   getItemsByMerchant: () => Record<string, CartItem[]>;
+  // Atomically set the promo item to the given qty (at ₹0), or remove it if qty=0/product=null
+  setPromoItem: (product: Product | null, qty: number) => void;
 }
 
 export const useCartStore = create<CartState>()(
@@ -56,6 +58,18 @@ export const useCartStore = create<CartState>()(
       },
 
       clearCart: () => set({ items: [] }),
+
+      setPromoItem: (product, qty) => {
+        set((state) => {
+          const withoutPromo = state.items.filter(i => !i.product.is_promo_item);
+          if (!product || qty <= 0) return { items: withoutPromo };
+          const promoCartItem: CartItem = {
+            product: { ...product, selling_price: 0, mrp: 0 },
+            quantity: qty,
+          };
+          return { items: [...withoutPromo, promoCartItem] };
+        });
+      },
 
       getTotal: () => {
         const { items } = get();

@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { PWAInstallBanner } from './PWAInstallBanner';
 import { logEvent } from '@/lib/events';
 import { firebaseAuth } from '@/lib/firebase/client';
+import { useSodaPromo } from '@/hooks/useSodaPromo';
 
 function isNonVeg(product: Product): boolean {
   return product.is_veg === false;
@@ -70,6 +71,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const supabase = createClient();
 
   useEffect(() => { setMounted(true); }, []);
+  useSodaPromo(merchant.merchant_type ?? null);
 
   useEffect(() => {
     logEvent({

@@ -19,7 +19,7 @@ function isoToDate(iso: string | null) { return iso ? iso.slice(0, 10) : ''; }
 
 const emptyForm = { min_km: '0', max_km: '2', charge: '20', free_delivery_above: '', starts_at: '', ends_at: '' };
 
-const emptySoda = { iday_soda_threshold_1: '120', iday_soda_qty_1: '1', iday_soda_threshold_2: '240', iday_soda_qty_2: '2' };
+const emptySoda = { iday_soda_threshold_1: '120', iday_soda_qty_1: '1', iday_soda_threshold_2: '240', iday_soda_qty_2: '2', iday_soda_starts_at: '', iday_soda_ends_at: '' };
 
 export default function AdminDeliveryChargesPage() {
   const [slabs, setSlabs] = useState<DeliveryCharge[]>([]);
@@ -48,6 +48,8 @@ export default function AdminDeliveryChargesPage() {
       iday_soda_qty_1:       String(data.iday_soda_qty_1 ?? 1),
       iday_soda_threshold_2: String(data.iday_soda_threshold_2 ?? 240),
       iday_soda_qty_2:       String(data.iday_soda_qty_2 ?? 2),
+      iday_soda_starts_at:   isoToDate(data.iday_soda_starts_at ?? null),
+      iday_soda_ends_at:     isoToDate(data.iday_soda_ends_at ?? null),
     });
     setSodaLoading(false);
   };
@@ -85,7 +87,11 @@ export default function AdminDeliveryChargesPage() {
     const res = await fetch('/api/admin/soda-settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(soda),
+      body: JSON.stringify({
+        ...soda,
+        iday_soda_starts_at: dateToStartISO(soda.iday_soda_starts_at),
+        iday_soda_ends_at:   dateToEndISO(soda.iday_soda_ends_at),
+      }),
     });
     setSodaSaving(false);
     if (!res.ok) { toast.error('Failed to save soda settings'); return; }
@@ -169,6 +175,18 @@ export default function AdminDeliveryChargesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <Input label="Tier 2 — Min order (₹)" type="number" value={soda.iday_soda_threshold_2} onChange={sf('iday_soda_threshold_2')} />
                 <Input label="Tier 2 — Qty" type="number" value={soda.iday_soda_qty_2} onChange={sf('iday_soda_qty_2')} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-[#6B7280] mb-1">Active From</label>
+                  <input type="date" value={soda.iday_soda_starts_at} onChange={sf('iday_soda_starts_at')}
+                    className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-[#6B7280] mb-1">Active Until</label>
+                  <input type="date" value={soda.iday_soda_ends_at} onChange={sf('iday_soda_ends_at')}
+                    className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]" />
+                </div>
               </div>
               <Button fullWidth loading={sodaSaving} onClick={handleSodaSave}>Save Soda Tiers</Button>
             </div>

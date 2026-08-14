@@ -14,6 +14,7 @@ import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
 import { AddressManager } from '@/components/customer/AddressManager';
 import { PulseHint } from '@/components/customer/PulseHint';
 import { useFirstVisit } from '@/hooks/useFirstVisit';
+import { useSodaPromo } from '@/hooks/useSodaPromo';
 
 const LocationPickerModal = dynamic(
   () => import('@/components/customer/LocationPickerModal'),
@@ -32,6 +33,7 @@ export default function CartPage() {
   const [mounted, setMounted] = useState(false);
   const [merchantName, setMerchantName] = useState<string | null>(null);
   const [merchantLogoUrl, setMerchantLogoUrl] = useState<string | null>(null);
+  const [merchantType, setMerchantType] = useState<string | null>(null);
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
   const [showAddressSheet, setShowAddressSheet] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
@@ -51,6 +53,7 @@ export default function CartPage() {
       .then(d => {
         setMerchantName(d.store_name ?? null);
         setMerchantLogoUrl(d.logo_url ?? null);
+        setMerchantType(d.merchant_type ?? null);
       })
       .catch((err) => console.error('Failed to fetch merchant info:', err));
   }, [merchantId]);
@@ -103,6 +106,8 @@ export default function CartPage() {
     setCustomer(getCustomer());
   }
 
+  useSodaPromo(merchantType);
+
   if (!mounted) return null;
 
   if (items.length === 0) {
@@ -143,32 +148,48 @@ export default function CartPage() {
 
         {/* Items */}
         <div className="bg-white rounded-2xl border border-[#E5E7EB] divide-y divide-[#E5E7EB]">
-          {items.map(({ product, quantity }) => (
-            <div key={product.id} className="flex items-center gap-3 p-4">
-              <div className="w-16 h-16 rounded-xl bg-gray-50 overflow-hidden shrink-0 border border-[#E5E7EB]">
-                <ProductImage images={product.images} categorySlug={product.category?.slug} alt={product.name} width={64} height={64} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[#1A1A1A] line-clamp-2">{product.name}</p>
-                <p className="text-xs text-[#6B7280]">{product.unit}</p>
-                <p className="text-sm font-bold text-[#7C3AED] mt-1">{formatCurrency(product.selling_price * quantity)}</p>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <button onClick={() => removeItem(product.id)} className="text-[#6B7280]">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                <div className="flex items-center gap-2 bg-purple-50 rounded-lg px-2 py-1">
-                  <button onClick={() => quantity <= 1 ? removeItem(product.id) : updateQuantity(product.id, quantity - 1)} className="text-[#7C3AED]">
-                    <Minus className="w-4 h-4" />
+          {items.map(({ product, quantity }) => {
+            if (product.is_promo_item) {
+              return (
+                <div key={product.id} className="flex items-center gap-3 p-4 bg-green-50">
+                  <div className="w-16 h-16 rounded-xl bg-green-100 overflow-hidden shrink-0 border border-green-200 flex items-center justify-center text-2xl">
+                    🥤
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">🎁 Free Gift</p>
+                    <p className="text-sm font-medium text-[#1A1A1A]">{product.name} ×{quantity}</p>
+                    <p className="text-sm font-bold text-green-600 mt-0.5">FREE</p>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div key={product.id} className="flex items-center gap-3 p-4">
+                <div className="w-16 h-16 rounded-xl bg-gray-50 overflow-hidden shrink-0 border border-[#E5E7EB]">
+                  <ProductImage images={product.images} categorySlug={product.category?.slug} alt={product.name} width={64} height={64} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[#1A1A1A] line-clamp-2">{product.name}</p>
+                  <p className="text-xs text-[#6B7280]">{product.unit}</p>
+                  <p className="text-sm font-bold text-[#7C3AED] mt-1">{formatCurrency(product.selling_price * quantity)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <button onClick={() => removeItem(product.id)} className="text-[#6B7280]">
+                    <Trash2 className="w-4 h-4" />
                   </button>
-                  <span className="text-sm font-bold w-5 text-center">{quantity}</span>
-                  <button onClick={() => updateQuantity(product.id, quantity + 1)} className="text-[#7C3AED]">
-                    <Plus className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2 bg-purple-50 rounded-lg px-2 py-1">
+                    <button onClick={() => quantity <= 1 ? removeItem(product.id) : updateQuantity(product.id, quantity - 1)} className="text-[#7C3AED]">
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className="text-sm font-bold w-5 text-center">{quantity}</span>
+                    <button onClick={() => updateQuantity(product.id, quantity + 1)} className="text-[#7C3AED]">
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Add more items */}
