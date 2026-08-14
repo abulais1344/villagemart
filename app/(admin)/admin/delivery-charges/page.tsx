@@ -17,6 +17,13 @@ function dateToStartISO(d: string) { return d ? `${d}T18:30:00Z` : null; }
 function dateToEndISO(d: string)   { return d ? `${d}T18:29:59Z` : null; }
 function isoToDate(iso: string | null) { return iso ? iso.slice(0, 10) : ''; }
 
+function isSodaWindowNowActive(startsAt: string, endsAt: string): boolean {
+  const now = new Date().toISOString();
+  if (startsAt && (dateToStartISO(startsAt) ?? '') > now) return false;
+  if (endsAt   && (dateToEndISO(endsAt)     ?? '') < now) return false;
+  return true;
+}
+
 const emptyForm = { min_km: '0', max_km: '2', charge: '20', free_delivery_above: '', starts_at: '', ends_at: '' };
 
 const emptySoda = { iday_soda_threshold_1: '120', iday_soda_qty_1: '1', iday_soda_threshold_2: '240', iday_soda_qty_2: '2', iday_soda_starts_at: '', iday_soda_ends_at: '' };
@@ -29,6 +36,7 @@ export default function AdminDeliveryChargesPage() {
   const [form, setForm] = useState(emptyForm);
 
   const [soda, setSoda] = useState(emptySoda);
+  const [sodaIsActive, setSodaIsActive] = useState(true);
   const [sodaLoading, setSodaLoading] = useState(true);
   const [sodaSaving, setSodaSaving] = useState(false);
 
@@ -51,6 +59,7 @@ export default function AdminDeliveryChargesPage() {
       iday_soda_starts_at:   isoToDate(data.iday_soda_starts_at ?? null),
       iday_soda_ends_at:     isoToDate(data.iday_soda_ends_at ?? null),
     });
+    setSodaIsActive(data.iday_soda_is_active ?? true);
     setSodaLoading(false);
   };
 
@@ -91,6 +100,7 @@ export default function AdminDeliveryChargesPage() {
         ...soda,
         iday_soda_starts_at: dateToStartISO(soda.iday_soda_starts_at),
         iday_soda_ends_at:   dateToEndISO(soda.iday_soda_ends_at),
+        iday_soda_is_active: sodaIsActive,
       }),
     });
     setSodaSaving(false);
@@ -163,11 +173,21 @@ export default function AdminDeliveryChargesPage() {
 
         {/* ── Jeera Soda reward tiers ── */}
         <div className="pt-2 border-t border-gray-100">
-          <p className="text-sm font-semibold text-[#1A1A1A] mb-3">🥤 Jeera Soda Reward Tiers</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-[#1A1A1A]">🥤 Jeera Soda Reward Tiers</p>
+            {!sodaLoading && (
+              <button
+                onClick={() => setSodaIsActive(v => !v)}
+                className={`text-xs px-2 py-0.5 rounded-full font-medium ${sodaIsActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-[#6B7280]'}`}
+              >
+                {sodaIsActive ? 'Active' : 'Off'}
+              </button>
+            )}
+          </div>
           {sodaLoading ? (
             <Skeleton className="h-32" />
           ) : (
-            <div className="bg-white rounded-2xl border border-[#E5E7EB] p-4 space-y-3">
+            <div className={`bg-white rounded-2xl border border-[#E5E7EB] p-4 space-y-3 ${!(sodaIsActive && isSodaWindowNowActive(soda.iday_soda_starts_at, soda.iday_soda_ends_at)) ? 'opacity-50' : ''}`}>
               <div className="grid grid-cols-2 gap-3">
                 <Input label="Tier 1 — Min order (₹)" type="number" value={soda.iday_soda_threshold_1} onChange={sf('iday_soda_threshold_1')} />
                 <Input label="Tier 1 — Qty" type="number" value={soda.iday_soda_qty_1} onChange={sf('iday_soda_qty_1')} />

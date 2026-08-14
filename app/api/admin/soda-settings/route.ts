@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('admin_settings')
-    .select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at')
+    .select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at, iday_soda_is_active')
     .eq('id', 1)
     .single();
 
@@ -35,6 +35,7 @@ export async function PATCH(request: NextRequest) {
       iday_soda_qty_2:       Number(payload.iday_soda_qty_2),
       iday_soda_starts_at:   payload.iday_soda_starts_at ?? null,
       iday_soda_ends_at:     payload.iday_soda_ends_at ?? null,
+      iday_soda_is_active:   Boolean(payload.iday_soda_is_active),
     })
     .eq('id', 1);
 

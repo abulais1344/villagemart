@@ -7,6 +7,7 @@ interface SodaTier { threshold: number; qty: number; }
 interface SodaPromoConfig {
   tiers: SodaTier[];
   promoProduct: Product | null;
+  isActive: boolean;
   startsAt: string | null;
   endsAt: string | null;
 }
@@ -37,6 +38,7 @@ export function useSodaPromo(merchantType: string | null) {
     if (!config) return;
 
     const applicable =
+      config.isActive &&
       isPromoWindowActive(config.startsAt, config.endsAt) &&
       config.promoProduct &&
       promoApplies(merchantType);

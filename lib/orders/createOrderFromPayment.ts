@@ -70,7 +70,7 @@ export async function createOrderFromPayment(
     : Promise.resolve({ data: null as null });
   const [productsRes, sodaRes, merchantTypeRes] = await Promise.all([
     supabase.from('vm_products').select('id, selling_price, name, is_promo_item').in('id', itemIds),
-    supabase.from('admin_settings').select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at').eq('id', 1).single(),
+    supabase.from('admin_settings').select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at, iday_soda_is_active').eq('id', 1).single(),
     merchantTypeFetch,
   ]);
   const { data: dbProducts, error: productsError } = productsRes;
@@ -86,7 +86,7 @@ export async function createOrderFromPayment(
   const promoSet = new Set<string>(dbProducts.filter((p: any) => p.is_promo_item).map((p: any) => p.id));
 
   // Soda promo: determine earned qty (fresh date check, allow-list by merchant_type)
-  const sodaApplies = (merchantType === 'restaurant' || merchantType === 'bakery') && !!sodaSettings;
+  const sodaApplies = (merchantType === 'restaurant' || merchantType === 'bakery') && !!sodaSettings && sodaSettings.iday_soda_is_active !== false;
   let earnedPromoQty = 0;
   if (sodaApplies) {
     const now = new Date().toISOString();

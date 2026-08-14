@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       : Promise.resolve({ data: null as null, error: null });
     const [productsRes, sodaRes, merchantRes] = await Promise.all([
       supabase.from('vm_products').select('id, selling_price, is_promo_item').in('id', productIds),
-      supabase.from('admin_settings').select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at').eq('id', 1).single(),
+      supabase.from('admin_settings').select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at, iday_soda_is_active').eq('id', 1).single(),
       merchantFetch,
     ]);
     const { data: products, error: productError } = productsRes;
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
     // Soda promo: determine earned qty (fresh date check, allow-list by merchant_type)
     const merchantType = merchantData?.merchant_type ?? null;
-    const sodaApplies = (merchantType === 'restaurant' || merchantType === 'bakery') && !!sodaSettings;
+    const sodaApplies = (merchantType === 'restaurant' || merchantType === 'bakery') && !!sodaSettings && sodaSettings.iday_soda_is_active !== false;
     let earnedPromoQty = 0;
     if (sodaApplies) {
       const now = new Date().toISOString();

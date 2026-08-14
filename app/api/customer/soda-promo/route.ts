@@ -10,7 +10,7 @@ export async function GET() {
   const [settingsRes, productRes] = await Promise.all([
     supabase
       .from('admin_settings')
-      .select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at')
+      .select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at, iday_soda_is_active')
       .eq('id', 1)
       .single(),
     supabase
@@ -25,12 +25,14 @@ export async function GET() {
   const promoProduct = productRes.data ?? null;
 
   const now = new Date().toISOString();
-  const active = !!s &&
+  const isActive = s?.iday_soda_is_active !== false;
+  const active = !!s && isActive &&
     (!s.iday_soda_starts_at || s.iday_soda_starts_at <= now) &&
     (!s.iday_soda_ends_at   || s.iday_soda_ends_at   >= now);
 
   return NextResponse.json({
     active,
+    isActive,
     tiers: [
       { threshold: s?.iday_soda_threshold_1 ?? 120, qty: s?.iday_soda_qty_1 ?? 1 },
       { threshold: s?.iday_soda_threshold_2 ?? 240, qty: s?.iday_soda_qty_2 ?? 2 },
