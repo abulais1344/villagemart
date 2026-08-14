@@ -23,7 +23,11 @@ function promoApplies(merchantType: string | null): boolean {
   return merchantType === 'restaurant' || merchantType === 'bakery';
 }
 
-export function useSodaPromo(merchantType: string | null, merchantId: string | null) {
+// merchantType accepts three states:
+//   undefined  — not yet loaded (cart page before merchant-status resolves); skip all action
+//   null       — loaded but merchant has no type (correctly ineligible)
+//   string     — loaded; promoApplies() decides eligibility
+export function useSodaPromo(merchantType: string | null | undefined, merchantId: string | null) {
   const [config, setConfig] = useState<SodaPromoConfig | null>(null);
   const { items, setPromoItem } = useCartStore();
 
@@ -37,6 +41,9 @@ export function useSodaPromo(merchantType: string | null, merchantId: string | n
 
   useEffect(() => {
     if (!config) return;
+    // merchantType===undefined means the caller hasn't resolved it yet; don't remove
+    // a correctly-added promo item based on stale null state.
+    if (merchantType === undefined) return;
 
     const applicable =
       config.isActive &&

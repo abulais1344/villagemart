@@ -33,7 +33,7 @@ export default function CartPage() {
   const [mounted, setMounted] = useState(false);
   const [merchantName, setMerchantName] = useState<string | null>(null);
   const [merchantLogoUrl, setMerchantLogoUrl] = useState<string | null>(null);
-  const [merchantType, setMerchantType] = useState<string | null>(null);
+  const [merchantType, setMerchantType] = useState<string | null | undefined>(undefined);
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
   const [showAddressSheet, setShowAddressSheet] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
