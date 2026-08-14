@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import type { Product } from '@/types';
 
@@ -23,6 +23,16 @@ function promoApplies(merchantType: string | null): boolean {
   return merchantType === 'restaurant' || merchantType === 'bakery';
 }
 
+// Module-level counter keyed by merchantId so it survives component remounts.
+// useRef resets on every mount, meaning a response from the previous mount's
+// fetch would have the same reqId=1 as the new mount's fetch and pass the guard.
+const sodaPromoReqCounters = new Map<string, number>();
+function nextSodaPromoReqId(key: string): number {
+  const next = (sodaPromoReqCounters.get(key) ?? 0) + 1;
+  sodaPromoReqCounters.set(key, next);
+  return next;
+}
+
 // merchantType accepts three states:
 //   undefined  — not yet loaded (cart page before merchant-status resolves); skip all action
 //   null       — loaded but merchant has no type (correctly ineligible)
@@ -44,20 +54,15 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
   const currentPromoQty = items.find(i => i.product.is_promo_item)?.quantity ?? 0;
   const hasPromoItem = items.some(i => i.product.is_promo_item);
 
-  // Monotonic counter: only the response whose id matches the latest request can
-  // set config.  Guards against races that AbortController can miss (a response
-  // already in the .then() microtask queue when abort fires still resolves).
-  const sodaPromoReqId = useRef(0);
-
   useEffect(() => {
     if (!merchantId) return;
-    const reqId = ++sodaPromoReqId.current;
+    const reqId = nextSodaPromoReqId(merchantId);
     const controller = new AbortController();
     fetch(`/api/customer/soda-promo?merchant_id=${merchantId}`, { signal: controller.signal })
       .then(r => r.json())
       .then((data: SodaPromoConfig) => {
-        if (reqId !== sodaPromoReqId.current) {
-          console.log('[useSodaPromo] soda-promo fetch STALE — discarding', { reqId, latest: sodaPromoReqId.current, merchantId });
+        if (reqId !== sodaPromoReqCounters.get(merchantId)) {
+          console.log('[useSodaPromo] soda-promo fetch STALE — discarding', { reqId, latest: sodaPromoReqCounters.get(merchantId), merchantId });
           return;
         }
         console.log('[useSodaPromo] soda-promo config loaded', { reqId, merchantId, isActive: data.isActive, hasPromoProduct: !!data.promoProduct });

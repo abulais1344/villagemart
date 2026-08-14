@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { ProductImage } from '@/components/shared/ProductImage';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
@@ -27,6 +27,16 @@ const LABEL_EMOJI: Record<AddressData['label'], string> = {
   Other: '📍',
 };
 
+// Module-level counter keyed by merchantId so it survives component remounts.
+// useRef resets on every mount, meaning a stale response from before unmount
+// would share reqId=1 with the new mount's fetch and wrongly pass the guard.
+const merchantStatusReqCounters = new Map<string, number>();
+function nextMerchantStatusReqId(key: string): number {
+  const next = (merchantStatusReqCounters.get(key) ?? 0) + 1;
+  merchantStatusReqCounters.set(key, next);
+  return next;
+}
+
 export default function CartPage() {
   const { items, updateQuantity, removeItem, getSubtotal } = useCartStore();
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -40,10 +50,6 @@ export default function CartPage() {
   const [showCheckoutHint, markCheckoutSeen] = useFirstVisit('checkout_btn');
   const router = useRouter();
   const merchantId = items[0]?.product.merchant_id ?? null;
-  // Monotonic counter: only the response whose id matches the latest request can
-  // call setMerchantType.  Second layer on top of AbortController — a response
-  // already in the .then() microtask queue when abort fires still resolves.
-  const merchantStatusReqId = useRef(0);
 
   useEffect(() => {
     setCustomer(getCustomer());
@@ -52,13 +58,13 @@ export default function CartPage() {
 
   useEffect(() => {
     if (!merchantId) return;
-    const reqId = ++merchantStatusReqId.current;
+    const reqId = nextMerchantStatusReqId(merchantId);
     const controller = new AbortController();
     fetch(`/api/customer/merchant-status?id=${merchantId}`, { signal: controller.signal })
       .then(r => r.json())
       .then(d => {
-        if (reqId !== merchantStatusReqId.current) {
-          console.log('[merchantType] merchant-status STALE — discarding from cart/page.tsx', { reqId, latest: merchantStatusReqId.current, merchantId });
+        if (reqId !== merchantStatusReqCounters.get(merchantId)) {
+          console.log('[merchantType] merchant-status STALE — discarding from cart/page.tsx', { reqId, latest: merchantStatusReqCounters.get(merchantId), merchantId });
           return;
         }
         const resolved = d.merchant_type ?? null;
