@@ -69,7 +69,7 @@ export async function createOrderFromPayment(
     ? supabase.from('merchants').select('merchant_type').eq('id', data.merchantId).single()
     : Promise.resolve({ data: null as null });
   const [productsRes, sodaRes, merchantTypeRes] = await Promise.all([
-    supabase.from('vm_products').select('id, selling_price, name, is_promo_item').in('id', itemIds),
+    supabase.from('vm_products').select('id, selling_price, name, is_promo_item, merchant_id').in('id', itemIds),
     supabase.from('admin_settings').select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at, iday_soda_is_active').eq('id', 1).single(),
     merchantTypeFetch,
   ]);
@@ -83,7 +83,7 @@ export async function createOrderFromPayment(
 
   const dbPriceMap: Record<string, number> = Object.fromEntries(dbProducts.map((p: any) => [p.id, p.selling_price]));
   const dbNameMap:  Record<string, string> = Object.fromEntries(dbProducts.map((p: any) => [p.id, p.name]));
-  const promoSet = new Set<string>(dbProducts.filter((p: any) => p.is_promo_item).map((p: any) => p.id));
+  const promoSet = new Set<string>(dbProducts.filter((p: any) => p.is_promo_item && p.merchant_id === data.merchantId).map((p: any) => p.id));
 
   // Soda promo: determine earned qty (fresh date check, allow-list by merchant_type)
   const sodaApplies = (merchantType === 'restaurant' || merchantType === 'bakery') && !!sodaSettings && sodaSettings.iday_soda_is_active !== false;

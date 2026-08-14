@@ -71,7 +71,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const supabase = createClient();
 
   useEffect(() => { setMounted(true); }, []);
-  useSodaPromo(merchant.merchant_type ?? null);
+  useSodaPromo(merchant.merchant_type ?? null, merchant.id);
 
   useEffect(() => {
     logEvent({

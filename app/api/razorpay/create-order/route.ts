@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       ? supabase.from('merchants').select('opening_time, closing_time, is_open, admin_override, merchant_type').eq('id', merchantId).single()
       : Promise.resolve({ data: null as null, error: null });
     const [productsRes, sodaRes, merchantRes] = await Promise.all([
-      supabase.from('vm_products').select('id, selling_price, is_promo_item').in('id', productIds),
+      supabase.from('vm_products').select('id, selling_price, is_promo_item, merchant_id').in('id', productIds),
       supabase.from('admin_settings').select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at, iday_soda_is_active').eq('id', 1).single(),
       merchantFetch,
     ]);
@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
       (products as Array<{ id: string; selling_price: number }>).map(p => [p.id, p.selling_price])
     );
     const promoSet = new Set<string>(
-      (products as Array<{ id: string; is_promo_item?: boolean }>)
-        .filter(p => p.is_promo_item)
+      (products as Array<{ id: string; is_promo_item?: boolean; merchant_id?: string | null }>)
+        .filter(p => p.is_promo_item && p.merchant_id === merchantId)
         .map(p => p.id)
     );
 

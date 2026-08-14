@@ -106,7 +106,7 @@ export default function CartPage() {
     setCustomer(getCustomer());
   }
 
-  useSodaPromo(merchantType);
+  useSodaPromo(merchantType, merchantId);
 
   if (!mounted) return null;
 

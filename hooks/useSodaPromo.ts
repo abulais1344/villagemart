@@ -23,16 +23,17 @@ function promoApplies(merchantType: string | null): boolean {
   return merchantType === 'restaurant' || merchantType === 'bakery';
 }
 
-export function useSodaPromo(merchantType: string | null) {
+export function useSodaPromo(merchantType: string | null, merchantId: string | null) {
   const [config, setConfig] = useState<SodaPromoConfig | null>(null);
   const { items, setPromoItem } = useCartStore();
 
   useEffect(() => {
-    fetch('/api/customer/soda-promo')
+    if (!merchantId) return;
+    fetch(`/api/customer/soda-promo?merchant_id=${merchantId}`)
       .then(r => r.json())
       .then((data: SodaPromoConfig) => setConfig(data))
       .catch(() => {});
-  }, []);
+  }, [merchantId]);
 
   useEffect(() => {
     if (!config) return;
@@ -67,5 +68,5 @@ export function useSodaPromo(merchantType: string | null) {
 
     if (earnedQty === currentQty) return; // already correct — no mutation, no loop
     setPromoItem(earnedQty > 0 ? config.promoProduct : null, earnedQty);
-  }, [items, config, merchantType]);
+  }, [items, config, merchantType, merchantId]);
 }
