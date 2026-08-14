@@ -48,14 +48,16 @@ export default function CartPage() {
 
   useEffect(() => {
     if (!merchantId) return;
-    fetch(`/api/customer/merchant-status?id=${merchantId}`)
+    const controller = new AbortController();
+    fetch(`/api/customer/merchant-status?id=${merchantId}`, { signal: controller.signal })
       .then(r => r.json())
       .then(d => {
         setMerchantName(d.store_name ?? null);
         setMerchantLogoUrl(d.logo_url ?? null);
         setMerchantType(d.merchant_type ?? null);
       })
-      .catch((err) => console.error('Failed to fetch merchant info:', err));
+      .catch(err => { if (err.name !== 'AbortError') console.error('Failed to fetch merchant info:', err); });
+    return () => controller.abort();
   }, [merchantId]);
 
   useEffect(() => {

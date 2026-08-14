@@ -108,7 +108,10 @@ export default function CheckoutPage() {
     setHydrated(true);
   }, []);
 
-  // Step 2: run auth + cart checks only after hydration
+  const merchantId = items[0]?.product.merchant_id ?? null;
+
+  // Step 2: run auth + cart checks only after hydration (fires once; items is read at run
+  // time so the snapshot is correct, but we don't re-run on every item mutation)
   useEffect(() => {
     if (!hydrated) return;
     const c = getCustomer();
@@ -120,7 +123,8 @@ export default function CheckoutPage() {
     }
     setMounted(true);
 
-    // Apply best available offer
+    // Apply best available offer — run once at checkout open; no need to re-run on
+    // every cart mutation (promo adds/removes don't change the eligible subtotal)
     const subtotal = items.reduce((s, { product, quantity }) => s + product.selling_price * quantity, 0);
     fetch('/api/customer/apply-offer', {
       method: 'POST',
@@ -135,30 +139,37 @@ export default function CheckoutPage() {
         }
       })
       .catch(() => {});
+  }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const merchantId = items[0]?.product.merchant_id;
-    if (merchantId) {
-      fetch(`/api/customer/merchant-status?id=${merchantId}`)
-        .then(r => r.json())
-        .then((data: { opening_time?: string; closing_time?: string; is_open?: boolean | null; admin_override?: boolean | null; store_name?: string; logo_url?: string | null; avg_delivery_time?: number | null; parcel_service_enabled?: boolean; parcel_delivery_charge?: number; parcel_order_cutoff_time?: string | null }) => {
-          const isClosed = !isRestaurantOpen(
-            data.opening_time ?? null,
-            data.closing_time ?? null,
-            data.is_open,
-            data.admin_override,
-          );
-          setRestaurantClosed(isClosed);
-          if (isClosed) logEvent({ event_type: 'checkout_blocked', reason: 'restaurant_closed', customer_id: c.id ?? c.phone ?? null, merchant_id: merchantId ?? null });
-          setMerchantName(data.store_name ?? null);
-          setMerchantLogoUrl(data.logo_url ?? null);
-          setMerchantAvgDelivery(data.avg_delivery_time ?? null);
-          setMerchantParcelEnabled(data.parcel_service_enabled ?? false);
-          setMerchantParcelCharge(data.parcel_delivery_charge ?? 150);
-          setMerchantParcelCutoff(data.parcel_order_cutoff_time ?? null);
-        })
-        .catch((err) => console.error('Failed to fetch merchant info:', err));
-    }
-  }, [hydrated, items]);
+  // Step 3: merchant-status fetch — separate effect so it only re-fires when the
+  // merchant actually changes, not on every cart item mutation (was the network flood source)
+  useEffect(() => {
+    if (!merchantId) return;
+    const controller = new AbortController();
+    fetch(`/api/customer/merchant-status?id=${merchantId}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then((data: { opening_time?: string; closing_time?: string; is_open?: boolean | null; admin_override?: boolean | null; store_name?: string; logo_url?: string | null; avg_delivery_time?: number | null; parcel_service_enabled?: boolean; parcel_delivery_charge?: number; parcel_order_cutoff_time?: string | null }) => {
+        const isClosed = !isRestaurantOpen(
+          data.opening_time ?? null,
+          data.closing_time ?? null,
+          data.is_open,
+          data.admin_override,
+        );
+        setRestaurantClosed(isClosed);
+        if (isClosed) {
+          const c = getCustomer();
+          logEvent({ event_type: 'checkout_blocked', reason: 'restaurant_closed', customer_id: c?.id ?? c?.phone ?? null, merchant_id: merchantId });
+        }
+        setMerchantName(data.store_name ?? null);
+        setMerchantLogoUrl(data.logo_url ?? null);
+        setMerchantAvgDelivery(data.avg_delivery_time ?? null);
+        setMerchantParcelEnabled(data.parcel_service_enabled ?? false);
+        setMerchantParcelCharge(data.parcel_delivery_charge ?? 150);
+        setMerchantParcelCutoff(data.parcel_order_cutoff_time ?? null);
+      })
+      .catch(err => { if (err.name !== 'AbortError') console.error('Failed to fetch merchant info:', err); });
+    return () => controller.abort();
+  }, [merchantId]);
 
   // Fetch delivery threshold from DB so we don't hardcode it
   useEffect(() => {
