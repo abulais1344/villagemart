@@ -31,12 +31,27 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
   const [config, setConfig] = useState<SodaPromoConfig | null>(null);
   const { items, setPromoItem } = useCartStore();
 
+  // Derive stable primitives from items so the second effect only re-runs on
+  // meaningful external changes, not on array reference churn from setPromoItem's
+  // own set() call.  After setPromoItem ADD:
+  //   eligibleSubtotal — unchanged (promo is ₹0 and filtered out)
+  //   currentPromoQty  — ticks 0→1, triggers one re-fire, guard passes, done
+  //   hasPromoItem     — ticks false→true, same re-fire
+  // No further dep changes → no further firings.
+  const eligibleSubtotal = items
+    .filter(i => !i.product.is_promo_item)
+    .reduce((s, i) => s + i.product.selling_price * i.quantity, 0);
+  const currentPromoQty = items.find(i => i.product.is_promo_item)?.quantity ?? 0;
+  const hasPromoItem = items.some(i => i.product.is_promo_item);
+
   useEffect(() => {
     if (!merchantId) return;
-    fetch(`/api/customer/soda-promo?merchant_id=${merchantId}`)
+    const controller = new AbortController();
+    fetch(`/api/customer/soda-promo?merchant_id=${merchantId}`, { signal: controller.signal })
       .then(r => r.json())
       .then((data: SodaPromoConfig) => setConfig(data))
       .catch(() => {});
+    return () => controller.abort();
   }, [merchantId]);
 
   useEffect(() => {
@@ -61,38 +76,28 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
     });
 
     if (!applicable) {
-      // Remove promo item if present
-      const hasPromo = items.some(i => i.product.is_promo_item);
-      console.log('[useSodaPromo] not applicable — hasPromo in cart:', hasPromo);
-      if (hasPromo) setPromoItem(null, 0);
+      console.log('[useSodaPromo] not applicable — hasPromo in cart:', hasPromoItem);
+      if (hasPromoItem) setPromoItem(null, 0);
       return;
     }
 
-    // Eligible subtotal: exclude promo items
-    const eligibleSubtotal = items
-      .filter(i => !i.product.is_promo_item)
-      .reduce((s, i) => s + i.product.selling_price * i.quantity, 0);
-
-    // Determine earned qty: highest tier whose threshold is met
+    // Determine earned qty from pre-computed eligible subtotal
     const sortedTiers = [...config.tiers].sort((a, b) => b.threshold - a.threshold);
     let earnedQty = 0;
     for (const tier of sortedTiers) {
       if (eligibleSubtotal >= tier.threshold) { earnedQty = tier.qty; break; }
     }
 
-    const currentPromoItem = items.find(i => i.product.is_promo_item);
-    const currentQty = currentPromoItem?.quantity ?? 0;
-
     console.log('[useSodaPromo] eligible', {
       eligibleSubtotal,
       tiers: config.tiers,
       earnedQty,
-      currentQty,
-      willCallSetPromoItem: earnedQty !== currentQty,
+      currentPromoQty,
+      willCallSetPromoItem: earnedQty !== currentPromoQty,
     });
 
-    if (earnedQty === currentQty) return; // already correct — no mutation, no loop
+    if (earnedQty === currentPromoQty) return; // already correct — no mutation, no loop
     console.log('[useSodaPromo] calling setPromoItem', earnedQty > 0 ? 'ADD' : 'REMOVE', { product: config.promoProduct?.id, qty: earnedQty });
     setPromoItem(earnedQty > 0 ? config.promoProduct : null, earnedQty);
-  }, [items, config, merchantType, merchantId]);
+  }, [eligibleSubtotal, currentPromoQty, hasPromoItem, config, merchantType, merchantId]);
 }
