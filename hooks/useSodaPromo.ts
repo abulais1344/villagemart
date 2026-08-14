@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import type { Product } from '@/types';
 
@@ -54,6 +54,14 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
   const currentPromoQty = items.find(i => i.product.is_promo_item)?.quantity ?? 0;
   const hasPromoItem = items.some(i => i.product.is_promo_item);
 
+  // Sticky eligibility: once full eligibility is confirmed for this merchantId,
+  // a later flicker to null/ineligible merchantType will NOT remove an already-
+  // earned promo.  Reset when merchantId itself changes (genuine new context).
+  const eligibilityConfirmed = useRef<boolean>(false);
+  useEffect(() => {
+    eligibilityConfirmed.current = false;
+  }, [merchantId]);
+
   useEffect(() => {
     if (!merchantId) return;
     const reqId = nextSodaPromoReqId(merchantId);
@@ -91,13 +99,24 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
       windowActive: isPromoWindowActive(config.startsAt, config.endsAt),
       hasPromoProduct: !!config.promoProduct,
       applicable: !!applicable,
+      eligibilityConfirmed: eligibilityConfirmed.current,
     });
 
     if (!applicable) {
-      console.log('[useSodaPromo] not applicable — hasPromo in cart:', hasPromoItem);
-      if (hasPromoItem) setPromoItem(null, 0);
+      if (hasPromoItem && !eligibilityConfirmed.current) {
+        // Eligibility was never confirmed for this merchant — safe to remove.
+        console.log('[useSodaPromo] not applicable, no prior eligibility — removing promo');
+        setPromoItem(null, 0);
+      } else if (hasPromoItem) {
+        // Eligibility was previously confirmed; treat current ineligible signal
+        // as a flicker (stale fetch, race) and keep the earned reward in place.
+        console.log('[useSodaPromo] not applicable but eligibility confirmed — keeping earned promo (flicker guard)');
+      }
       return;
     }
+
+    // Full eligibility confirmed — lock in sticky flag for this merchant.
+    eligibilityConfirmed.current = true;
 
     // Determine earned qty from pre-computed eligible subtotal
     const sortedTiers = [...config.tiers].sort((a, b) => b.threshold - a.threshold);
