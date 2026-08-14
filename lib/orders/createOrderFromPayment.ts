@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendWhatsAppNotification, sendAdminWhatsApp } from '@/lib/whatsapp';
 import { sendAdminOrderEmail } from '@/lib/email';
 import { generateOrderActionToken } from './orderActionToken';
+import { getActiveDeliverySlabs } from '@/lib/utils/getActiveDeliverySlabs';
 import webpush from 'web-push';
 
 const supabase = createClient(
@@ -82,18 +83,14 @@ export async function createOrderFromPayment(
   }
 
   // ── Delivery charge ────────────────────────────────────────────────────────
-  const { data: deliverySlabs } = await supabase
-    .from('delivery_charges')
-    .select('free_delivery_above, charge')
-    .eq('is_active', true)
-    .not('free_delivery_above', 'is', null);
+  const deliverySlabs = await getActiveDeliverySlabs(supabase);
 
   let serverDeliveryCharge = 20;
-  if (deliverySlabs?.length) {
-    const threshold = Math.min(...(deliverySlabs as any[]).map((r: any) => r.free_delivery_above as number));
+  if (deliverySlabs.length) {
+    const threshold = Math.min(...deliverySlabs.map(r => r.free_delivery_above as number));
     serverDeliveryCharge = serverSubtotal >= threshold
       ? 0
-      : ((deliverySlabs as any[]).find((r: any) => r.free_delivery_above === threshold)?.charge ?? 20);
+      : (deliverySlabs.find(r => r.free_delivery_above === threshold)?.charge ?? 20);
   }
 
   // ── Offer / discount ───────────────────────────────────────────────────────

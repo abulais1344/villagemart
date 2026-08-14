@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import Razorpay from 'razorpay';
 import { createClient } from '@supabase/supabase-js';
 import { isRestaurantOpen } from '@/lib/utils/restaurant';
+import { getActiveDeliverySlabs } from '@/lib/utils/getActiveDeliverySlabs';
 
 const MAX_ORDER_AMOUNT = 50_000;
 
@@ -72,19 +73,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Delivery charge from DB
-    const { data: deliverySlabs } = await supabase
-      .from('delivery_charges')
-      .select('free_delivery_above, charge')
-      .eq('is_active', true)
-      .not('free_delivery_above', 'is', null);
+    const deliverySlabs = await getActiveDeliverySlabs(supabase);
 
     let deliveryCharge = 20;
-    if (deliverySlabs?.length) {
-      const threshold = Math.min(...(deliverySlabs as any[]).map(r => r.free_delivery_above as number));
+    if (deliverySlabs.length) {
+      const threshold = Math.min(...deliverySlabs.map(r => r.free_delivery_above as number));
       if (subtotal >= threshold) {
         deliveryCharge = 0;
       } else {
-        const row = (deliverySlabs as any[]).find(r => r.free_delivery_above === threshold);
+        const row = deliverySlabs.find(r => r.free_delivery_above === threshold);
         deliveryCharge = row?.charge ?? 20;
       }
     }
