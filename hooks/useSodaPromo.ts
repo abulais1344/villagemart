@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import type { Product } from '@/types';
 
@@ -44,12 +44,25 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
   const currentPromoQty = items.find(i => i.product.is_promo_item)?.quantity ?? 0;
   const hasPromoItem = items.some(i => i.product.is_promo_item);
 
+  // Monotonic counter: only the response whose id matches the latest request can
+  // set config.  Guards against races that AbortController can miss (a response
+  // already in the .then() microtask queue when abort fires still resolves).
+  const sodaPromoReqId = useRef(0);
+
   useEffect(() => {
     if (!merchantId) return;
+    const reqId = ++sodaPromoReqId.current;
     const controller = new AbortController();
     fetch(`/api/customer/soda-promo?merchant_id=${merchantId}`, { signal: controller.signal })
       .then(r => r.json())
-      .then((data: SodaPromoConfig) => setConfig(data))
+      .then((data: SodaPromoConfig) => {
+        if (reqId !== sodaPromoReqId.current) {
+          console.log('[useSodaPromo] soda-promo fetch STALE — discarding', { reqId, latest: sodaPromoReqId.current, merchantId });
+          return;
+        }
+        console.log('[useSodaPromo] soda-promo config loaded', { reqId, merchantId, isActive: data.isActive, hasPromoProduct: !!data.promoProduct });
+        setConfig(data);
+      })
       .catch(() => {});
     return () => controller.abort();
   }, [merchantId]);

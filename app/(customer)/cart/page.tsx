@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ProductImage } from '@/components/shared/ProductImage';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
@@ -40,6 +40,10 @@ export default function CartPage() {
   const [showCheckoutHint, markCheckoutSeen] = useFirstVisit('checkout_btn');
   const router = useRouter();
   const merchantId = items[0]?.product.merchant_id ?? null;
+  // Monotonic counter: only the response whose id matches the latest request can
+  // call setMerchantType.  Second layer on top of AbortController — a response
+  // already in the .then() microtask queue when abort fires still resolves.
+  const merchantStatusReqId = useRef(0);
 
   useEffect(() => {
     setCustomer(getCustomer());
@@ -48,13 +52,20 @@ export default function CartPage() {
 
   useEffect(() => {
     if (!merchantId) return;
+    const reqId = ++merchantStatusReqId.current;
     const controller = new AbortController();
     fetch(`/api/customer/merchant-status?id=${merchantId}`, { signal: controller.signal })
       .then(r => r.json())
       .then(d => {
+        if (reqId !== merchantStatusReqId.current) {
+          console.log('[merchantType] merchant-status STALE — discarding from cart/page.tsx', { reqId, latest: merchantStatusReqId.current, merchantId });
+          return;
+        }
+        const resolved = d.merchant_type ?? null;
+        console.log('[merchantType] set to', resolved, 'from cart/page.tsx merchant-status fetch', { reqId, merchantId });
         setMerchantName(d.store_name ?? null);
         setMerchantLogoUrl(d.logo_url ?? null);
-        setMerchantType(d.merchant_type ?? null);
+        setMerchantType(resolved);
       })
       .catch(err => { if (err.name !== 'AbortError') console.error('Failed to fetch merchant info:', err); });
     return () => controller.abort();
