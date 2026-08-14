@@ -22,12 +22,18 @@ export async function GET(request: NextRequest) {
           .eq('is_promo_item', true)
           .eq('is_active', true)
           .eq('merchant_id', merchantId)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+          .order('created_at', { ascending: true })
+          .limit(1)
+      : Promise.resolve({ data: [] as any[], error: null }),
   ]);
 
   const s = settingsRes.data;
-  const promoProduct = productRes.data ?? null;
+
+  if (productRes.error) {
+    console.error('[soda-promo] vm_products fetch error:', productRes.error);
+    return NextResponse.json({ error: 'Failed to fetch promo product' }, { status: 500 });
+  }
+  const promoProduct = ((productRes.data ?? []) as any[])[0] ?? null;
 
   const now = new Date().toISOString();
   const isActive = s?.iday_soda_is_active !== false;
