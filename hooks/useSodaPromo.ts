@@ -82,6 +82,7 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
     // a correctly-added promo item based on stale null state.
     if (merchantType === undefined) return;
 
+    const confirmed = !!(merchantId && eligibilityConfirmedMap.get(merchantId));
     const applicable =
       config.isActive &&
       isPromoWindowActive(config.startsAt, config.endsAt) &&
@@ -95,24 +96,23 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
       windowActive: isPromoWindowActive(config.startsAt, config.endsAt),
       hasPromoProduct: !!config.promoProduct,
       applicable: !!applicable,
-      eligibilityConfirmed: !!(merchantId && eligibilityConfirmedMap.get(merchantId)),
+      eligibilityConfirmed: confirmed,
     });
 
-    if (!applicable) {
-      if (hasPromoItem && !(merchantId && eligibilityConfirmedMap.get(merchantId))) {
-        // Eligibility was never confirmed for this merchant — safe to remove.
+    if (!confirmed && !applicable) {
+      // Never confirmed eligible for this merchant and currently ineligible —
+      // remove any stale promo and stop.
+      if (hasPromoItem) {
         console.log('[useSodaPromo] not applicable, no prior eligibility — removing promo');
         setPromoItem(null, 0);
-      } else if (hasPromoItem) {
-        // Eligibility was previously confirmed; treat current ineligible signal
-        // as a flicker (stale fetch, race) and keep the earned reward in place.
-        console.log('[useSodaPromo] not applicable but eligibility confirmed — keeping earned promo (flicker guard)');
       }
       return;
     }
 
-    // Full eligibility confirmed — lock in module-scoped sticky flag for this merchant.
-    if (merchantId) eligibilityConfirmedMap.set(merchantId, true);
+    // Reach here when confirmed=true (bypass live promoApplies check — flicker cannot
+    // gate tier logic) OR when applicable=true for the first time (lock in the flag).
+    // Either way, tier logic always runs so qty adjustments stay in sync with the cart.
+    if (merchantId && applicable) eligibilityConfirmedMap.set(merchantId, true);
 
     // Determine earned qty from pre-computed eligible subtotal
     const sortedTiers = [...config.tiers].sort((a, b) => b.threshold - a.threshold);
