@@ -60,6 +60,7 @@ export const useCartStore = create<CartState>()(
       clearCart: () => set({ items: [] }),
 
       setPromoItem: (product, qty) => {
+        console.log('[setPromoItem] called', { productId: product?.id ?? null, productMerchantId: product?.merchant_id ?? null, qty });
         set((state) => {
           const withoutPromo = state.items.filter(i => !i.product.is_promo_item);
           if (!product || qty <= 0) return { items: withoutPromo };

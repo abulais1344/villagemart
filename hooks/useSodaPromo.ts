@@ -51,9 +51,19 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
       config.promoProduct &&
       promoApplies(merchantType);
 
+    console.log('[useSodaPromo] effect fired', {
+      merchantType,
+      promoApplies: promoApplies(merchantType),
+      isActive: config.isActive,
+      windowActive: isPromoWindowActive(config.startsAt, config.endsAt),
+      hasPromoProduct: !!config.promoProduct,
+      applicable: !!applicable,
+    });
+
     if (!applicable) {
       // Remove promo item if present
       const hasPromo = items.some(i => i.product.is_promo_item);
+      console.log('[useSodaPromo] not applicable — hasPromo in cart:', hasPromo);
       if (hasPromo) setPromoItem(null, 0);
       return;
     }
@@ -73,7 +83,16 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
     const currentPromoItem = items.find(i => i.product.is_promo_item);
     const currentQty = currentPromoItem?.quantity ?? 0;
 
+    console.log('[useSodaPromo] eligible', {
+      eligibleSubtotal,
+      tiers: config.tiers,
+      earnedQty,
+      currentQty,
+      willCallSetPromoItem: earnedQty !== currentQty,
+    });
+
     if (earnedQty === currentQty) return; // already correct — no mutation, no loop
+    console.log('[useSodaPromo] calling setPromoItem', earnedQty > 0 ? 'ADD' : 'REMOVE', { product: config.promoProduct?.id, qty: earnedQty });
     setPromoItem(earnedQty > 0 ? config.promoProduct : null, earnedQty);
   }, [items, config, merchantType, merchantId]);
 }
