@@ -14,6 +14,7 @@ import { PulseHint } from './PulseHint';
 import { useFirstVisit } from '@/hooks/useFirstVisit';
 import { isRestaurantOpen } from '@/lib/utils/restaurant';
 import { PWAInstallBanner } from './PWAInstallBanner';
+import { IndependenceDayBanner } from './IndependenceDayBanner';
 
 interface HomePageClientProps {
   categories: Category[];
@@ -206,6 +207,7 @@ export function HomePageClient({
       </div>
 
       <PWAInstallBanner />
+      <IndependenceDayBanner />
 
       <main className="px-4 py-3 pb-24 space-y-3">
 

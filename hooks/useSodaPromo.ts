@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import type { Product } from '@/types';
+import { isPromoWindowActive } from '@/lib/utils/promoWindow';
 
 interface SodaTier { threshold: number; qty: number; }
 
@@ -10,13 +11,6 @@ interface SodaPromoConfig {
   isActive: boolean;
   startsAt: string | null;
   endsAt: string | null;
-}
-
-function isPromoWindowActive(startsAt: string | null, endsAt: string | null): boolean {
-  const now = new Date().toISOString();
-  if (startsAt && startsAt > now) return false;
-  if (endsAt && endsAt < now) return false;
-  return true;
 }
 
 function promoApplies(merchantType: string | null): boolean {
