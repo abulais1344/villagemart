@@ -10,7 +10,7 @@ import { getCustomer, type Customer, type AddressData } from '@/lib/customer';
 import { formatCurrency, formatTime12hr } from '@/lib/utils/format';
 import { deliveryRange } from '@/lib/utils/delivery';
 import { SUPPORT_WHATSAPP_URL } from '@/lib/constants';
-import { isWithinDeliveryZone } from '@/lib/delivery-zone';
+import { isWithinDeliveryZone, getDistanceKm, ARDHAPUR_CENTER, DELIVERY_RADIUS_KM } from '@/lib/delivery-zone';
 import { isRestaurantOpen } from '@/lib/utils/restaurant';
 import { AddressManager } from '@/components/customer/AddressManager';
 import ConfirmingPaymentOverlay from '@/components/ConfirmingPaymentOverlay';
@@ -632,7 +632,20 @@ export default function CheckoutPage() {
             <div className="p-4">
               <button
                 onClick={zoneOk === true ? handlePayment : () => {
-                  logEvent({ event_type: 'checkout_blocked', reason: 'zone_invalid', customer_id: customer?.id ?? customer?.phone ?? null });
+                  logEvent({
+                    event_type: 'checkout_blocked',
+                    reason: 'zone_invalid',
+                    customer_id: customer?.id ?? customer?.phone ?? null,
+                    merchant_id: merchantId,
+                    metadata: {
+                      lat: customer?.lat ?? null,
+                      lng: customer?.lng ?? null,
+                      distance_km: (typeof customer?.lat === 'number' && typeof customer?.lng === 'number')
+                        ? Math.round(getDistanceKm(ARDHAPUR_CENTER.lat, ARDHAPUR_CENTER.lng, customer.lat, customer.lng) * 100) / 100
+                        : null,
+                      radius_km: DELIVERY_RADIUS_KM,
+                    },
+                  });
                   setShowAddressManager(true);
                 }}
                 disabled={loading || restaurantClosed || total === null || (needsLandmark && !landmarkDraft.trim())}
