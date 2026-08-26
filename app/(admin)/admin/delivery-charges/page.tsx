@@ -26,6 +26,15 @@ function isSodaWindowNowActive(startsAt: string, endsAt: string): boolean {
 
 const emptyForm = { min_km: '0', max_km: '2', charge: '20', free_delivery_above: '', starts_at: '', ends_at: '' };
 
+const MERCHANT_TYPE_OPTIONS = [
+  { value: 'vegetables', label: '🥦 Vegetables' },
+  { value: 'restaurant', label: '🍽️ Restaurant' },
+  { value: 'bakery',     label: '🥐 Bakery' },
+  { value: 'medical',    label: '💊 Medical' },
+];
+
+const emptyCategoryForm = { merchant_type: 'vegetables', charge: '10', starts_at: '', ends_at: '' };
+
 const emptySoda = { iday_soda_threshold_1: '120', iday_soda_qty_1: '1', iday_soda_threshold_2: '240', iday_soda_qty_2: '2', iday_soda_starts_at: '', iday_soda_ends_at: '' };
 
 export default function AdminDeliveryChargesPage() {
@@ -34,6 +43,10 @@ export default function AdminDeliveryChargesPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm);
+
+  // Category flat-charge state
+  const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
+  const [categorySaving, setCategorySaving] = useState(false);
 
   const [soda, setSoda] = useState(emptySoda);
   const [sodaIsActive, setSodaIsActive] = useState(true);
@@ -88,6 +101,29 @@ export default function AdminDeliveryChargesPage() {
     toast.success('Delivery slab added');
     setShowForm(false);
     setForm(emptyForm);
+    load();
+  };
+
+  const handleCategorySave = async () => {
+    setCategorySaving(true);
+    const res = await fetch('/api/admin/delivery-charges', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        merchant_type: categoryForm.merchant_type,
+        charge: parseFloat(categoryForm.charge),
+        starts_at: dateToStartISO(categoryForm.starts_at),
+        ends_at:   dateToEndISO(categoryForm.ends_at),
+      }),
+    });
+    setCategorySaving(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      toast.error(`Failed to add category charge: ${body.error ?? res.statusText}`);
+      return;
+    }
+    toast.success('Category flat charge added');
+    setCategoryForm(emptyCategoryForm);
     load();
   };
 
@@ -146,7 +182,7 @@ export default function AdminDeliveryChargesPage() {
           <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
         ) : (
           <div className="space-y-2">
-            {slabs.map(s => (
+            {slabs.filter(s => !(s as any).merchant_type).map(s => (
               <div key={s.id} className={`bg-white rounded-2xl border p-4 ${s.is_active ? 'border-[#E5E7EB]' : 'border-dashed border-gray-300 opacity-60'}`}>
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-sm font-semibold text-[#1A1A1A]">{s.min_km}–{s.max_km} km</p>
@@ -170,6 +206,79 @@ export default function AdminDeliveryChargesPage() {
             ))}
           </div>
         )}
+
+        {/* ── Category flat charges ── */}
+        <div className="pt-2 border-t border-gray-100">
+          <p className="text-sm font-semibold text-[#1A1A1A] mb-3">📦 Category Flat Charges</p>
+          <div className="bg-amber-50 rounded-2xl p-3 mb-3">
+            <p className="text-xs text-amber-700">A flat charge for a merchant type overrides all distance slabs for orders from that category. Set a date range to trial it for a few days — it auto-expires when the window closes.</p>
+          </div>
+
+          {/* Existing category rows */}
+          {!loading && (slabs as any[]).filter(s => s.merchant_type).map(s => (
+            <div key={s.id} className={`bg-white rounded-2xl border p-4 mb-2 ${s.is_active ? 'border-amber-200' : 'border-dashed border-gray-300 opacity-60'}`}>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-sm font-semibold text-[#1A1A1A]">
+                  {MERCHANT_TYPE_OPTIONS.find(o => o.value === s.merchant_type)?.label ?? s.merchant_type}
+                </p>
+                <div className="flex gap-2 items-center">
+                  <button onClick={() => toggleSlab(s)} className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.is_active ? 'bg-green-100 text-success' : 'bg-gray-100 text-[#6B7280]'}`}>
+                    {s.is_active ? 'Active' : 'Off'}
+                  </button>
+                  <button onClick={() => deleteSlab(s.id)} className="text-error"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </div>
+              <p className="text-xl font-bold text-amber-600">{formatCurrency(s.charge)} flat</p>
+              {(s.starts_at || s.ends_at) && (
+                <p className="text-xs text-gray-400 mt-1">
+                  {s.starts_at ? isoToDate(s.starts_at) : '—'} → {s.ends_at ? isoToDate(s.ends_at) : '∞'}
+                </p>
+              )}
+            </div>
+          ))}
+
+          {/* Add category charge form */}
+          <div className="bg-white rounded-2xl border border-amber-100 p-4 space-y-3">
+            <p className="text-xs font-medium text-[#6B7280]">Add category flat charge</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-[#6B7280] mb-1">Category</label>
+                <select
+                  value={categoryForm.merchant_type}
+                  onChange={e => setCategoryForm(f => ({ ...f, merchant_type: e.target.value }))}
+                  className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]"
+                >
+                  {MERCHANT_TYPE_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <Input
+                label="Flat Charge (₹)"
+                type="number"
+                step="0.01"
+                value={categoryForm.charge}
+                onChange={e => setCategoryForm(f => ({ ...f, charge: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-[#6B7280] mb-1">Starts At</label>
+                <input type="date" value={categoryForm.starts_at}
+                  onChange={e => setCategoryForm(f => ({ ...f, starts_at: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#6B7280] mb-1">Ends At</label>
+                <input type="date" value={categoryForm.ends_at}
+                  onChange={e => setCategoryForm(f => ({ ...f, ends_at: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl border border-[#E5E7EB] text-sm focus:outline-none focus:ring-2 focus:ring-[#7C3AED]" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-400">Leave dates blank for a permanently active override.</p>
+            <Button fullWidth loading={categorySaving} onClick={handleCategorySave}>Add Category Charge</Button>
+          </div>
+        </div>
 
         {/* ── Jeera Soda reward tiers ── */}
         <div className="pt-2 border-t border-gray-100">

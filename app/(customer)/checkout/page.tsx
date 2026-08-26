@@ -61,6 +61,7 @@ export default function CheckoutPage() {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
   const [deliveryChargeAmount, setDeliveryChargeAmount] = useState<number>(20);
+  const [deliveryChargeLoaded, setDeliveryChargeLoaded] = useState(false);
   const paymentSucceeded = useRef(false);
   const parcelSucceeded = useRef(false);
 
@@ -171,24 +172,30 @@ export default function CheckoutPage() {
     return () => controller.abort();
   }, [merchantId]);
 
-  // Fetch delivery threshold from DB so we don't hardcode it
+  // Fetch delivery charge from DB — passes merchantId so category-specific flat charges apply
   useEffect(() => {
-    fetch('/api/customer/delivery-info')
+    const url = merchantId
+      ? `/api/customer/delivery-info?merchantId=${merchantId}`
+      : '/api/customer/delivery-info';
+    fetch(url)
       .then(r => r.json())
       .then(d => {
         if (typeof d.free_delivery_threshold === 'number') setFreeDeliveryThreshold(d.free_delivery_threshold);
         if (typeof d.delivery_charge_amount === 'number') setDeliveryChargeAmount(d.delivery_charge_amount);
+        setDeliveryChargeLoaded(true);
       })
       .catch(() => {});
-  }, []);
+  }, [merchantId]);
 
   const activeAddrIdx = customer?.active_address_index ?? 0;
   const activeAddr = customer?.addresses?.[activeAddrIdx];
   const needsLandmark = !!customer && !activeAddr?.landmark?.trim();
 
   const subtotal = getSubtotal();
-  const deliveryCharge: number | null = freeDeliveryThreshold !== null
-    ? (subtotal >= freeDeliveryThreshold ? 0 : deliveryChargeAmount)
+  // deliveryChargeLoaded distinguishes "not yet fetched" (show spinner) from "loaded but no threshold"
+  // (flat charge — apply deliveryChargeAmount unconditionally).
+  const deliveryCharge: number | null = deliveryChargeLoaded
+    ? (freeDeliveryThreshold !== null && subtotal >= freeDeliveryThreshold ? 0 : deliveryChargeAmount)
     : null;
   const total: number | null = deliveryCharge !== null ? subtotal + deliveryCharge - discountAmount : null;
 

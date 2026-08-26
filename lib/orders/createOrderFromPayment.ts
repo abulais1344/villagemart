@@ -122,14 +122,20 @@ export async function createOrderFromPayment(
   }
 
   // ── Delivery charge ────────────────────────────────────────────────────────
-  const deliverySlabs = await getActiveDeliverySlabs(supabase);
+  const deliverySlabs = await getActiveDeliverySlabs(supabase, merchantType ?? null);
 
   let serverDeliveryCharge = 20;
   if (deliverySlabs.length) {
-    const threshold = Math.min(...deliverySlabs.map(r => r.free_delivery_above as number));
-    serverDeliveryCharge = serverSubtotal >= threshold
-      ? 0
-      : (deliverySlabs.find(r => r.free_delivery_above === threshold)?.charge ?? 20);
+    const flatSlab = deliverySlabs.find(r => r.free_delivery_above === null);
+    if (flatSlab) {
+      // Category-specific flat charge — applies unconditionally regardless of subtotal
+      serverDeliveryCharge = flatSlab.charge;
+    } else {
+      const threshold = Math.min(...deliverySlabs.map(r => r.free_delivery_above as number));
+      serverDeliveryCharge = serverSubtotal >= threshold
+        ? 0
+        : (deliverySlabs.find(r => r.free_delivery_above === threshold)?.charge ?? 20);
+    }
   }
 
   // ── Offer / discount ───────────────────────────────────────────────────────
