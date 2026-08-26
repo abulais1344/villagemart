@@ -73,19 +73,23 @@ export async function POST(request: NextRequest) {
           .update({ status: 'failed' })
           .eq('razorpay_payment_id', razorpay_payment_id);
 
-        // Only downgrade to cancelled if the order is still pending (no merchant/admin action yet).
-        // A stale or retried webhook for a failed attempt must never overwrite a later status.
+        // Only downgrade to cancelled if the order is still pending AND payment not already
+        // confirmed as paid. Guards two independent race conditions:
+        //   1. order.status: a merchant/admin action already moved the order forward
+        //   2. payment_status: a payment.captured webhook already marked this order paid —
+        //      a late-arriving payment.failed (for a duplicate/abandoned attempt on the same
+        //      Razorpay order) must never overwrite a correctly-set 'paid' status.
         const { data: order } = await supabase
           .from('orders')
-          .select('id, status')
+          .select('id, status, payment_status')
           .eq('razorpay_order_id', razorpay_order_id)
           .single();
 
         if (!order) break;
 
-        if (order.status !== 'pending') {
+        if (order.status !== 'pending' || order.payment_status === 'paid') {
           console.warn(
-            `[webhook] payment.failed for ${razorpay_payment_id} ignored — order ${order.id} already has status '${order.status}'`,
+            `[webhook] payment.failed for ${razorpay_payment_id} ignored — order ${order.id} has status '${order.status}', payment_status '${order.payment_status}'`,
           );
           break;
         }
