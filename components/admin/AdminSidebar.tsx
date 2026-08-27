@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, Store, Package, ClipboardList,
-  Tag, Percent, Truck, BarChart2, Gift, LogOut, Bike, Archive, Activity, Bell, TrendingUp, ShieldCheck
+  Tag, Percent, Truck, BarChart2, Gift, LogOut, Bike, Archive, Activity, Bell, TrendingUp, ShieldCheck, Star
 } from 'lucide-react';
 
 const NAV = [
@@ -15,6 +15,7 @@ const NAV = [
   { href: '/admin/users', icon: Users, label: 'Users' },
   { href: '/admin/merchants', icon: Store, label: 'Merchants' },
   { href: '/admin/riders', icon: Bike, label: 'Riders' },
+  { href: '/admin/ratings', icon: Star, label: 'Ratings' },
   { href: '/admin/categories', icon: Tag, label: 'Categories' },
   { href: '/admin/offers', icon: Gift, label: 'Offers' },
   { href: '/admin/commissions', icon: Percent, label: 'Commissions' },
