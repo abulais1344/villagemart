@@ -379,7 +379,7 @@ export default function OrdersPage() {
   // Firebase Phone Auth). When the rider marks delivered, the next fetch resolves
   // with status='delivered', setOrders fires, and the location poll stops.
   const hasActiveDeliveryRef = useRef(false);
-  hasActiveDeliveryRef.current = orders.some(o => o.status === 'out_for_delivery');
+  hasActiveDeliveryRef.current = orders.some(o => !['delivered', 'cancelled'].includes(o.status));
 
   useEffect(() => {
     const interval = setInterval(() => {
