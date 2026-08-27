@@ -255,6 +255,15 @@ function RiderCard({ name, phone, vehicleType, status, merchantName }: RiderDeta
   const vehicleLabel = vehicleType
     ? vehicleType.charAt(0).toUpperCase() + vehicleType.slice(1)
     : 'Vehicle';
+
+  if (status === 'delivered') {
+    return (
+      <div className="bg-gray-50 rounded-xl px-3 py-2.5">
+        <p className="text-xs text-[#6B7280]">Delivered by {name} · {emoji} {vehicleLabel}</p>
+      </div>
+    );
+  }
+
   const message = status === 'out_for_delivery'
     ? `${name} has picked up your order and is on the way!`
     : `${name} will pick up your order from ${merchantName ?? 'the store'} soon`;
@@ -571,8 +580,8 @@ export default function OrdersPage() {
                     <OrderTimeline status={order.status} />
                   </div>
 
-                  {/* Rider card — shown whenever a rider is assigned */}
-                  {order.rider_id && riderDetails.has(order.id) && (
+                  {/* Rider card — hidden on cancelled; neutral attribution on delivered */}
+                  {order.rider_id && riderDetails.has(order.id) && order.status !== 'cancelled' && (
                     <RiderCard
                       {...riderDetails.get(order.id)!}
                       status={order.status}
