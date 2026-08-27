@@ -238,6 +238,46 @@ function OrderTimeline({ status }: { status: string }) {
   );
 }
 
+// ── rider card ─────────────────────────────────────────────────────────────
+const VEHICLE_EMOJI: Record<string, string> = {
+  bike:    '🏍️',
+  bicycle: '🚲',
+  auto:    '🛺',
+  car:     '🚗',
+  van:     '🚐',
+  truck:   '🚚',
+};
+
+interface RiderDetail { name: string; phone: string; vehicleType: string; }
+
+function RiderCard({ name, phone, vehicleType, status, merchantName }: RiderDetail & { status: string; merchantName: string | null }) {
+  const emoji = VEHICLE_EMOJI[vehicleType?.toLowerCase()] ?? '🛵';
+  const vehicleLabel = vehicleType
+    ? vehicleType.charAt(0).toUpperCase() + vehicleType.slice(1)
+    : 'Vehicle';
+  const message = status === 'out_for_delivery'
+    ? `${name} has picked up your order and is on the way!`
+    : `${name} will pick up your order from ${merchantName ?? 'the store'} soon`;
+
+  return (
+    <div className="bg-indigo-50 rounded-xl px-3 py-3">
+      <p className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wide">Your Rider</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-[#1A1A1A]">{name} · {emoji} {vehicleLabel}</p>
+          <p className="text-xs text-indigo-700 mt-0.5 leading-snug">{message}</p>
+        </div>
+        <a
+          href={`tel:${phone}`}
+          className="shrink-0 flex items-center gap-1 text-xs font-semibold text-white bg-green-600 rounded-lg px-3 py-2"
+        >
+          📞 Call
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // ── helpers ────────────────────────────────────────────────────────────────
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-IN', {
@@ -259,7 +299,9 @@ export default function OrdersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [ratings, setRatings] = useState<Map<string, RatingEntry>>(new Map());
+  const [riderDetails, setRiderDetails] = useState<Map<string, RiderDetail>>(new Map());
   const phoneRef = useRef<string | null>(null);
+  const fetchedRiderDetailIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const raw = localStorage.getItem('vm_customer');
@@ -354,6 +396,32 @@ export default function OrdersPage() {
       clearInterval(interval);
     };
   }, [expandedId, expandedStatus, expandedRiderId]);
+
+  // Fetch rider name/phone/vehicle once per order when a rider is assigned
+  useEffect(() => {
+    if (!expandedId || !expandedRiderId) return;
+    if (fetchedRiderDetailIds.current.has(expandedId)) return;
+    fetchedRiderDetailIds.current.add(expandedId);
+
+    async function fetchRiderDetail() {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      if (!idToken) return;
+      const res = await fetch('/api/customer/rider-detail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: expandedId, idToken }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setRiderDetails(prev => new Map(prev).set(expandedId!, {
+        name: data.name,
+        phone: data.phone,
+        vehicleType: data.vehicleType,
+      }));
+    }
+
+    fetchRiderDetail();
+  }, [expandedId, expandedRiderId]);
 
   function goToLogin() {
     localStorage.setItem('login_redirect', '/orders');
@@ -502,6 +570,15 @@ export default function OrdersPage() {
                     <p className="text-xs font-semibold text-[#6B7280] mb-2.5 uppercase tracking-wide">Track Order</p>
                     <OrderTimeline status={order.status} />
                   </div>
+
+                  {/* Rider card — shown whenever a rider is assigned */}
+                  {order.rider_id && riderDetails.has(order.id) && (
+                    <RiderCard
+                      {...riderDetails.get(order.id)!}
+                      status={order.status}
+                      merchantName={order.merchant_name}
+                    />
+                  )}
 
                   {/* Live rider map — only while out_for_delivery */}
                   {order.status === 'out_for_delivery' && (
