@@ -174,26 +174,61 @@ function StatusBadge({ status }: { status: string }) {
 
 // ── order timeline ─────────────────────────────────────────────────────────
 const TIMELINE_STEPS = [
-  { key: 'pending',          label: 'Placed'         },
-  { key: 'confirmed',        label: 'Confirmed'      },
-  { key: 'preparing',        label: 'Preparing'      },
-  { key: 'out_for_delivery', label: 'On the Way'     },
-  { key: 'delivered',        label: 'Delivered'      },
+  { key: 'pending',          label: 'Placed'      },
+  { key: 'confirmed',        label: 'Confirmed'   },
+  { key: 'preparing',        label: 'Preparing'   },
+  { key: 'out_for_delivery', label: 'On the Way'  },
 ];
 
-const STEP_ORDER = TIMELINE_STEPS.map(s => s.key);
+// Sentinel 4: all 4 steps show as fully done, no active dot (delivered state).
+// Unknown/future statuses fall back to 0 (Placed active) — never goes blank.
+const STATUS_TO_STEP: Record<string, number> = {
+  pending:          0,
+  confirmed:        1,
+  preparing:        2,
+  ready:            2,
+  out_for_delivery: 3,
+  delivered:        4,
+};
 
 function OrderTimeline({ status }: { status: string }) {
+  // Cancelled: muted skeleton of the 4 steps + red label below.
+  // We don't store which step the order reached before cancellation,
+  // so we can't honestly light up partial progress.
   if (status === 'cancelled') {
     return (
-      <div className="flex items-center gap-2 py-2">
-        <XCircle className="w-4 h-4 text-red-500 shrink-0" />
-        <span className="text-sm font-medium text-red-500">Order Cancelled</span>
+      <div className="space-y-2">
+        <div className="overflow-x-auto -mx-1 px-1 opacity-30">
+          <div className="flex items-start min-w-max gap-0">
+            {TIMELINE_STEPS.map((step, i) => {
+              const isLast = i === TIMELINE_STEPS.length - 1;
+              return (
+                <div key={step.key} className="flex items-start">
+                  <div className="flex flex-col items-center" style={{ minWidth: 60 }}>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 border-gray-300 bg-white">
+                      <div className="w-2 h-2 rounded-full bg-gray-300" />
+                    </div>
+                    <p className="text-[10px] mt-1 text-center leading-tight font-medium w-14 text-gray-400">
+                      {step.label}
+                    </p>
+                  </div>
+                  {!isLast && (
+                    <div className="h-0.5 w-8 mt-3 mx-0.5 rounded-full bg-gray-100" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+          <span className="text-xs font-medium text-red-500">Order Cancelled</span>
+        </div>
       </div>
     );
   }
 
-  const currentIdx = STEP_ORDER.indexOf(status);
+  const currentIdx = STATUS_TO_STEP[status] ?? 0;
 
   return (
     <div className="overflow-x-auto -mx-1 px-1">
