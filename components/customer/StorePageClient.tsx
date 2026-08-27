@@ -137,8 +137,8 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     const seen = new Set<string>();
     const cats: string[] = [];
     for (const p of filteredForObs) {
-      const cat = p.description?.trim();
-      if (cat && !seen.has(cat)) { seen.add(cat); cats.push(cat); }
+      const cat = p.description?.trim() || 'Other';
+      if (!seen.has(cat)) { seen.add(cat); cats.push(cat); }
     }
 
     if (cats.length > 0) setActiveCategory(prev => prev || cats[0]);
@@ -223,8 +223,8 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
   const categories: string[] = [];
   const seenCats = new Set<string>();
   for (const p of filtered) {
-    const cat = p.description?.trim();
-    if (cat && !seenCats.has(cat)) { seenCats.add(cat); categories.push(cat); }
+    const cat = p.description?.trim() || 'Other';
+    if (!seenCats.has(cat)) { seenCats.add(cat); categories.push(cat); }
   }
   // 'Sanitary Pads' always sorts last
   if (categories.includes('Sanitary Pads')) {
@@ -234,7 +234,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
 
   const grouped = new Map<string, Product[]>();
   for (const p of filtered) {
-    const cat = p.description?.trim() ?? 'Other';
+    const cat = p.description?.trim() || 'Other';
     if (!grouped.has(cat)) grouped.set(cat, []);
     grouped.get(cat)!.push(p);
   }
