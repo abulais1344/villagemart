@@ -11,6 +11,111 @@ import { formatCurrency } from '@/lib/utils/format';
 import { firebaseAuth } from '@/lib/firebase/client';
 import { RiderLiveMap } from '@/components/customer/RiderLiveMap';
 
+// ── rating widget ──────────────────────────────────────────────────────────
+interface RatingEntry { rating: number; comment: string | null; }
+
+function StarButton({ filled, onHover, onClick }: { filled: boolean; onHover: () => void; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onMouseEnter={onHover}
+      onTouchStart={onHover}
+      onClick={onClick}
+      className="text-2xl leading-none transition-transform active:scale-110"
+      aria-label={filled ? 'Filled star' : 'Empty star'}
+    >
+      <span className={filled ? 'text-amber-400' : 'text-gray-200'}>★</span>
+    </button>
+  );
+}
+
+function OrderRatingWidget({
+  orderId,
+  onRated,
+}: {
+  orderId: string;
+  onRated: (rating: number, comment: string | null) => void;
+}) {
+  const [hover, setHover] = useState(0);
+  const [selected, setSelected] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    if (selected === 0) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      if (!idToken) { setError('Please log in again to rate.'); return; }
+      const res = await fetch('/api/customer/ratings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, rating: selected, comment: comment.trim() || null, idToken }),
+      });
+      if (res.status === 409) { onRated(selected, comment.trim() || null); return; } // already rated
+      if (!res.ok) { setError('Could not save rating. Try again.'); return; }
+      onRated(selected, comment.trim() || null);
+    } catch {
+      setError('Network error. Try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const active = hover || selected;
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wide">How was your order?</p>
+      <div
+        className="flex gap-1 mb-2"
+        onMouseLeave={() => setHover(0)}
+      >
+        {[1, 2, 3, 4, 5].map(n => (
+          <StarButton
+            key={n}
+            filled={n <= active}
+            onHover={() => setHover(n)}
+            onClick={() => { setSelected(n); setHover(0); }}
+          />
+        ))}
+      </div>
+      {selected > 0 && (
+        <>
+          <input
+            type="text"
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            placeholder="Add a comment (optional)"
+            maxLength={200}
+            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-purple-400 mb-2"
+          />
+          <button
+            onClick={submit}
+            disabled={submitting}
+            className="text-sm font-semibold text-white bg-purple-600 rounded-lg px-4 py-1.5 disabled:opacity-60"
+          >
+            {submitting ? 'Sending…' : 'Submit'}
+          </button>
+        </>
+      )}
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function RatingConfirmation({ entry }: { entry: RatingEntry }) {
+  const stars = '★'.repeat(entry.rating) + '☆'.repeat(5 - entry.rating);
+  return (
+    <div>
+      <p className="text-xs font-semibold text-[#6B7280] mb-1 uppercase tracking-wide">Your Rating</p>
+      <p className="text-sm text-gray-700">Thanks for your feedback <span className="text-amber-400">{stars}</span></p>
+    </div>
+  );
+}
+
 // ── types ──────────────────────────────────────────────────────────────────
 interface Snapshot {
   name?: string;
@@ -133,6 +238,46 @@ function OrderTimeline({ status }: { status: string }) {
   );
 }
 
+// ── rider card ─────────────────────────────────────────────────────────────
+const VEHICLE_EMOJI: Record<string, string> = {
+  bike:    '🏍️',
+  bicycle: '🚲',
+  auto:    '🛺',
+  car:     '🚗',
+  van:     '🚐',
+  truck:   '🚚',
+};
+
+interface RiderDetail { name: string; phone: string; vehicleType: string; }
+
+function RiderCard({ name, phone, vehicleType, status, merchantName }: RiderDetail & { status: string; merchantName: string | null }) {
+  const emoji = VEHICLE_EMOJI[vehicleType?.toLowerCase()] ?? '🛵';
+  const vehicleLabel = vehicleType
+    ? vehicleType.charAt(0).toUpperCase() + vehicleType.slice(1)
+    : 'Vehicle';
+  const message = status === 'out_for_delivery'
+    ? `${name} has picked up your order and is on the way!`
+    : `${name} will pick up your order from ${merchantName ?? 'the store'} soon`;
+
+  return (
+    <div className="bg-indigo-50 rounded-xl px-3 py-3">
+      <p className="text-xs font-semibold text-[#6B7280] mb-2 uppercase tracking-wide">Your Rider</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-[#1A1A1A]">{name} · {emoji} {vehicleLabel}</p>
+          <p className="text-xs text-indigo-700 mt-0.5 leading-snug">{message}</p>
+        </div>
+        <a
+          href={`tel:${phone}`}
+          className="shrink-0 flex items-center gap-1 text-xs font-semibold text-white bg-green-600 rounded-lg px-3 py-2"
+        >
+          📞 Call
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // ── helpers ────────────────────────────────────────────────────────────────
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('en-IN', {
@@ -153,7 +298,10 @@ export default function OrdersPage() {
   const [phone, setPhone] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [ratings, setRatings] = useState<Map<string, RatingEntry>>(new Map());
+  const [riderDetails, setRiderDetails] = useState<Map<string, RiderDetail>>(new Map());
   const phoneRef = useRef<string | null>(null);
+  const fetchedRiderDetailIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const raw = localStorage.getItem('vm_customer');
@@ -161,9 +309,25 @@ export default function OrdersPage() {
     const customer = JSON.parse(raw);
     setPhone(customer.phone ?? null);
     phoneRef.current = customer.phone ?? null;
-    if (customer.phone) fetchOrders(customer.phone);
-    else setLoading(false);
+    if (customer.phone) {
+      fetchOrders(customer.phone);
+      fetchRatings(customer.phone);
+    } else {
+      setLoading(false);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function fetchRatings(customerPhone: string) {
+    try {
+      const res = await fetch(`/api/customer/ratings?phone=${customerPhone}`);
+      const data = await res.json();
+      const map = new Map<string, RatingEntry>();
+      for (const r of data.ratings ?? []) {
+        map.set(r.order_id, { rating: r.rating, comment: r.comment ?? null });
+      }
+      setRatings(map);
+    } catch {}
+  }
 
   // Re-fetch orders every 15 s while any order is actively out_for_delivery.
   // This is the order-status live-update mechanism: no Supabase Realtime needed
@@ -232,6 +396,32 @@ export default function OrdersPage() {
       clearInterval(interval);
     };
   }, [expandedId, expandedStatus, expandedRiderId]);
+
+  // Fetch rider name/phone/vehicle once per order when a rider is assigned
+  useEffect(() => {
+    if (!expandedId || !expandedRiderId) return;
+    if (fetchedRiderDetailIds.current.has(expandedId)) return;
+    fetchedRiderDetailIds.current.add(expandedId);
+
+    async function fetchRiderDetail() {
+      const idToken = await firebaseAuth.currentUser?.getIdToken();
+      if (!idToken) return;
+      const res = await fetch('/api/customer/rider-detail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: expandedId, idToken }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setRiderDetails(prev => new Map(prev).set(expandedId!, {
+        name: data.name,
+        phone: data.phone,
+        vehicleType: data.vehicleType,
+      }));
+    }
+
+    fetchRiderDetail();
+  }, [expandedId, expandedRiderId]);
 
   function goToLogin() {
     localStorage.setItem('login_redirect', '/orders');
@@ -381,6 +571,15 @@ export default function OrdersPage() {
                     <OrderTimeline status={order.status} />
                   </div>
 
+                  {/* Rider card — shown whenever a rider is assigned */}
+                  {order.rider_id && riderDetails.has(order.id) && (
+                    <RiderCard
+                      {...riderDetails.get(order.id)!}
+                      status={order.status}
+                      merchantName={order.merchant_name}
+                    />
+                  )}
+
                   {/* Live rider map — only while out_for_delivery */}
                   {order.status === 'out_for_delivery' && (
                     <div>
@@ -466,6 +665,22 @@ export default function OrdersPage() {
                         <p className="text-xs text-[#6B7280] mt-0.5">
                           {[addr.address, addr.landmark, addr.area].filter(Boolean).join(', ')}
                         </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Rating widget — delivered orders only, never shown to merchant */}
+                  {order.status === 'delivered' && (
+                    <div className="bg-purple-50 rounded-xl px-3 py-3">
+                      {ratings.has(order.id) ? (
+                        <RatingConfirmation entry={ratings.get(order.id)!} />
+                      ) : (
+                        <OrderRatingWidget
+                          orderId={order.id}
+                          onRated={(rating, comment) =>
+                            setRatings(prev => new Map(prev).set(order.id, { rating, comment }))
+                          }
+                        />
                       )}
                     </div>
                   )}
