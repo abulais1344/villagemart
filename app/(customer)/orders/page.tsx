@@ -340,12 +340,13 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [riderLocation, setRiderLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [ratings, setRatings] = useState<Map<string, RatingEntry>>(new Map());
   const [riderDetails, setRiderDetails] = useState<Map<string, RiderDetail>>(new Map());
   const phoneRef = useRef<string | null>(null);
   const fetchedRiderDetailIds = useRef<Set<string>>(new Set());
+  const hasInitializedExpanded = useRef(false);
 
   useEffect(() => {
     const raw = localStorage.getItem('vm_customer');
@@ -391,27 +392,32 @@ export default function OrdersPage() {
     return () => clearInterval(interval);
   }, []); // stable — reads state via refs, never needs to restart
 
-  // Derive the expanded order's key fields as stable primitives for the
-  // location effect's dependency array. This avoids restarting the location
+  // Derive stable primitives for the location effect's dependency array.
+  // Location polling tracks whichever expanded order is out_for_delivery (at
+  // most one at a time in practice). This avoids restarting the location
   // interval on every fetchOrders call (which replaces the orders array reference).
-  const expandedOrder = orders.find(o => o.id === expandedId);
+  const locationOrderId = [...expandedIds].find(id => {
+    const o = orders.find(ord => ord.id === id);
+    return o?.status === 'out_for_delivery' && !!o?.rider_id;
+  }) ?? null;
+  const expandedOrder = orders.find(o => o.id === locationOrderId);
   const expandedStatus = expandedOrder?.status ?? null;
   const expandedRiderId = expandedOrder?.rider_id ?? null;
 
   // Poll rider location when an out_for_delivery order card is expanded.
   useEffect(() => {
-    console.log('[rider-location] effect fired — expandedId:', expandedId, '| status:', expandedStatus, '| rider_id:', expandedRiderId);
+    console.log('[rider-location] effect fired — locationOrderId:', locationOrderId, '| status:', expandedStatus, '| rider_id:', expandedRiderId);
 
-    if (!expandedId || expandedStatus !== 'out_for_delivery' || !expandedRiderId) {
+    if (!locationOrderId || expandedStatus !== 'out_for_delivery' || !expandedRiderId) {
       console.log('[rider-location] guard failed — not an active delivery or no rider assigned');
       setRiderLocation(null);
       return;
     }
 
-    console.log('[rider-location] guard passed — starting poll for order', expandedId);
+    console.log('[rider-location] guard passed — starting poll for order', locationOrderId);
 
     async function fetchLocation() {
-      console.log('[rider-location] polling tick for order', expandedId);
+      console.log('[rider-location] polling tick for order', locationOrderId);
       try {
         const idToken = await firebaseAuth.currentUser?.getIdToken();
         console.log('[rider-location] idToken present:', !!idToken, '| firebase uid:', firebaseAuth.currentUser?.uid ?? null);
@@ -419,7 +425,7 @@ export default function OrdersPage() {
         const res = await fetch('/api/customer/rider-location', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: expandedId, idToken }),
+          body: JSON.stringify({ orderId: locationOrderId, idToken }),
         });
         console.log('[rider-location] response status:', res.status);
         if (!res.ok) return;
@@ -436,36 +442,38 @@ export default function OrdersPage() {
     fetchLocation();
     const interval = setInterval(fetchLocation, 10_000);
     return () => {
-      console.log('[rider-location] cleaning up interval — expandedId:', expandedId, 'status now:', expandedStatus);
+      console.log('[rider-location] cleaning up interval — locationOrderId:', locationOrderId, 'status now:', expandedStatus);
       clearInterval(interval);
     };
-  }, [expandedId, expandedStatus, expandedRiderId]);
+  }, [locationOrderId, expandedStatus, expandedRiderId]);
 
-  // Fetch rider name/phone/vehicle once per order when a rider is assigned
+  // Fetch rider name/phone/vehicle for each expanded order that has a rider.
+  // Runs whenever expandedIds changes (manual toggle or initial auto-expand).
+  // The ref guards against re-fetching the same order twice.
   useEffect(() => {
-    if (!expandedId || !expandedRiderId) return;
-    if (fetchedRiderDetailIds.current.has(expandedId)) return;
-    fetchedRiderDetailIds.current.add(expandedId);
-
-    async function fetchRiderDetail() {
-      const idToken = await firebaseAuth.currentUser?.getIdToken();
-      if (!idToken) return;
-      const res = await fetch('/api/customer/rider-detail', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: expandedId, idToken }),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      setRiderDetails(prev => new Map(prev).set(expandedId!, {
-        name: data.name,
-        phone: data.phone,
-        vehicleType: data.vehicleType,
-      }));
+    for (const orderId of expandedIds) {
+      if (fetchedRiderDetailIds.current.has(orderId)) continue;
+      const order = orders.find(o => o.id === orderId);
+      if (!order?.rider_id) continue;
+      fetchedRiderDetailIds.current.add(orderId);
+      (async () => {
+        const idToken = await firebaseAuth.currentUser?.getIdToken();
+        if (!idToken) { fetchedRiderDetailIds.current.delete(orderId); return; }
+        const res = await fetch('/api/customer/rider-detail', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, idToken }),
+        });
+        if (!res.ok) { fetchedRiderDetailIds.current.delete(orderId); return; }
+        const data = await res.json();
+        setRiderDetails(prev => new Map(prev).set(orderId, {
+          name: data.name,
+          phone: data.phone,
+          vehicleType: data.vehicleType,
+        }));
+      })();
     }
-
-    fetchRiderDetail();
-  }, [expandedId, expandedRiderId]);
+  }, [expandedIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function goToLogin() {
     localStorage.setItem('login_redirect', '/orders');
@@ -475,12 +483,27 @@ export default function OrdersPage() {
   async function fetchOrders(customerPhone: string) {
     const res = await fetch(`/api/customer/orders?phone=${customerPhone}`);
     const data = await res.json();
-    setOrders(data.orders ?? []);
+    const fetched: Order[] = data.orders ?? [];
+    setOrders(fetched);
+    // On first load, auto-expand any order that isn't in a terminal state.
+    // The guard prevents the 15-second poll from resetting manual toggles.
+    if (!hasInitializedExpanded.current) {
+      hasInitializedExpanded.current = true;
+      setExpandedIds(new Set(
+        fetched
+          .filter(o => !['delivered', 'cancelled'].includes(o.status))
+          .map(o => o.id)
+      ));
+    }
     setLoading(false);
   }
 
   function toggleExpand(id: string) {
-    setExpandedId(prev => (prev === id ? null : id));
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   }
 
   if (loading) {
@@ -542,7 +565,7 @@ export default function OrdersPage() {
       <StickyHeader />
       <div className="max-w-lg mx-auto space-y-3 px-4 py-4 pb-24">
         {orders.map(order => {
-          const expanded = expandedId === order.id;
+          const expanded = expandedIds.has(order.id);
           const addr = order.delivery_address;
           const discount = order.discount_amount ?? 0;
           const subtotal = order.subtotal ?? order.total_amount;
