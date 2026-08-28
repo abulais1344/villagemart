@@ -44,6 +44,7 @@ export default function RiderOrdersPage() {
   const [notifSubscribed, setNotifSubscribed] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
   const [locationPermission, setLocationPermission] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
+  const [locationError, setLocationError] = useState<string | null>(null);
   const notifChecked = useRef(false);
   const locationPermissionChecked = useRef(false);
 
@@ -111,6 +112,7 @@ export default function RiderOrdersPage() {
   // Called directly from button onClick so iOS treats it as a user gesture.
   // Never call getCurrentPosition inside useEffect — iOS silently ignores it.
   function handleEnableLocation() {
+    setLocationError(null);
     if (!navigator.geolocation) {
       setLocationPermission('denied');
       return;
@@ -118,6 +120,7 @@ export default function RiderOrdersPage() {
     navigator.geolocation.getCurrentPosition(
       pos => {
         setLocationPermission('granted');
+        setLocationError(null);
         fetch('/api/rider/update-location', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -125,8 +128,20 @@ export default function RiderOrdersPage() {
         }).catch(() => {});
       },
       err => {
-        if (err.code === 1) setLocationPermission('denied');
-        // POSITION_UNAVAILABLE (2) or TIMEOUT (3): leave as 'prompt' so rider can retry
+        if (err.code === 1) {
+          // User explicitly denied — show the blocked banner, no retry
+          setLocationPermission('denied');
+        } else if (err.code === 2) {
+          // POSITION_UNAVAILABLE — hardware or network couldn't get a fix
+          const msg = 'GPS signal unavailable — move to an open area and try again';
+          setLocationError(msg);
+          toast.error(msg, { duration: 4000 });
+        } else {
+          // TIMEOUT (3) — got permission but couldn't get a fix in 10 s
+          const msg = 'Location timed out — try again in a moment';
+          setLocationError(msg);
+          toast.error(msg, { duration: 4000 });
+        }
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
@@ -250,12 +265,15 @@ export default function RiderOrdersPage() {
             <div className="min-w-0">
               <p className="text-sm font-bold">📍 Enable Location Sharing</p>
               <p className="text-xs opacity-90 mt-0.5">So customers can track your delivery in real time</p>
+              {locationError && (
+                <p className="text-xs text-yellow-200 mt-1">⚠️ {locationError}</p>
+              )}
             </div>
             <button
               onClick={handleEnableLocation}
               className="shrink-0 bg-white text-blue-600 font-semibold text-xs rounded-lg px-3 py-1.5"
             >
-              Enable
+              {locationError ? 'Retry' : 'Enable'}
             </button>
           </div>
         )
