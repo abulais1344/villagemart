@@ -55,7 +55,7 @@ export default function AdminDashboard() {
       total_users: counts.users ?? 0,
       total_merchants: counts.merchants ?? 0,
       total_riders: counts.riders ?? 0,
-      total_orders: allOrders.length + deliveredParcels.length,
+      total_orders: (counts.orders ?? 0) + deliveredParcels.length,
       total_revenue: totalRev,
       commission_earned: commission,
       delivery_charges_collected: deliveryCharges,

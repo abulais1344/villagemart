@@ -11,15 +11,17 @@ export async function GET(request: NextRequest) {
   const auth = await requireAdmin(request);
   if (!auth.ok) return auth.response;
 
-  const [users, merchants, riders] = await Promise.all([
+  const [users, merchants, riders, orders] = await Promise.all([
     supabase.from('vm_users').select('id', { count: 'exact', head: true }),
     supabase.from('merchants').select('id', { count: 'exact', head: true }),
     supabase.from('vm_riders').select('id', { count: 'exact', head: true }),
+    supabase.from('orders').select('id', { count: 'exact', head: true }),
   ]);
 
   return NextResponse.json({
     users:     users.count     ?? 0,
     merchants: merchants.count ?? 0,
     riders:    riders.count    ?? 0,
+    orders:    orders.count    ?? 0,
   });
 }
