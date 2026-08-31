@@ -15,7 +15,7 @@ export default async function HomePage() {
   const supabase = await createServiceClient();
 
   // Fetch everything flat — no SQL joins to avoid schema cache issues
-  const [catResult, featuredResult, ownResult, merchantsResult, foodResult, bakeryResult, vegetablesResult, pharmacyResult] = await Promise.all([
+  const [catResult, featuredResult, ownResult, merchantsResult, foodResult, bakeryResult, vegetablesResult, pharmacyResult, dealsResult] = await Promise.all([
     supabase
       .from('categories')
       .select('id, name, slug, emoji')
@@ -67,6 +67,11 @@ export default async function HomePage() {
       .eq('status', 'approved')
       .eq('merchant_type', 'medical')
       .limit(8),
+    supabase
+      .from('vm_products')
+      .select('*')
+      .eq('is_active', true)
+      .limit(1000),
   ]);
 
   if (catResult.error) console.error('[home] categories:', catResult.error.message);
@@ -77,6 +82,7 @@ export default async function HomePage() {
   if (bakeryResult.error) console.error('[home] bakeries:', bakeryResult.error.message);
   if (vegetablesResult.error) console.error('[home] vegetables:', vegetablesResult.error.message);
   if (pharmacyResult.error) console.error('[home] pharmacy:', pharmacyResult.error.message);
+  if (dealsResult.error) console.error('[home] deals:', dealsResult.error.message);
 
   const categories = (catResult.data ?? []) as Category[];
   const featured: Product[] = featuredResult.data ?? [];
@@ -86,6 +92,29 @@ export default async function HomePage() {
   const bakeryMerchants: Merchant[] = bakeryResult.data ?? [];
   const vegetablesMerchants: Merchant[] = vegetablesResult.data ?? [];
   const pharmacyMerchants: Merchant[] = pharmacyResult.data ?? [];
+
+  const TEST_MERCHANT_ID = '601a4b6b-af47-4031-a120-96927aafc92e';
+  // Excluded from Best Deals by request 2026-08-31 — revisit if a merchant-priority system is built for this carousel
+  const DEALS_EXCLUDED_MERCHANTS = new Set([TEST_MERCHANT_ID, '9ec20a4b-7a82-47cb-9232-39d80ae03d45']);
+  // Merchant group order for Best Deals: City Dhabha first, Seva Medical second — set by request 2026-08-31
+  const DEALS_MERCHANT_PRIORITY: Record<string, number> = {
+    '2c118995-6e60-4dcf-845c-c197df03f33f': 0, // City Dhabha
+    '8986e868-f24d-4725-84ca-d5f08d313b3f': 1, // Seva Medical
+  };
+  // Out-of-stock items sort after all in-stock items regardless of merchant group — set by request 2026-08-31
+  const dealProducts: Product[] = ((dealsResult.data ?? []) as Product[])
+    .filter(p => p.mrp > p.selling_price && !DEALS_EXCLUDED_MERCHANTS.has(p.merchant_id ?? ''))
+    .sort((a, b) => {
+      const pa = DEALS_MERCHANT_PRIORITY[a.merchant_id ?? ''] ?? 99;
+      const pb = DEALS_MERCHANT_PRIORITY[b.merchant_id ?? ''] ?? 99;
+      if (pa !== pb) return pa - pb;
+      const aOos = a.stock_status === 'out_of_stock' || a.stock_quantity === 0 ? 1 : 0;
+      const bOos = b.stock_status === 'out_of_stock' || b.stock_quantity === 0 ? 1 : 0;
+      if (aOos !== bOos) return aOos - bOos;
+      return ((b.mrp - b.selling_price) / b.mrp) - ((a.mrp - a.selling_price) / a.mrp);
+    })
+    .filter(p => (p.mrp - p.selling_price) / p.mrp >= 0.15)
+    .slice(0, 20);
 
   return (
     <HomePageClient
@@ -97,6 +126,7 @@ export default async function HomePage() {
       pharmacyMerchants={pharmacyMerchants}
       bakeryMerchants={bakeryMerchants}
       vegetablesMerchants={vegetablesMerchants}
+      dealProducts={dealProducts}
     />
   );
 }
