@@ -88,13 +88,14 @@ export interface MerchantCarouselRowProps {
   merchants: Merchant[];
   seeAllHref: string;
   mounted: boolean;
+  id?: string;
 }
 
-export function MerchantCarouselRow({ title, subtitle, merchants, seeAllHref, mounted }: MerchantCarouselRowProps) {
+export function MerchantCarouselRow({ title, subtitle, merchants, seeAllHref, mounted, id }: MerchantCarouselRowProps) {
   if (merchants.length === 0) return null;
 
   return (
-    <section>
+    <section id={id} style={id ? { scrollMarginTop: '68px' } : undefined}>
       <div className="flex items-center justify-between mb-2">
         <div>
           <h2 className="text-base font-bold text-gray-900">{title}</h2>
