@@ -71,8 +71,7 @@ export default async function HomePage() {
       .from('vm_products')
       .select('*')
       .eq('is_active', true)
-      .gt('offer_percentage', 0)
-      .limit(60),
+      .limit(1000),
   ]);
 
   if (catResult.error) console.error('[home] categories:', catResult.error.message);
