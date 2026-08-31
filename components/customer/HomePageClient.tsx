@@ -149,6 +149,12 @@ export function HomePageClient({
   const featuredWithCat = withCategory(featuredProducts);
   const dealWithCat = withCategory(dealProducts);
 
+  // Name lookup for Best Deals cards — built from already-fetched merchant arrays, no extra query
+  const dealMerchantNameMap = new Map<string, string>(
+    [...merchants, ...foodMerchants, ...bakeryMerchants, ...vegetablesMerchants, ...pharmacyMerchants]
+      .map(m => [m.id, m.store_name])
+  );
+
   return (
     <div className="min-h-screen bg-white">
       {/* 1. Location Header */}
@@ -280,7 +286,10 @@ export function HomePageClient({
             >
               {dealWithCat.map(p => (
                 <div key={p.id} className="w-40 shrink-0">
-                  <ProductCard product={p as Product} />
+                  <ProductCard
+                    product={p as Product}
+                    merchantName={dealMerchantNameMap.get((p as Product).merchant_id ?? '') ?? null}
+                  />
                 </div>
               ))}
             </div>
