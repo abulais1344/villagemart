@@ -94,8 +94,10 @@ export default async function HomePage() {
   const pharmacyMerchants: Merchant[] = pharmacyResult.data ?? [];
 
   const TEST_MERCHANT_ID = '601a4b6b-af47-4031-a120-96927aafc92e';
+  // Excluded from Best Deals by request 2026-08-31 — revisit if a merchant-priority system is built for this carousel
+  const DEALS_EXCLUDED_MERCHANTS = new Set([TEST_MERCHANT_ID, '9ec20a4b-7a82-47cb-9232-39d80ae03d45']);
   const dealProducts: Product[] = ((dealsResult.data ?? []) as Product[])
-    .filter(p => p.mrp > p.selling_price && p.merchant_id !== TEST_MERCHANT_ID)
+    .filter(p => p.mrp > p.selling_price && !DEALS_EXCLUDED_MERCHANTS.has(p.merchant_id ?? ''))
     .sort((a, b) => ((b.mrp - b.selling_price) / b.mrp) - ((a.mrp - a.selling_price) / a.mrp))
     .filter(p => (p.mrp - p.selling_price) / p.mrp >= 0.15)
     .slice(0, 20);
