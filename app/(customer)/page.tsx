@@ -101,12 +101,16 @@ export default async function HomePage() {
     '2c118995-6e60-4dcf-845c-c197df03f33f': 0, // City Dhabha
     '8986e868-f24d-4725-84ca-d5f08d313b3f': 1, // Seva Medical
   };
+  // Out-of-stock items sort after all in-stock items regardless of merchant group — set by request 2026-08-31
   const dealProducts: Product[] = ((dealsResult.data ?? []) as Product[])
     .filter(p => p.mrp > p.selling_price && !DEALS_EXCLUDED_MERCHANTS.has(p.merchant_id ?? ''))
     .sort((a, b) => {
       const pa = DEALS_MERCHANT_PRIORITY[a.merchant_id ?? ''] ?? 99;
       const pb = DEALS_MERCHANT_PRIORITY[b.merchant_id ?? ''] ?? 99;
       if (pa !== pb) return pa - pb;
+      const aOos = a.stock_status === 'out_of_stock' || a.stock_quantity === 0 ? 1 : 0;
+      const bOos = b.stock_status === 'out_of_stock' || b.stock_quantity === 0 ? 1 : 0;
+      if (aOos !== bOos) return aOos - bOos;
       return ((b.mrp - b.selling_price) / b.mrp) - ((a.mrp - a.selling_price) / a.mrp);
     })
     .filter(p => (p.mrp - p.selling_price) / p.mrp >= 0.15)
