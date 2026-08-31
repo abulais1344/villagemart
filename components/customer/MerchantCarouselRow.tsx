@@ -89,9 +89,10 @@ export interface MerchantCarouselRowProps {
   seeAllHref: string;
   mounted: boolean;
   id?: string;
+  rows?: 1 | 2;
 }
 
-export function MerchantCarouselRow({ title, subtitle, merchants, seeAllHref, mounted, id }: MerchantCarouselRowProps) {
+export function MerchantCarouselRow({ title, subtitle, merchants, seeAllHref, mounted, id, rows = 1 }: MerchantCarouselRowProps) {
   if (merchants.length === 0) return null;
 
   return (
@@ -105,7 +106,11 @@ export function MerchantCarouselRow({ title, subtitle, merchants, seeAllHref, mo
       </div>
       {/* overscroll-x-contain prevents horizontal swipes from triggering vertical page scroll on mobile */}
       <div
-        className="flex gap-3 overflow-x-auto overscroll-x-contain -mx-4 px-4 pb-2"
+        className={
+          rows === 2
+            ? 'grid grid-rows-2 grid-flow-col gap-3 overflow-x-auto overscroll-x-contain -mx-4 px-4 pb-2'
+            : 'flex gap-3 overflow-x-auto overscroll-x-contain -mx-4 px-4 pb-2'
+        }
         style={{ scrollbarWidth: 'none' }}
       >
         {merchants.map(merchant => (

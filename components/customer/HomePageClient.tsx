@@ -300,7 +300,7 @@ export function HomePageClient({
           </section>
         )}
 
-        {/* 4. Food Near You — horizontal carousel */}
+        {/* 4. Food Near You — 2-row horizontal grid */}
         <MerchantCarouselRow
           id="section-food"
           title="🍛 Food Near You"
@@ -308,6 +308,7 @@ export function HomePageClient({
           merchants={sortedFoodMerchants}
           seeAllHref="/stores"
           mounted={mounted}
+          rows={2}
         />
 
         {/* 4b. Pharmacy & Health Essentials — horizontal carousel */}
