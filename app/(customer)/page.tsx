@@ -96,9 +96,19 @@ export default async function HomePage() {
   const TEST_MERCHANT_ID = '601a4b6b-af47-4031-a120-96927aafc92e';
   // Excluded from Best Deals by request 2026-08-31 — revisit if a merchant-priority system is built for this carousel
   const DEALS_EXCLUDED_MERCHANTS = new Set([TEST_MERCHANT_ID, '9ec20a4b-7a82-47cb-9232-39d80ae03d45']);
+  // Merchant group order for Best Deals: City Dhabha first, Seva Medical second — set by request 2026-08-31
+  const DEALS_MERCHANT_PRIORITY: Record<string, number> = {
+    '2c118995-6e60-4dcf-845c-c197df03f33f': 0, // City Dhabha
+    '8986e868-f24d-4725-84ca-d5f08d313b3f': 1, // Seva Medical
+  };
   const dealProducts: Product[] = ((dealsResult.data ?? []) as Product[])
     .filter(p => p.mrp > p.selling_price && !DEALS_EXCLUDED_MERCHANTS.has(p.merchant_id ?? ''))
-    .sort((a, b) => ((b.mrp - b.selling_price) / b.mrp) - ((a.mrp - a.selling_price) / a.mrp))
+    .sort((a, b) => {
+      const pa = DEALS_MERCHANT_PRIORITY[a.merchant_id ?? ''] ?? 99;
+      const pb = DEALS_MERCHANT_PRIORITY[b.merchant_id ?? ''] ?? 99;
+      if (pa !== pb) return pa - pb;
+      return ((b.mrp - b.selling_price) / b.mrp) - ((a.mrp - a.selling_price) / a.mrp);
+    })
     .filter(p => (p.mrp - p.selling_price) / p.mrp >= 0.15)
     .slice(0, 20);
 
