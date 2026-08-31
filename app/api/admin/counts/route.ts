@@ -20,11 +20,13 @@ export async function GET(request: NextRequest) {
     supabase
       .from('orders')
       .select('total_amount, delivery_charge, commission_amount')
-      .not('status', 'in', '(cancelled,refunded)'),
+      .not('status', 'in', '(cancelled,refunded)')
+      .limit(20000),
     supabase
       .from('parcel_orders')
       .select('subtotal, delivery_charge, commission_amount')
-      .eq('status', 'delivered'),
+      .eq('status', 'delivered')
+      .limit(20000),
   ]);
 
   const orderRows  = ordersFin.data  ?? [];
