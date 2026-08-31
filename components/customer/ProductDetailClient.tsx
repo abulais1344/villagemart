@@ -33,9 +33,9 @@ function MiniProductCard({ product }: { product: Product }) {
         ) : (
           <span className="text-3xl">🛒</span>
         )}
-        {product.offer_percentage > 0 && (
+        {product.mrp > product.selling_price && (
           <span className="absolute top-1 left-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
-            {Math.round(product.offer_percentage)}% OFF
+            {Math.round((product.mrp - product.selling_price) / product.mrp * 100)}% OFF
           </span>
         )}
       </div>
@@ -152,9 +152,9 @@ export function ProductDetailClient({ product, category, similarProducts, topInC
             )}
 
             {/* Offer badge */}
-            {product.offer_percentage > 0 && (
+            {product.mrp > product.selling_price && (
               <span className="absolute top-4 left-4 bg-error text-white text-xs font-bold px-2 py-1 rounded-lg">
-                {Math.round(product.offer_percentage)}% OFF
+                {Math.round((product.mrp - product.selling_price) / product.mrp * 100)}% OFF
               </span>
             )}
 

@@ -25,6 +25,7 @@ interface HomePageClientProps {
   pharmacyMerchants: Merchant[];
   bakeryMerchants: Merchant[];
   vegetablesMerchants: Merchant[];
+  dealProducts: Product[];
 }
 
 // Pastel colour palette — cycles by index so any new category gets a colour
@@ -49,6 +50,7 @@ export function HomePageClient({
   pharmacyMerchants,
   bakeryMerchants,
   vegetablesMerchants,
+  dealProducts,
 }: HomePageClientProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -145,6 +147,7 @@ export function HomePageClient({
 
   const ownWithCat = withCategory(ownProducts);
   const featuredWithCat = withCategory(featuredProducts);
+  const dealWithCat = withCategory(dealProducts);
 
   return (
     <div className="min-h-screen bg-white">
@@ -260,6 +263,29 @@ export function HomePageClient({
             )}
           </div>
         </div>
+
+        {/* Best Deals — horizontal product carousel */}
+        {dealWithCat.length > 0 && (
+          <section>
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <h2 className="text-base font-bold text-[#1A1A1A]">🏷️ Best Deals</h2>
+                <p className="text-xs text-[#6B7280]">Top discounts right now</p>
+              </div>
+              <Link href="/category/all" className="text-xs text-primary-600 font-medium mt-1">See all →</Link>
+            </div>
+            <div
+              className="flex gap-3 overflow-x-auto overscroll-x-contain -mx-4 px-4 pb-2"
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {dealWithCat.map(p => (
+                <div key={p.id} className="w-40 shrink-0">
+                  <ProductCard product={p as Product} />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* 4. Food Near You — horizontal carousel */}
         <MerchantCarouselRow

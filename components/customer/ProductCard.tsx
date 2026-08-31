@@ -74,9 +74,9 @@ export function ProductCard({ product, hint = false, onHintDismiss, merchantName
           />
 
           {/* Offer badge */}
-          {product.offer_percentage > 0 && (
+          {product.mrp > product.selling_price && (
             <span className="absolute top-2 left-2 bg-error text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-              {Math.round(product.offer_percentage)}% OFF
+              {Math.round((product.mrp - product.selling_price) / product.mrp * 100)}% OFF
             </span>
           )}
 
