@@ -39,26 +39,18 @@ export default function AdminDashboard() {
     const allOrders: any[] = json.orders ?? [];
     const deliveredParcels: any[] = (parcelJson.orders ?? []).filter((o: any) => o.status === 'delivered');
 
-    const validOrders = allOrders.filter(o => o.status !== 'cancelled');
     const todayOrders = allOrders.filter(o => new Date(o.created_at) >= today);
     const pendingOrders = allOrders.filter(o => o.status === 'pending');
     const todayParcels = deliveredParcels.filter((o: any) => new Date(o.created_at) >= today);
-
-    const totalRev = validOrders.reduce((s, o) => s + (o.total_amount ?? 0), 0)
-      + deliveredParcels.reduce((s: number, o: any) => s + (o.subtotal ?? 0) + (o.delivery_charge ?? 0), 0);
-    const commission = validOrders.reduce((s, o) => s + (o.commission_amount ?? 0), 0)
-      + deliveredParcels.reduce((s: number, o: any) => s + (o.commission_amount ?? 0), 0);
-    const deliveryCharges = validOrders.reduce((s, o) => s + (o.delivery_charge ?? 0), 0)
-      + deliveredParcels.reduce((s: number, o: any) => s + (o.delivery_charge ?? 0), 0);
 
     setStats({
       total_users: counts.users ?? 0,
       total_merchants: counts.merchants ?? 0,
       total_riders: counts.riders ?? 0,
       total_orders: (counts.orders ?? 0) + deliveredParcels.length,
-      total_revenue: totalRev,
-      commission_earned: commission,
-      delivery_charges_collected: deliveryCharges,
+      total_revenue: counts.total_revenue ?? 0,
+      commission_earned: counts.commission_earned ?? 0,
+      delivery_charges_collected: counts.delivery_charges_collected ?? 0,
       pending_orders: pendingOrders.length,
       today_orders: todayOrders.length + todayParcels.length,
     });
