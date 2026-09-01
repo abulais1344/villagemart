@@ -15,6 +15,8 @@ import { useFirstVisit } from '@/hooks/useFirstVisit';
 import { isRestaurantOpen } from '@/lib/utils/restaurant';
 import { PWAInstallBanner } from './PWAInstallBanner';
 import { IndependenceDayBanner } from './IndependenceDayBanner';
+import { PromoBannerCarousel } from './PromoBannerCarousel';
+import type { PromoBanner } from './PromoBannerCarousel';
 
 interface HomePageClientProps {
   categories: Category[];
@@ -25,6 +27,7 @@ interface HomePageClientProps {
   pharmacyMerchants: Merchant[];
   bakeryMerchants: Merchant[];
   vegetablesMerchants: Merchant[];
+  promoBanners: PromoBanner[];
 }
 
 // Pastel colour palette — cycles by index so any new category gets a colour
@@ -49,6 +52,7 @@ export function HomePageClient({
   pharmacyMerchants,
   bakeryMerchants,
   vegetablesMerchants,
+  promoBanners,
 }: HomePageClientProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -260,6 +264,9 @@ export function HomePageClient({
             )}
           </div>
         </div>
+
+        {/* 5. Promo Banner Carousel — manually curated, auto-expires via start_at/end_at */}
+        {promoBanners.length > 0 && <PromoBannerCarousel banners={promoBanners} />}
 
         {/* 4. Food Near You — horizontal carousel */}
         <MerchantCarouselRow
