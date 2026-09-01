@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Search, Bell, ShoppingCart, User } from 'lucide-react';
+// Commented out 2026-09-02 — revisit later
+// import { useRouter } from 'next/navigation';
+import { /* Search, */ Bell, ShoppingCart, User } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { ProductCard } from './ProductCard';
 import { MerchantCarouselRow } from './MerchantCarouselRow';
@@ -37,11 +38,12 @@ const CATEGORY_COLORS = [
   '#D1FAE5','#FFF7ED','#E0F2FE','#F0FDF4',
 ];
 
-const SEARCH_PLACEHOLDERS = [
-  'रेस्टॉरंट, जेवण शोधा...',
-  'Search restaurants, dishes...',
-  'Search biryani, thali, snacks...',
-];
+// Commented out 2026-09-02 — revisit later
+// const SEARCH_PLACEHOLDERS = [
+//   'रेस्टॉरंट, जेवण शोधा...',
+//   'Search restaurants, dishes...',
+//   'Search biryani, thali, snacks...',
+// ];
 
 export function HomePageClient({
   categories,
@@ -54,9 +56,10 @@ export function HomePageClient({
   vegetablesMerchants,
   promoBanners,
 }: HomePageClientProps) {
-  const router = useRouter();
+  // Commented out 2026-09-02 — revisit later
+  // const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [searchPlaceholderIndex, setSearchPlaceholderIndex] = useState(0);
+  // const [searchPlaceholderIndex, setSearchPlaceholderIndex] = useState(0);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [showAddressSheet, setShowAddressSheet] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -76,7 +79,8 @@ export function HomePageClient({
     min_order_amount: number;
     max_discount: number | null;
   }>>([]);
-  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
+  // Commented out 2026-09-02 — revisit later
+  // const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -105,10 +109,11 @@ export function HomePageClient({
       .then(data => { if (data.offers?.length) setActiveOffers(data.offers); })
       .catch(() => {});
 
-    fetch('/api/customer/delivery-info')
-      .then(r => r.json())
-      .then(data => { if (data.free_delivery_threshold != null) setFreeDeliveryThreshold(data.free_delivery_threshold); })
-      .catch(() => {});
+    // Commented out 2026-09-02 — revisit later
+    // fetch('/api/customer/delivery-info')
+    //   .then(r => r.json())
+    //   .then(data => { if (data.free_delivery_threshold != null) setFreeDeliveryThreshold(data.free_delivery_threshold); })
+    //   .catch(() => {});
 
     const interval = setInterval(() => { if (phone) fetchUnread(phone); }, 30000);
     function handleRead() { setUnreadCount(0); }
@@ -127,12 +132,13 @@ export function HomePageClient({
     } catch {}
   }
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSearchPlaceholderIndex(prev => (prev + 1) % SEARCH_PLACEHOLDERS.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+  // Commented out 2026-09-02 — revisit later
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     setSearchPlaceholderIndex(prev => (prev + 1) % SEARCH_PLACEHOLDERS.length);
+  //   }, 3000);
+  //   return () => clearInterval(interval);
+  // }, []);
 
   function handleAddressChange(_addr: AddressData) {
     try {
@@ -215,7 +221,7 @@ export function HomePageClient({
 
       <main className="px-4 py-3 pb-24 space-y-3">
 
-        {/* 2. Search Bar */}
+        {/* Commented out 2026-09-02 — revisit later: Search Bar
         <div className="flex items-center gap-2 bg-[#F5F5F7] border border-[#E5E7EB] rounded-xl px-3 h-12">
           <Search className="w-4 h-4 text-primary-600 shrink-0" />
           <input
@@ -226,6 +232,7 @@ export function HomePageClient({
             readOnly
           />
         </div>
+        */}
 
         {/* 3. Offers Strip */}
         {activeOffers.length > 0 && (
@@ -252,7 +259,7 @@ export function HomePageClient({
           </div>
         )}
 
-        {/* 4. Delivery Strip */}
+        {/* Commented out 2026-09-02 — revisit later: Delivery Strip
         <div className="bg-[#F5F0FF] rounded-xl px-4 py-2.5">
           <div className="flex items-center justify-between text-xs">
             <div>
@@ -264,6 +271,7 @@ export function HomePageClient({
             )}
           </div>
         </div>
+        */}
 
         {/* 5. Promo Banner Carousel — manually curated, auto-expires via start_at/end_at */}
         {promoBanners.length > 0 && <PromoBannerCarousel banners={promoBanners} />}
