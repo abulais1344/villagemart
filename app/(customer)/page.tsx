@@ -15,7 +15,7 @@ export default async function HomePage() {
   const supabase = await createServiceClient();
 
   // Fetch everything flat — no SQL joins to avoid schema cache issues
-  const [catResult, featuredResult, ownResult, merchantsResult, foodResult, bakeryResult, vegetablesResult, pharmacyResult] = await Promise.all([
+  const [catResult, featuredResult, ownResult, merchantsResult, foodResult, bakeryResult, vegetablesResult, pharmacyResult, chickenResult, paneerResult] = await Promise.all([
     supabase
       .from('categories')
       .select('id, name, slug, emoji')
@@ -46,7 +46,7 @@ export default async function HomePage() {
       .select(MERCHANT_PUBLIC_COLS)
       .eq('status', 'approved')
       .eq('is_food', true)
-      .not('merchant_type', 'in', '("bakery","vegetables","medical")')
+      .not('merchant_type', 'in', '("bakery","vegetables","medical","chicken_mutton","khawa_paneer")')
       .order('priority', { ascending: false })
       .limit(10),
     supabase
@@ -67,6 +67,18 @@ export default async function HomePage() {
       .eq('status', 'approved')
       .eq('merchant_type', 'medical')
       .limit(8),
+    supabase
+      .from('merchants')
+      .select(MERCHANT_PUBLIC_COLS)
+      .eq('status', 'approved')
+      .eq('merchant_type', 'chicken_mutton')
+      .limit(8),
+    supabase
+      .from('merchants')
+      .select(MERCHANT_PUBLIC_COLS)
+      .eq('status', 'approved')
+      .eq('merchant_type', 'khawa_paneer')
+      .limit(8),
   ]);
 
   if (catResult.error) console.error('[home] categories:', catResult.error.message);
@@ -77,6 +89,8 @@ export default async function HomePage() {
   if (bakeryResult.error) console.error('[home] bakeries:', bakeryResult.error.message);
   if (vegetablesResult.error) console.error('[home] vegetables:', vegetablesResult.error.message);
   if (pharmacyResult.error) console.error('[home] pharmacy:', pharmacyResult.error.message);
+  if (chickenResult.error) console.error('[home] chicken:', chickenResult.error.message);
+  if (paneerResult.error) console.error('[home] paneer:', paneerResult.error.message);
 
   const categories = (catResult.data ?? []) as Category[];
   const featured: Product[] = featuredResult.data ?? [];
@@ -86,6 +100,8 @@ export default async function HomePage() {
   const bakeryMerchants: Merchant[] = bakeryResult.data ?? [];
   const vegetablesMerchants: Merchant[] = vegetablesResult.data ?? [];
   const pharmacyMerchants: Merchant[] = pharmacyResult.data ?? [];
+  const chickenMerchants: Merchant[] = chickenResult.data ?? [];
+  const paneerMerchants: Merchant[] = paneerResult.data ?? [];
 
   return (
     <HomePageClient
@@ -97,6 +113,8 @@ export default async function HomePage() {
       pharmacyMerchants={pharmacyMerchants}
       bakeryMerchants={bakeryMerchants}
       vegetablesMerchants={vegetablesMerchants}
+      chickenMerchants={chickenMerchants}
+      paneerMerchants={paneerMerchants}
     />
   );
 }

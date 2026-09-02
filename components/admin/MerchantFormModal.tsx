@@ -10,7 +10,7 @@ interface MerchantFormModalProps {
   onSaved: () => void;
 }
 
-const FOOD_TYPES = new Set(['restaurant', 'home_cook', 'bakery']);
+const FOOD_TYPES = new Set(['restaurant', 'home_cook', 'bakery', 'chicken_mutton', 'khawa_paneer']);
 
 const CUISINE_TAGS = [
   '🥬 Veg', '🍗 Non Veg', '🐟 Sea Food', '🥡 Chinese',
@@ -175,6 +175,8 @@ export function MerchantFormModal({ merchant, onClose, onSaved }: MerchantFormMo
               className={inputCls}
             >
               <option value="restaurant">Restaurant / Dhaba</option>
+              <option value="chicken_mutton">Chicken & Mutton Store</option>
+              <option value="khawa_paneer">Khawa & Paneer Store</option>
               <option value="kirana">Kirana Store</option>
               <option value="bakery">Bakery</option>
               <option value="medical">Medical Store</option>

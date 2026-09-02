@@ -15,6 +15,7 @@ import { useFirstVisit } from '@/hooks/useFirstVisit';
 import { isRestaurantOpen } from '@/lib/utils/restaurant';
 import { PWAInstallBanner } from './PWAInstallBanner';
 import { IndependenceDayBanner } from './IndependenceDayBanner';
+import { CategoryJumpNav } from './CategoryJumpNav';
 
 interface HomePageClientProps {
   categories: Category[];
@@ -25,6 +26,8 @@ interface HomePageClientProps {
   pharmacyMerchants: Merchant[];
   bakeryMerchants: Merchant[];
   vegetablesMerchants: Merchant[];
+  chickenMerchants: Merchant[];
+  paneerMerchants: Merchant[];
 }
 
 // Pastel colour palette — cycles by index so any new category gets a colour
@@ -49,6 +52,8 @@ export function HomePageClient({
   pharmacyMerchants,
   bakeryMerchants,
   vegetablesMerchants,
+  chickenMerchants,
+  paneerMerchants,
 }: HomePageClientProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -261,8 +266,12 @@ export function HomePageClient({
           </div>
         </div>
 
-        {/* 4. Food Near You — horizontal carousel */}
+        {/* Category jump nav — smooth-scrolls to each merchant section */}
+        <CategoryJumpNav />
+
+        {/* Food Near You */}
         <MerchantCarouselRow
+          id="section-food"
           title="🍛 Food Near You"
           subtitle="Dhabas, home cooks & restaurants"
           merchants={sortedFoodMerchants}
@@ -270,8 +279,29 @@ export function HomePageClient({
           mounted={mounted}
         />
 
-        {/* 4b. Pharmacy & Health Essentials — horizontal carousel */}
+        {/* Chicken & Mutton */}
         <MerchantCarouselRow
+          id="section-chicken"
+          title="🍗 Chicken & Mutton"
+          subtitle="Fresh cuts & ready-to-cook"
+          merchants={chickenMerchants}
+          seeAllHref="/stores"
+          mounted={mounted}
+        />
+
+        {/* Khawa & Paneer */}
+        <MerchantCarouselRow
+          id="section-paneer"
+          title="🧀 Khawa & Paneer"
+          subtitle="Fresh dairy & sweet specialities"
+          merchants={paneerMerchants}
+          seeAllHref="/stores"
+          mounted={mounted}
+        />
+
+        {/* Pharmacy & Health Essentials */}
+        <MerchantCarouselRow
+          id="section-pharmacy"
           title="💊 Pharmacy & Health Essentials"
           subtitle="Medicines, health & wellness"
           merchants={pharmacyMerchants}
@@ -279,8 +309,9 @@ export function HomePageClient({
           mounted={mounted}
         />
 
-        {/* 4d. Bakery & Cafe — horizontal carousel */}
+        {/* Bakery & Cafe */}
         <MerchantCarouselRow
+          id="section-bakery"
           title="🍰 Bakery & Cafe"
           subtitle="Cafes, desserts, pizza & more"
           merchants={sortedBakeryMerchants}
@@ -288,8 +319,9 @@ export function HomePageClient({
           mounted={mounted}
         />
 
-        {/* 4e. Fresh Fruits & Vegetables — horizontal carousel */}
+        {/* Fresh Fruits & Vegetables */}
         <MerchantCarouselRow
+          id="section-vegetables"
           title="🥦 Fresh Fruits & Vegetables"
           subtitle="Farm-fresh produce delivered"
           merchants={sortedVegetablesMerchants}
