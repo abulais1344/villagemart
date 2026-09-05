@@ -15,6 +15,7 @@ import { useFirstVisit } from '@/hooks/useFirstVisit';
 import { isRestaurantOpen } from '@/lib/utils/restaurant';
 import { PWAInstallBanner } from './PWAInstallBanner';
 import { IndependenceDayBanner } from './IndependenceDayBanner';
+import { CategoryJumpNav } from './CategoryJumpNav';
 
 interface HomePageClientProps {
   categories: Category[];
@@ -223,6 +224,9 @@ export function HomePageClient({
           />
         </div>
 
+        {/* Category jump nav — smooth-scrolls to each merchant section */}
+        <CategoryJumpNav />
+
         {/* 3. Offers Strip */}
         {activeOffers.length > 0 && (
           <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4">
@@ -263,6 +267,7 @@ export function HomePageClient({
 
         {/* 4. Food Near You — 2-row horizontal grid */}
         <MerchantCarouselRow
+          id="section-food"
           title="🍛 Food Near You"
           subtitle="Dhabas, home cooks & restaurants"
           merchants={sortedFoodMerchants}
@@ -273,6 +278,7 @@ export function HomePageClient({
 
         {/* 4b. Bakery & Cafe — horizontal carousel */}
         <MerchantCarouselRow
+          id="section-bakery"
           title="🍰 Bakery & Cafe"
           subtitle="Cafes, desserts, pizza & more"
           merchants={sortedBakeryMerchants}
@@ -282,6 +288,7 @@ export function HomePageClient({
 
         {/* 4c. Fresh Fruits & Vegetables — horizontal carousel */}
         <MerchantCarouselRow
+          id="section-vegetables"
           title="🥦 Fresh Fruits & Vegetables"
           subtitle="Farm-fresh produce delivered"
           merchants={sortedVegetablesMerchants}
@@ -291,6 +298,7 @@ export function HomePageClient({
 
         {/* 4d. Pharmacy & Health Essentials — horizontal carousel */}
         <MerchantCarouselRow
+          id="section-pharmacy"
           title="💊 Pharmacy & Health Essentials"
           subtitle="Medicines, health & wellness"
           merchants={pharmacyMerchants}
