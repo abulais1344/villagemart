@@ -21,13 +21,35 @@ export async function POST(request: NextRequest) {
   if (!auth.ok) return auth.response;
 
   const payload = await request.json();
+
+  // Guard: only one active flat-charge row per merchant_type.
+  // DB unique index enforces this too, but we surface a clear message here.
+  if (payload.merchant_type) {
+    const now = new Date().toISOString();
+    const { data: existing } = await supabase
+      .from('delivery_charges')
+      .select('id')
+      .eq('merchant_type', payload.merchant_type)
+      .eq('is_active', true)
+      .or(`starts_at.is.null,starts_at.lte.${now}`)
+      .or(`ends_at.is.null,ends_at.gte.${now}`)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json(
+        { error: `An active charge for '${payload.merchant_type}' already exists. Deactivate or delete it first.` },
+        { status: 409 },
+      );
+    }
+  }
+
   const { data, error } = await supabase
     .from('delivery_charges')
     .insert({
-      min_km: payload.min_km,
-      max_km: payload.max_km,
+      min_km: payload.min_km ?? null,
+      max_km: payload.max_km ?? null,
       charge: payload.charge,
       free_delivery_above: payload.free_delivery_above ?? null,
+      merchant_type: payload.merchant_type ?? null,
       starts_at: payload.starts_at ?? null,
       ends_at: payload.ends_at ?? null,
       is_active: true,

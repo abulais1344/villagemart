@@ -122,7 +122,7 @@ export async function createOrderFromPayment(
   }
 
   // ── Delivery charge ────────────────────────────────────────────────────────
-  const deliverySlabs = await getActiveDeliverySlabs(supabase);
+  const deliverySlabs = await getActiveDeliverySlabs(supabase, merchantType);
 
   let serverDeliveryCharge = 20;
   if (deliverySlabs.length) {
