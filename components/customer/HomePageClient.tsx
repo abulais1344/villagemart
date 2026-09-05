@@ -271,16 +271,7 @@ export function HomePageClient({
           rows={2}
         />
 
-        {/* 4b. Pharmacy & Health Essentials — horizontal carousel */}
-        <MerchantCarouselRow
-          title="💊 Pharmacy & Health Essentials"
-          subtitle="Medicines, health & wellness"
-          merchants={pharmacyMerchants}
-          seeAllHref="/stores/pharmacy"
-          mounted={mounted}
-        />
-
-        {/* 4d. Bakery & Cafe — horizontal carousel */}
+        {/* 4b. Bakery & Cafe — horizontal carousel */}
         <MerchantCarouselRow
           title="🍰 Bakery & Cafe"
           subtitle="Cafes, desserts, pizza & more"
@@ -289,12 +280,21 @@ export function HomePageClient({
           mounted={mounted}
         />
 
-        {/* 4e. Fresh Fruits & Vegetables — horizontal carousel */}
+        {/* 4c. Fresh Fruits & Vegetables — horizontal carousel */}
         <MerchantCarouselRow
           title="🥦 Fresh Fruits & Vegetables"
           subtitle="Farm-fresh produce delivered"
           merchants={sortedVegetablesMerchants}
           seeAllHref="/stores/vegetables"
+          mounted={mounted}
+        />
+
+        {/* 4d. Pharmacy & Health Essentials — horizontal carousel */}
+        <MerchantCarouselRow
+          title="💊 Pharmacy & Health Essentials"
+          subtitle="Medicines, health & wellness"
+          merchants={pharmacyMerchants}
+          seeAllHref="/stores/pharmacy"
           mounted={mounted}
         />
 
