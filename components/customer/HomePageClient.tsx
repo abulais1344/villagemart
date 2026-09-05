@@ -261,13 +261,14 @@ export function HomePageClient({
           </div>
         </div>
 
-        {/* 4. Food Near You — horizontal carousel */}
+        {/* 4. Food Near You — 2-row horizontal grid */}
         <MerchantCarouselRow
           title="🍛 Food Near You"
           subtitle="Dhabas, home cooks & restaurants"
           merchants={sortedFoodMerchants}
           seeAllHref="/stores"
           mounted={mounted}
+          rows={2}
         />
 
         {/* 4b. Pharmacy & Health Essentials — horizontal carousel */}
