@@ -94,8 +94,11 @@ export default async function HomePage() {
   const pharmacyMerchants: Merchant[] = pharmacyResult.data ?? [];
 
   const TEST_MERCHANT_ID = '601a4b6b-af47-4031-a120-96927aafc92e';
-  // Excluded from Best Deals by request 2026-08-31 — revisit if a merchant-priority system is built for this carousel
-  const DEALS_EXCLUDED_MERCHANTS = new Set([TEST_MERCHANT_ID, '9ec20a4b-7a82-47cb-9232-39d80ae03d45']);
+  // City Dhabha temporarily excluded pending their confirmation — re-add to carousel once approved, see 2026-09-06
+  const DEALS_EXCLUDED_MERCHANTS = new Set([
+    TEST_MERCHANT_ID,
+    '2c118995-6e60-4dcf-845c-c197df03f33f', // City Dhabha temporarily excluded pending their confirmation — re-add once approved, see 2026-09-06
+  ]);
   // Merchant group order for Best Deals: City Dhabha first, Seva Medical second — set by request 2026-08-31
   const DEALS_MERCHANT_PRIORITY: Record<string, number> = {
     '2c118995-6e60-4dcf-845c-c197df03f33f': 0, // City Dhabha
