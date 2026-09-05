@@ -275,7 +275,8 @@ export function HomePageClient({
         </div>
 
         {/* Best Deals — horizontal product carousel */}
-        {dealWithCat.length > 0 && (
+        {/* Temporarily hidden 2026-09-06 — re-enable once Samar Fruit Shop opens. Just remove the `false &&` below to restore. */}
+        {false && dealWithCat.length > 0 && (
           <section>
             <div className="flex items-start justify-between mb-2">
               <div>
