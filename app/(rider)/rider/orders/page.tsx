@@ -45,6 +45,7 @@ export default function RiderOrdersPage() {
   const [notifLoading, setNotifLoading] = useState(false);
   const [locationPermission, setLocationPermission] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [pingGpsLost, setPingGpsLost] = useState(false);
   const notifChecked = useRef(false);
   const locationPermissionChecked = useRef(false);
 
@@ -132,18 +133,18 @@ export default function RiderOrdersPage() {
           // User explicitly denied — show the blocked banner, no retry
           setLocationPermission('denied');
         } else if (err.code === 2) {
-          // POSITION_UNAVAILABLE — hardware or network couldn't get a fix
-          const msg = 'GPS signal unavailable — move to an open area and try again';
+          // POSITION_UNAVAILABLE — on Android this fires when device location services are OFF
+          const msg = 'Device location is off — swipe down and turn on Location in Quick Settings, then tap Retry';
           setLocationError(msg);
-          toast.error(msg, { duration: 4000 });
+          toast.error(msg, { duration: 5000 });
         } else {
-          // TIMEOUT (3) — got permission but couldn't get a fix in 10 s
-          const msg = 'Location timed out — try again in a moment';
+          // TIMEOUT (3) — on many Android/OEM WebViews, a GPS-off request queues silently and hits this
+          const msg = 'Location timed out — your device GPS may be off. Open Quick Settings and turn on Location, then tap Retry';
           setLocationError(msg);
-          toast.error(msg, { duration: 4000 });
+          toast.error(msg, { duration: 5000 });
         }
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 },
     );
   }
 
@@ -204,8 +205,14 @@ export default function RiderOrdersPage() {
   const history = orders.filter(o => o.status === 'delivered' || o.status === 'cancelled');
   const hasActiveDelivery = active.some(o => o.status === 'out_for_delivery');
 
-  // Send GPS pings while any active order is out_for_delivery
-  useLocationPing(active.some(o => o.status === 'out_for_delivery'));
+  // Send GPS pings while any active order is out_for_delivery.
+  // onRepeatedFailure fires after 2 consecutive failures — surfaces the GPS-lost banner mid-delivery.
+  // onPingSuccess clears the banner when the next ping succeeds.
+  useLocationPing(
+    active.some(o => o.status === 'out_for_delivery'),
+    () => setPingGpsLost(true),
+    () => setPingGpsLost(false),
+  );
 
   return (
     <>
@@ -245,6 +252,17 @@ export default function RiderOrdersPage() {
           >
             {notifLoading ? 'Enabling…' : 'Enable'}
           </button>
+        </div>
+      )}
+
+      {/* Mid-delivery GPS-lost banner — shown when pings fail 2+ times after permission was already granted */}
+      {hasActiveDelivery && locationPermission === 'granted' && pingGpsLost && (
+        <div className="bg-amber-500 text-white px-4 py-3 flex items-start gap-3">
+          <span className="text-lg leading-none mt-0.5">📍</span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold">GPS signal lost</p>
+            <p className="text-xs opacity-90 mt-0.5">Open Quick Settings and turn on Location to resume delivery tracking</p>
+          </div>
         </div>
       )}
 
