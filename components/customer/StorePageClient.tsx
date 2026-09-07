@@ -261,11 +261,16 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     merchant.admin_override,
   );
   const isGrouped = !searchQuery.trim() && categories.length > 0;
-  // Popular Items: bestsellers only, image-first within that set; 'Sanitary Pads' always last
+  // Popular Items: bestsellers only, discounted-first → image-first → insertion order; 'Sanitary Pads' always last
   const popularItems = (() => {
     const items = filtered
       .filter(isBestseller)
-      .sort((a, b) => (hasImg(b) ? 1 : 0) - (hasImg(a) ? 1 : 0))
+      .sort((a, b) => {
+        const aDisc = a.mrp > a.selling_price ? 1 : 0;
+        const bDisc = b.mrp > b.selling_price ? 1 : 0;
+        if (bDisc !== aDisc) return bDisc - aDisc;
+        return (hasImg(b) ? 1 : 0) - (hasImg(a) ? 1 : 0);
+      })
       .slice(0, 15);
     const padIdx = items.findIndex(p => p.description?.trim() === 'Sanitary Pads');
     if (padIdx !== -1) { items.push(...items.splice(padIdx, 1)); }
