@@ -525,11 +525,19 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
                 onClick={() => product.images?.[0] ? setSelectedImage(product) : scrollToSection(product.description?.trim() ?? '')}
                 className="flex-shrink-0 flex flex-col gap-1 text-left cursor-pointer"
               >
-                <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
                   <ProductImage images={product.images} categorySlug={product.category?.slug} alt={product.name} width={80} height={80} />
+                  {product.mrp > product.selling_price && (
+                    <span className="absolute top-1 left-1 bg-red-500 text-white text-[9px] font-bold px-1 py-0.5 rounded leading-none">
+                      {Math.round((product.mrp - product.selling_price) / product.mrp * 100)}% OFF
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-gray-800 font-medium w-20 line-clamp-2 leading-tight">{product.name}</p>
                 <p className="text-xs font-bold text-gray-900">{formatCurrency(product.selling_price)}</p>
+                {product.mrp > product.selling_price && (
+                  <p className="text-[10px] text-gray-400 line-through leading-none">{formatCurrency(product.mrp)}</p>
+                )}
               </button>
             ))}
           </div>
