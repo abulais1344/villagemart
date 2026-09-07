@@ -46,6 +46,25 @@ function circleIcon(g: any, color: string, scale = 9) {
   };
 }
 
+function scooterIcon(g: any) {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 30">' +
+    '<circle cx="8" cy="24" r="6" fill="#7C3AED" stroke="white" stroke-width="2"/>' +
+    '<circle cx="8" cy="24" r="2.5" fill="white" fill-opacity="0.6"/>' +
+    '<circle cx="32" cy="24" r="6" fill="#7C3AED" stroke="white" stroke-width="2"/>' +
+    '<circle cx="32" cy="24" r="2.5" fill="white" fill-opacity="0.6"/>' +
+    '<path d="M8,18 L12,8 L22,8 L30,14 L32,18 Z" fill="#7C3AED" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>' +
+    '<rect x="10" y="5.5" width="13" height="3.5" rx="1.75" fill="#6D28D9" stroke="white" stroke-width="1.5"/>' +
+    '<line x1="29" y1="14" x2="32" y2="18" stroke="white" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M26,10 L33,8.5" stroke="white" stroke-width="2.5" stroke-linecap="round"/>' +
+    '</svg>';
+  return {
+    url: 'data:image/svg+xml,' + encodeURIComponent(svg),
+    scaledSize: new g.maps.Size(40, 30),
+    anchor: new g.maps.Point(20, 18),
+  };
+}
+
 export function RiderLiveMap({
   riderLat,
   riderLng,
@@ -87,7 +106,7 @@ export function RiderLiveMap({
       position: center,
       map,
       title: 'Rider',
-      icon: circleIcon(g.google, '#7C3AED', 11),
+      icon: scooterIcon(g.google),
       zIndex: 10,
     });
 
