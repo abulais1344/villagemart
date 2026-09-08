@@ -96,6 +96,25 @@ function getWhatsAppUrl(order: Order): string | null {
   if (!msgFn) return null;
   return `https://wa.me/${e164}?text=${encodeURIComponent(msgFn(name, shortId, store))}`;
 }
+
+function getRefundWhatsAppUrl(order: Order): string | null {
+  if (!order.customer_phone) return null;
+  const phone = order.customer_phone.replace(/[\s\-]/g, '');
+  const e164 = phone.startsWith('91') ? phone : `91${phone}`;
+  const name = order.customer_name ?? 'Customer';
+  const message = [
+    `Hi ${name}, this is from Zupr. 👋`,
+    ``,
+    `We wanted to let you know your order ${order.order_number} (₹${order.total_amount}) has been refunded.`,
+    ``,
+    `Since this was processed as an instant refund, it should reflect in your original payment method within a few hours.`,
+    ``,
+    `Sorry for any inconvenience, and thank you for your patience!`,
+    ``,
+    `— Team Zupr`,
+  ].join('\n');
+  return `https://wa.me/${e164}?text=${encodeURIComponent(message)}`;
+}
 const STATUS_VARIANT: Record<string, 'warning' | 'primary' | 'success' | 'error' | 'gray'> = {
   pending: 'warning', accepted: 'primary', packed: 'primary',
   picked_up: 'primary', out_for_delivery: 'primary', delivered: 'success', cancelled: 'error',
@@ -386,6 +405,17 @@ export default function AdminOrdersPage() {
                       style={{ backgroundColor: '#25D366' }}
                     >
                       💬 WhatsApp
+                    </a>
+                  )}
+                  {selected.status === 'refunded' && getRefundWhatsAppUrl(selected) && (
+                    <a
+                      href={getRefundWhatsAppUrl(selected)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-white text-xs font-medium"
+                      style={{ backgroundColor: '#25D366' }}
+                    >
+                      💬 Refund Message
                     </a>
                   )}
                 </div>
