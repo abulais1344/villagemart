@@ -103,7 +103,7 @@ function getRefundWhatsAppUrl(order: Order): string | null {
   const e164 = phone.startsWith('91') ? phone : `91${phone}`;
   const name = order.customer_name ?? 'Customer';
   const message = [
-    `Hi ${name}, this is from Zupr. 👋`,
+    `Hi ${name}, this is from Zupr!`,
     ``,
     `We wanted to let you know your order ${order.order_number} (₹${order.total_amount}) has been refunded.`,
     ``,
