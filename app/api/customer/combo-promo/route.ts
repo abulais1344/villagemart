@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
     .from('promo_combos')
     .select(`
       id,
+      label,
       required_product_ids,
       free_product:vm_products!free_product_id(
         id, name, selling_price, mrp, images, unit, merchant_id, category_id,

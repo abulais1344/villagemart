@@ -6,6 +6,7 @@ import type { Product } from '@/types';
 
 interface ComboRule {
   id: string;
+  label: string | null;
   required_product_ids: string[];
   free_product: Product;
 }
@@ -59,4 +60,6 @@ export function useComboPromo(merchantId: string | null) {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cartIdsKey, combos]);
+
+  return { combos };
 }

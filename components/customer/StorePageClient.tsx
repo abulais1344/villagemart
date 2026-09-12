@@ -73,7 +73,14 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
 
   useEffect(() => { setMounted(true); }, []);
   useSodaPromo(merchant.merchant_type ?? null, merchant.id);
-  useComboPromo(merchant.id);
+  const { combos } = useComboPromo(merchant.id);
+
+  const comboProductIds = new Set(combos.flatMap(c => c.required_product_ids));
+  const comboLabelByProductId: Record<string, string> = Object.fromEntries(
+    combos.flatMap(c =>
+      c.required_product_ids.map(id => [id, c.label ?? 'Combo Offer'])
+    )
+  );
 
   useEffect(() => {
     logEvent({
@@ -290,20 +297,29 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     const hasDiscount = product.mrp > product.selling_price;
     const showBestseller = bestsellerCount < 3 && isBestseller(product);
     if (showBestseller) bestsellerCount++;
+    const showCombo = comboProductIds.has(product.id);
 
     return (
       <div key={product.id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-100">
 
         {/* Left */}
         <div className="flex-1 min-w-0">
-          {/* Row 1: veg dot + bestseller badge */}
-          <div className="flex items-center gap-2 mb-1">
+          {/* Row 1: veg dot + badges */}
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <div className={`w-4 h-4 border-2 rounded-sm flex items-center justify-center shrink-0 ${nonVeg ? 'border-red-500' : 'border-green-600'}`}>
               <div className={`w-2 h-2 rounded-full ${nonVeg ? 'bg-red-500' : 'bg-green-600'}`} />
             </div>
             {showBestseller && (
               <span className="text-[10px] font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
                 🔥 Bestseller
+              </span>
+            )}
+            {showCombo && (
+              <span
+                title={comboLabelByProductId[product.id]}
+                className="text-[10px] font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full"
+              >
+                🎁 {comboLabelByProductId[product.id]}
               </span>
             )}
           </div>
