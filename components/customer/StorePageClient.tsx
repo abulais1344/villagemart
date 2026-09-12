@@ -532,6 +532,35 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
         </div>
       )}
 
+      {/* ── Special Offers (combo promo) ── */}
+      {!merchant.coming_soon && comboProductIds.size > 0 && !searchQuery.trim() && (
+        <div className="bg-white pt-4 pb-3 border-b border-gray-100">
+          <div className="px-4 mb-3">
+            <h2 className="text-sm font-bold text-gray-900">🎁 Special Offers</h2>
+            {combos.map(c => (
+              <p key={c.id} className="text-xs text-primary-700 mt-0.5">
+                {c.label ?? 'Combo Offer'} — Buy together, get {c.free_product.name} free!
+              </p>
+            ))}
+          </div>
+          <div className="flex gap-3 overflow-x-auto px-4" style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
+            {products.filter(p => comboProductIds.has(p.id)).map(product => (
+              <button
+                key={product.id}
+                onClick={() => product.images?.[0] ? setSelectedImage(product) : scrollToSection(product.description?.trim() ?? '')}
+                className="flex-shrink-0 flex flex-col gap-1 text-left cursor-pointer"
+              >
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
+                  <ProductImage images={product.images} categorySlug={product.category?.slug} alt={product.name} width={80} height={80} />
+                </div>
+                <p className="text-xs text-gray-800 font-medium w-20 line-clamp-2 leading-tight">{product.name}</p>
+                <p className="text-xs font-bold text-gray-900">{formatCurrency(product.selling_price)}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── Popular Items ── */}
       {!merchant.coming_soon && popularItems.length > 0 && !searchQuery.trim() && (
         <div className="bg-white pt-4 pb-3 border-b border-gray-100">
