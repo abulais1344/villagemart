@@ -545,17 +545,38 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
           </div>
           <div className="flex gap-3 overflow-x-auto px-4" style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
             {products.filter(p => comboProductIds.has(p.id)).map(product => (
-              <button
-                key={product.id}
-                onClick={() => product.images?.[0] ? setSelectedImage(product) : scrollToSection(product.description?.trim() ?? '')}
-                className="flex-shrink-0 flex flex-col gap-1 text-left cursor-pointer"
-              >
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100">
+              <div key={product.id} className="flex-shrink-0 flex flex-col gap-1">
+                {/* Image — tap opens viewer or scrolls to section */}
+                <div
+                  onClick={() => product.images?.[0] ? setSelectedImage(product) : scrollToSection(product.description?.trim() ?? '')}
+                  className={`relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100 ${product.images?.[0] ? 'cursor-pointer active:opacity-80' : ''}`}
+                >
                   <ProductImage images={product.images} categorySlug={product.category?.slug} alt={product.name} width={80} height={80} />
+                  {mounted && getQty(product.id) > 0 && (
+                    <span className="absolute top-1 right-1 bg-purple-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none">
+                      {getQty(product.id)}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-gray-800 font-medium w-20 line-clamp-2 leading-tight">{product.name}</p>
-                <p className="text-xs font-bold text-gray-900">{formatCurrency(product.selling_price)}</p>
-              </button>
+                <div className="flex items-center justify-between w-20">
+                  <p className="text-xs font-bold text-gray-900">{formatCurrency(product.selling_price)}</p>
+                  {mounted && (
+                    <button
+                      onClick={() => {
+                        if (!isOpen) {
+                          toast.error(`${merchant.store_name} is currently closed.`);
+                          return;
+                        }
+                        handleAddItem(product);
+                      }}
+                      className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center shrink-0 hover:bg-purple-700"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </div>
