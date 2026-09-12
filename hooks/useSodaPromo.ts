@@ -94,10 +94,12 @@ export function useSodaPromo(merchantType: string | null | undefined, merchantId
     });
 
     if (!confirmed && !applicable) {
-      // Never confirmed eligible for this merchant and currently ineligible —
-      // remove any stale promo and stop.
-      if (hasPromoItem) {
-        console.log('[useSodaPromo] not applicable, no prior eligibility — removing promo');
+      // Only remove if OUR soda product is the item in the promo slot.
+      // Do not stomp on a combo promo item added by useComboPromo.
+      const ourItemIsInCart = config.promoProduct != null &&
+        items.some(i => i.product.is_promo_item && i.product.id === config.promoProduct!.id);
+      if (ourItemIsInCart) {
+        console.log('[useSodaPromo] not applicable, no prior eligibility — removing soda promo');
         setPromoItem(null, 0);
       }
       return;
