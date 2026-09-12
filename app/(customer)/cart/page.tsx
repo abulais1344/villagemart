@@ -15,6 +15,7 @@ import { AddressManager } from '@/components/customer/AddressManager';
 import { PulseHint } from '@/components/customer/PulseHint';
 import { useFirstVisit } from '@/hooks/useFirstVisit';
 import { useSodaPromo } from '@/hooks/useSodaPromo';
+import { useComboPromo } from '@/hooks/useComboPromo';
 
 const LocationPickerModal = dynamic(
   () => import('@/components/customer/LocationPickerModal'),
@@ -126,6 +127,7 @@ export default function CartPage() {
   }
 
   useSodaPromo(merchantType, merchantId);
+  useComboPromo(merchantId);
 
   if (!mounted) return null;
 

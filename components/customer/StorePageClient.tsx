@@ -16,6 +16,7 @@ import { PWAInstallBanner } from './PWAInstallBanner';
 import { logEvent } from '@/lib/events';
 import { firebaseAuth } from '@/lib/firebase/client';
 import { useSodaPromo } from '@/hooks/useSodaPromo';
+import { useComboPromo } from '@/hooks/useComboPromo';
 
 function isNonVeg(product: Product): boolean {
   return product.is_veg === false;
@@ -72,6 +73,7 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
 
   useEffect(() => { setMounted(true); }, []);
   useSodaPromo(merchant.merchant_type ?? null, merchant.id);
+  useComboPromo(merchant.id);
 
   useEffect(() => {
     logEvent({

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Users, Store, Package, ClipboardList,
-  Tag, Percent, Truck, BarChart2, Gift, LogOut, Bike, Archive, Activity, Bell, TrendingUp, ShieldCheck, Star
+  Tag, Percent, Truck, BarChart2, Gift, LogOut, Bike, Archive, Activity, Bell, TrendingUp, ShieldCheck, Star, Layers
 } from 'lucide-react';
 
 const NAV = [
@@ -18,6 +18,7 @@ const NAV = [
   { href: '/admin/ratings', icon: Star, label: 'Ratings' },
   { href: '/admin/categories', icon: Tag, label: 'Categories' },
   { href: '/admin/offers', icon: Gift, label: 'Offers' },
+  { href: '/admin/combo-promos', icon: Layers, label: 'Combos' },
   { href: '/admin/commissions', icon: Percent, label: 'Commissions' },
   { href: '/admin/delivery-charges', icon: Truck, label: 'Delivery Charges' },
   { href: '/admin/analytics', icon: BarChart2, label: 'Analytics' },
