@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Search } from 'lucide-react';
+import { Plus, Trash2, Search, Pencil } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { AdminHeader } from '@/components/admin/AdminHeader';
 import { Button } from '@/components/ui/Button';
@@ -40,6 +40,7 @@ export default function AdminCombosPage() {
   const [combos, setCombos]       = useState<ComboRow[]>([]);
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm]   = useState(false);
+  const [editingCombo, setEditingCombo] = useState<ComboRow | null>(null);
   const [saving, setSaving]       = useState(false);
   const [form, setForm]           = useState(emptyForm);
   const [merchants, setMerchants] = useState<MerchantOption[]>([]);
@@ -99,32 +100,52 @@ export default function AdminCombosPage() {
       ));
   }, [form.merchant_id]);
 
+  const openEdit = (combo: ComboRow) => {
+    setEditingCombo(combo);
+    setForm({
+      merchant_id: combo.merchant_id,
+      label: combo.label ?? '',
+      required_product_ids: combo.required_product_ids,
+      free_product_id: combo.free_product_id,
+      starts_at: isoToDate(combo.starts_at),
+      ends_at: isoToDate(combo.ends_at),
+    });
+    setShowForm(true);
+  };
+
   const handleSave = async () => {
     if (!form.merchant_id) { toast.error('Select a merchant'); return; }
     if (form.required_product_ids.length < 1) { toast.error('Select at least one required product'); return; }
     if (!form.free_product_id) { toast.error('Select the free product'); return; }
 
     setSaving(true);
-    const res = await fetch('/api/admin/combo-promos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        merchant_id: form.merchant_id,
-        required_product_ids: form.required_product_ids,
-        free_product_id: form.free_product_id,
-        label: form.label || null,
-        starts_at: dateToISO(form.starts_at),
-        ends_at: dateToISO(form.ends_at),
-      }),
-    });
+    const payload = {
+      required_product_ids: form.required_product_ids,
+      free_product_id: form.free_product_id,
+      label: form.label || null,
+      starts_at: dateToISO(form.starts_at),
+      ends_at: dateToISO(form.ends_at),
+    };
+    const res = editingCombo
+      ? await fetch(`/api/admin/combo-promos/${editingCombo.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      : await fetch('/api/admin/combo-promos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ merchant_id: form.merchant_id, ...payload }),
+        });
     setSaving(false);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      toast.error(body.error ?? 'Failed to save combo');
+      toast.error(body.error ?? (editingCombo ? 'Failed to update combo' : 'Failed to save combo'));
       return;
     }
-    toast.success('Combo promo added');
+    toast.success(editingCombo ? 'Combo updated' : 'Combo promo added');
     setShowForm(false);
+    setEditingCombo(null);
     setForm(emptyForm);
     setProducts([]);
     setProductSearch('');
@@ -165,6 +186,7 @@ export default function AdminCombosPage() {
 
   const closeForm = () => {
     setShowForm(false);
+    setEditingCombo(null);
     setForm(emptyForm);
     setProducts([]);
     setProductSearch('');
@@ -218,6 +240,9 @@ export default function AdminCombosPage() {
                     >
                       {c.is_active ? 'Active' : 'Off'}
                     </button>
+                    <button onClick={() => openEdit(c)} className="text-[#6B7280] hover:text-primary-600">
+                      <Pencil className="w-4 h-4" />
+                    </button>
                     <button onClick={() => deleteCombo(c.id)} className="text-error">
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -229,7 +254,7 @@ export default function AdminCombosPage() {
         )}
       </main>
 
-      <Modal open={showForm} onClose={closeForm} title="Add Combo Promo">
+      <Modal open={showForm} onClose={closeForm} title={editingCombo ? 'Edit Combo Promo' : 'Add Combo Promo'}>
         <div className="space-y-4">
           {/* Merchant picker */}
           <div>
@@ -237,7 +262,8 @@ export default function AdminCombosPage() {
             <select
               value={form.merchant_id}
               onChange={e => setForm(f => ({ ...f, merchant_id: e.target.value, required_product_ids: [], free_product_id: '' }))}
-              className="w-full rounded-xl border border-[#E5E7EB] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              disabled={!!editingCombo}
+              className={`w-full rounded-xl border border-[#E5E7EB] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${editingCombo ? 'opacity-60 cursor-not-allowed bg-gray-50' : ''}`}
             >
               <option value="">Select merchant…</option>
               {merchants.map(m => <option key={m.id} value={m.id}>{m.store_name}</option>)}
@@ -334,7 +360,7 @@ export default function AdminCombosPage() {
           </div>
           <p className="text-xs text-gray-400">Leave dates blank for a permanently active combo.</p>
 
-          <Button fullWidth loading={saving} onClick={handleSave}>Add Combo Promo</Button>
+          <Button fullWidth loading={saving} onClick={handleSave}>{editingCombo ? 'Save Changes' : 'Add Combo Promo'}</Button>
         </div>
       </Modal>
     </>
