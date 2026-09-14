@@ -19,15 +19,25 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid items' }, { status: 400 });
     }
 
-    // Fetch product prices, soda promo settings, and merchant in parallel — never trust client prices
+    // Fetch product prices, soda promo settings, combo promos, and merchant in parallel — never trust client prices
     const productIds = (items as Array<{ id: string; quantity: number }>).map(i => i.id);
+    const now = new Date().toISOString();
     const merchantFetch = merchantId
       ? supabase.from('merchants').select('opening_time, closing_time, is_open, admin_override, merchant_type').eq('id', merchantId).single()
       : Promise.resolve({ data: null as null, error: null });
-    const [productsRes, sodaRes, merchantRes] = await Promise.all([
+    const combosFetch = merchantId
+      ? supabase.from('promo_combos')
+          .select('required_product_ids, free_product_id')
+          .eq('merchant_id', merchantId)
+          .eq('is_active', true)
+          .or(`starts_at.is.null,starts_at.lte.${now}`)
+          .or(`ends_at.is.null,ends_at.gt.${now}`)
+      : Promise.resolve({ data: [] as Array<{ required_product_ids: string[]; free_product_id: string }> });
+    const [productsRes, sodaRes, merchantRes, combosRes] = await Promise.all([
       supabase.from('vm_products').select('id, selling_price, is_promo_item, merchant_id').in('id', productIds),
       supabase.from('admin_settings').select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at, iday_soda_is_active').eq('id', 1).single(),
       merchantFetch,
+      combosFetch,
     ]);
     const { data: products, error: productError } = productsRes;
     const sodaSettings = sodaRes.data;
@@ -76,7 +86,6 @@ export async function POST(request: NextRequest) {
     const sodaApplies = (merchantType === 'restaurant' || merchantType === 'bakery') && !!sodaSettings && sodaSettings.iday_soda_is_active !== false;
     let earnedPromoQty = 0;
     if (sodaApplies) {
-      const now = new Date().toISOString();
       const s = sodaSettings!;
       const promoActive =
         (!s.iday_soda_starts_at || s.iday_soda_starts_at <= now) &&
@@ -92,6 +101,22 @@ export async function POST(request: NextRequest) {
         for (const tier of sortedTiers) {
           if (eligibleSubtotal >= tier.threshold) { earnedPromoQty = tier.qty; break; }
         }
+      }
+    }
+
+    // Combo promo: if soda didn't earn anything, check for a matching combo rule.
+    // Dynamically adds the free product to promoSet so the pricing loop below prices it at ₹0.
+    // Three guards mirror createOrderFromPayment.ts: earnedPromoQty===0, all required products
+    // present in submitted items, and free product present in submitted items with a known price.
+    if (earnedPromoQty === 0 && merchantId) {
+      const activeCombos = (combosRes.data ?? []) as Array<{ required_product_ids: string[]; free_product_id: string }>;
+      const submittedIds = new Set((items as Array<{ id: string; quantity: number }>).map(i => i.id));
+      const matchedCombo = activeCombos.find(c =>
+        c.required_product_ids.every(id => submittedIds.has(id))
+      );
+      if (matchedCombo && submittedIds.has(matchedCombo.free_product_id) && matchedCombo.free_product_id in priceMap) {
+        promoSet.add(matchedCombo.free_product_id);
+        earnedPromoQty = 1;
       }
     }
 
