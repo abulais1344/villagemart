@@ -16,6 +16,7 @@ import { PWAInstallBanner } from './PWAInstallBanner';
 import { logEvent } from '@/lib/events';
 import { firebaseAuth } from '@/lib/firebase/client';
 import { useSodaPromo } from '@/hooks/useSodaPromo';
+import { useComboPromo } from '@/hooks/useComboPromo';
 
 function isNonVeg(product: Product): boolean {
   return product.is_veg === false;
@@ -72,6 +73,14 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
 
   useEffect(() => { setMounted(true); }, []);
   useSodaPromo(merchant.merchant_type ?? null, merchant.id);
+  const { combos } = useComboPromo(merchant.id);
+
+  const comboProductIds = new Set(combos.flatMap(c => c.required_product_ids));
+  const comboLabelByProductId: Record<string, string> = Object.fromEntries(
+    combos.flatMap(c =>
+      c.required_product_ids.map(id => [id, c.label ?? 'Combo Offer'])
+    )
+  );
 
   useEffect(() => {
     logEvent({
@@ -288,20 +297,29 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
     const hasDiscount = product.mrp > product.selling_price;
     const showBestseller = bestsellerCount < 3 && isBestseller(product);
     if (showBestseller) bestsellerCount++;
+    const showCombo = comboProductIds.has(product.id);
 
     return (
       <div key={product.id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-100">
 
         {/* Left */}
         <div className="flex-1 min-w-0">
-          {/* Row 1: veg dot + bestseller badge */}
-          <div className="flex items-center gap-2 mb-1">
+          {/* Row 1: veg dot + badges */}
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <div className={`w-4 h-4 border-2 rounded-sm flex items-center justify-center shrink-0 ${nonVeg ? 'border-red-500' : 'border-green-600'}`}>
               <div className={`w-2 h-2 rounded-full ${nonVeg ? 'bg-red-500' : 'bg-green-600'}`} />
             </div>
             {showBestseller && (
               <span className="text-[10px] font-semibold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">
                 🔥 Bestseller
+              </span>
+            )}
+            {showCombo && (
+              <span
+                title={comboLabelByProductId[product.id]}
+                className="text-[10px] font-semibold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full"
+              >
+                🎁 {comboLabelByProductId[product.id]}
               </span>
             )}
           </div>
@@ -511,6 +529,56 @@ export function StorePageClient({ merchant, products }: StorePageClientProps) {
               {f === 'all' ? 'All' : f === 'veg' ? '🟢 Veg Only' : '🔴 Non Veg'}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* ── Special Offers (combo promo) ── */}
+      {!merchant.coming_soon && comboProductIds.size > 0 && !searchQuery.trim() && (
+        <div className="bg-white pt-4 pb-3 border-b border-gray-100">
+          <div className="px-4 mb-3">
+            <h2 className="text-sm font-bold text-gray-900">🎁 Special Offers</h2>
+            {combos.map(c => (
+              <p key={c.id} className="text-xs text-primary-700 mt-0.5">
+                {c.label ?? 'Combo Offer'} — Buy together, get {c.free_product.name} free!
+              </p>
+            ))}
+          </div>
+          <div className="flex gap-3 overflow-x-auto px-4" style={{ scrollbarWidth: 'none' } as React.CSSProperties}>
+            {products.filter(p => comboProductIds.has(p.id)).map(product => (
+              <div key={product.id} className="flex-shrink-0 flex flex-col gap-1">
+                {/* Image — tap opens viewer or scrolls to section */}
+                <div
+                  onClick={() => product.images?.[0] ? setSelectedImage(product) : scrollToSection(product.description?.trim() ?? '')}
+                  className={`relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100 ${product.images?.[0] ? 'cursor-pointer active:opacity-80' : ''}`}
+                >
+                  <ProductImage images={product.images} categorySlug={product.category?.slug} alt={product.name} width={80} height={80} />
+                  {mounted && getQty(product.id) > 0 && (
+                    <span className="absolute top-1 right-1 bg-purple-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center leading-none">
+                      {getQty(product.id)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-800 font-medium w-20 line-clamp-2 leading-tight">{product.name}</p>
+                <div className="flex items-center justify-between w-20">
+                  <p className="text-xs font-bold text-gray-900">{formatCurrency(product.selling_price)}</p>
+                  {mounted && (
+                    <button
+                      onClick={() => {
+                        if (!isOpen) {
+                          toast.error(`${merchant.store_name} is currently closed.`);
+                          return;
+                        }
+                        handleAddItem(product);
+                      }}
+                      className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center shrink-0 hover:bg-purple-700"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

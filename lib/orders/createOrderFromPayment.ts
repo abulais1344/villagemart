@@ -68,10 +68,20 @@ export async function createOrderFromPayment(
   const merchantTypeFetch = data.merchantId
     ? supabase.from('merchants').select('merchant_type').eq('id', data.merchantId).single()
     : Promise.resolve({ data: null as null });
-  const [productsRes, sodaRes, merchantTypeRes] = await Promise.all([
+  const now = new Date().toISOString();
+  const combosFetch = data.merchantId
+    ? supabase.from('promo_combos')
+        .select('required_product_ids, free_product_id')
+        .eq('merchant_id', data.merchantId)
+        .eq('is_active', true)
+        .or(`starts_at.is.null,starts_at.lte.${now}`)
+        .or(`ends_at.is.null,ends_at.gt.${now}`)
+    : Promise.resolve({ data: [] as Array<{ required_product_ids: string[]; free_product_id: string }> });
+  const [productsRes, sodaRes, merchantTypeRes, combosRes] = await Promise.all([
     supabase.from('vm_products').select('id, selling_price, name, is_promo_item, merchant_id').in('id', itemIds),
     supabase.from('admin_settings').select('iday_soda_threshold_1, iday_soda_qty_1, iday_soda_threshold_2, iday_soda_qty_2, iday_soda_starts_at, iday_soda_ends_at, iday_soda_is_active').eq('id', 1).single(),
     merchantTypeFetch,
+    combosFetch,
   ]);
   const { data: dbProducts, error: productsError } = productsRes;
   const sodaSettings = sodaRes.data;
@@ -105,6 +115,22 @@ export async function createOrderFromPayment(
       for (const tier of sortedTiers) {
         if (eligibleSubtotal >= tier.threshold) { earnedPromoQty = tier.qty; break; }
       }
+    }
+  }
+
+  // Combo promo: if soda didn't earn anything, check for a matching combo rule.
+  // Dynamically adds the free product to promoSet so the pricing loop prices it at ₹0.
+  // The free product doesn't need is_promo_item=true in the DB — server adds it here only
+  // when the combo condition is genuinely met AND the item is present in the submitted cart.
+  if (earnedPromoQty === 0 && data.merchantId) {
+    const activeCombos = (combosRes.data ?? []) as Array<{ required_product_ids: string[]; free_product_id: string }>;
+    const submittedIds = new Set(data.items.map(i => i.id));
+    const matchedCombo = activeCombos.find(c =>
+      c.required_product_ids.every(id => submittedIds.has(id))
+    );
+    if (matchedCombo && submittedIds.has(matchedCombo.free_product_id) && matchedCombo.free_product_id in dbPriceMap) {
+      promoSet.add(matchedCombo.free_product_id);
+      earnedPromoQty = 1;
     }
   }
 
