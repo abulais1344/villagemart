@@ -140,7 +140,7 @@ export default function AdminMerchantsPage() {
                   <span>📞 {merchant.phone || '—'}</span>
                   <span>⏱ {merchant.avg_delivery_time ?? 30} min</span>
                   <span>Min ₹{merchant.min_order_amount ?? 50}</span>
-                  <span>Commission {merchant.commission_rate ?? 10}%</span>
+                  <span>Commission {merchant.effective_commission_rate ?? merchant.commission_rate ?? 10}% ({merchant.commission_tier === 'merchant' ? 'custom' : merchant.commission_tier === 'global' ? 'global' : 'legacy'})</span>
                 </div>
 
                 {/* Merchant status + admin override */}

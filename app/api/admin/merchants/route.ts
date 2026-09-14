@@ -12,13 +12,24 @@ export async function GET(req: NextRequest) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
 
-  const { data, error } = await supabase
-    .from('merchants')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const [merchantsRes, commissionsRes] = await Promise.all([
+    supabase.from('merchants').select('*').order('created_at', { ascending: false }),
+    supabase.from('commissions').select('type, reference_id, rate').eq('is_active', true),
+  ]);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ merchants: data ?? [] });
+  if (merchantsRes.error) return NextResponse.json({ error: merchantsRes.error.message }, { status: 500 });
+
+  const commissions = (commissionsRes.data ?? []) as Array<{ type: string; reference_id: string | null; rate: number }>;
+  const globalRule = commissions.find(c => c.type === 'global');
+
+  const merchants = (merchantsRes.data ?? []).map(m => {
+    const merchantRule = commissions.find(c => c.type === 'merchant' && c.reference_id === m.id);
+    const effective_commission_rate = merchantRule?.rate ?? globalRule?.rate ?? m.commission_rate ?? 10;
+    const commission_tier: 'merchant' | 'global' | 'fallback' = merchantRule ? 'merchant' : globalRule ? 'global' : 'fallback';
+    return { ...m, effective_commission_rate, commission_tier };
+  });
+
+  return NextResponse.json({ merchants });
 }
 
 export async function POST(request: NextRequest) {
